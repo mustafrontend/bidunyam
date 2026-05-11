@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { apiClient } from "@/lib/api";
 import { useCartStore } from "@/stores/cartStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useFavoriteStore } from "@/stores/favoriteStore";
+import { useUiStore } from "@/stores/uiStore";
 
 interface Product {
   _id: string;
@@ -53,45 +56,29 @@ function Stars({ rating }: { rating: number }) {
 /* ─── Product Card ──────────────────────────────────────────── */
 function ProductCard({ product, badge }: { product: Product; badge?: "hot" | "new" | "sale" }) {
   const addToCart = useCartStore((s) => s.addItem);
+  const token = useAuthStore((s) => s.token);
+  const toggleFavoriteInStore = useFavoriteStore((s) => s.toggleFavorite);
+  const isFavorite = useFavoriteStore((s) => s.isFavorite(product._id));
+  const setLoginModalOpen = useUiStore((s) => s.setLoginModalOpen);
   const [added, setAdded] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("bdm-favorites");
-      if (!saved) {
-        setIsFavorite(false);
-        return;
-      }
-      const ids = JSON.parse(saved) as string[];
-      setIsFavorite(ids.includes(product._id));
-    } catch {
-      setIsFavorite(false);
-    }
-  }, [product._id]);
 
   const doAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addToCart({ productId: product._id, name: product.name, price: product.price, imageUrl: product.imageUrl, quantity: 1, sellerId: "" });
+    addToCart({ productId: product._id, name: product.name, price: product.price, imageUrl: product.imageUrl, quantity: 1, sellerId: "" }, token);
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   };
 
-  const toggleFavorite = (e: React.MouseEvent) => {
+  const toggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    try {
-      const saved = localStorage.getItem("bdm-favorites");
-      const ids = saved ? (JSON.parse(saved) as string[]) : [];
-      const next = ids.includes(product._id)
-        ? ids.filter((id) => id !== product._id)
-        : [...ids, product._id];
-      localStorage.setItem("bdm-favorites", JSON.stringify(next));
-      setIsFavorite(next.includes(product._id));
-    } catch {
-      setIsFavorite((prev) => !prev);
+    if (!token) {
+      setLoginModalOpen(true);
+      return;
     }
+
+    await toggleFavoriteInStore(product._id, token);
   };
 
   const hasDiscount = product.originalPrice > product.price;
@@ -262,6 +249,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("Tümü");
   const filterRef = useRef<HTMLElement>(null);
+  const token = useAuthStore((s) => s.token);
+  const fetchFavorites = useFavoriteStore((s) => s.fetchFavorites);
 
   useEffect(() => {
     apiClient
@@ -270,6 +259,12 @@ export default function Home() {
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (token) {
+      fetchFavorites(token);
+    }
+  }, [token, fetchFavorites]);
 
   const categories = useMemo(() => {
     const unique = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));

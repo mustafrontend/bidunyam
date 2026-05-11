@@ -36,6 +36,10 @@ const SellerLoginSchema = z.object({
   password: z.string().min(1),
 });
 
+const FavoriteParamsSchema = z.object({
+  productId: z.string().min(1, 'productId is required'),
+});
+
 // ─── Controller ────────────────────────────────────────────────
 export const AuthController = {
   async register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -102,6 +106,53 @@ export const AuthController = {
       }
       const seller = await AuthService.getSellerProfile(sellerId);
       res.status(200).json({ success: true, data: seller });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getFavorites(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+
+      const productIds = await AuthService.getFavorites(userId);
+      res.status(200).json({ success: true, data: { productIds } });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async addFavorite(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+
+      const { productId } = FavoriteParamsSchema.parse(req.params);
+      const productIds = await AuthService.addFavorite(userId, productId);
+      res.status(200).json({ success: true, message: 'Favorilere eklendi', data: { productIds } });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async removeFavorite(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+
+      const { productId } = FavoriteParamsSchema.parse(req.params);
+      const productIds = await AuthService.removeFavorite(userId, productId);
+      res.status(200).json({ success: true, message: 'Favorilerden kaldırıldı', data: { productIds } });
     } catch (err) {
       next(err);
     }

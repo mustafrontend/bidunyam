@@ -4,7 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { AuthController } from './controllers/auth.controller';
-import { authenticate } from './middlewares/auth.middleware';
+import { authenticate, requireCustomer } from './middlewares/auth.middleware';
 import { errorHandler } from './middlewares/error.middleware';
 import { prisma } from './repositories/prisma.client';
 import { AuthService } from './services/auth.service';
@@ -34,6 +34,11 @@ app.get('/profile', authenticate, AuthController.profile);
 app.post('/seller/register', AuthController.sellerRegister);
 app.post('/seller/login', AuthController.sellerLogin);
 app.get('/seller/profile', authenticate, AuthController.sellerProfile);
+
+// Favoriler (müşteri)
+app.get('/favorites', authenticate, requireCustomer, AuthController.getFavorites);
+app.post('/favorites/:productId', authenticate, requireCustomer, AuthController.addFavorite);
+app.delete('/favorites/:productId', authenticate, requireCustomer, AuthController.removeFavorite);
 
 // ─── Error Handler ─────────────────────────────────────────────
 app.use(errorHandler);

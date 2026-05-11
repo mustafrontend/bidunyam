@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
+import { useFavoriteStore } from '@/stores/favoriteStore';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [error, setError] = useState<string | null>(null);
   
   const setAuth = useAuthStore((state) => state.setAuth);
+  const fetchFavorites = useFavoriteStore((state) => state.fetchFavorites);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +33,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       
       // 🛒 Sync cart from Redis
       await useCartStore.getState().fetchCart(res.data.data.token);
+      await fetchFavorites(res.data.data.token);
       
       onClose();
     } catch (err: any) {
@@ -49,13 +52,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100]"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-100"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-[101] overflow-hidden"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-101 overflow-hidden"
           >
             <div className="p-6 md:p-8">
               <div className="flex items-center justify-between mb-8">

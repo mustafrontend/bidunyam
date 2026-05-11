@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { UserRepository } from '../repositories/user.repository';
 import { SellerRepository, CreateSellerInput } from '../repositories/seller.repository';
 import { publishEvent, getRedisClient } from '../repositories/redis.client';
+import { prisma } from '../repositories/prisma.client';
 import { AccountType } from '@prisma/client';
 
 const SALT_ROUNDS = 12;
@@ -215,5 +216,32 @@ export const AuthService = {
       throw err;
     }
     return seller;
+  },
+
+  async getFavorites(userId: string) {
+    const favorites = await prisma.favorite.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return favorites.map((item) => item.productId);
+  },
+
+  async addFavorite(userId: string, productId: string) {
+    await prisma.favorite.upsert({
+      where: { userId_productId: { userId, productId } },
+      create: { userId, productId },
+      update: {},
+    });
+
+    return this.getFavorites(userId);
+  },
+
+  async removeFavorite(userId: string, productId: string) {
+    await prisma.favorite.deleteMany({
+      where: { userId, productId },
+    });
+
+    return this.getFavorites(userId);
   },
 };

@@ -39,3 +39,21 @@ export const authenticate = (
     res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
 };
+
+export const requireCustomer = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({ success: false, message: 'Unauthorized' });
+    return;
+  }
+
+  if (req.user.role !== 'CUSTOMER') {
+    res.status(403).json({ success: false, message: 'Only customers can use favorites' });
+    return;
+  }
+
+  next();
+};

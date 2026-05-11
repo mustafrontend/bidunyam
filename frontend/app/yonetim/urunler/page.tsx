@@ -409,8 +409,45 @@ export default function UrunlerPage() {
       setError("Fotoğraf boyutu cok buyuk. Daha dusuk cozunurlukte gorsel yukleyin.");
       return;
     }
-    if (!form.name || !form.barcode || !form.modelCode || !form.sku || !form.categoryMain || !form.categorySub || !form.brand) {
-      setError("Ürün adı, barkod, model kodu, SKU, kategori, alt kategori ve marka zorunlu.");
+    // Validate required fields and their minimum lengths
+    if (!form.name || form.name.trim().length < 3) {
+      setError("Ürün adı en az 3 karakter olmalı.");
+      return;
+    }
+    if (!form.barcode || form.barcode.trim().length < 8) {
+      setError("Barkod en az 8 karakter olmalı.");
+      return;
+    }
+    if (!form.modelCode || form.modelCode.trim().length < 1) {
+      setError("Model kodu zorunlu.");
+      return;
+    }
+    if (!form.sku || form.sku.trim().length < 1) {
+      setError("SKU zorunlu.");
+      return;
+    }
+    if (!form.categoryMain || !form.categorySub) {
+      setError("Kategori ve alt kategori zorunlu.");
+      return;
+    }
+    if (!form.brand) {
+      setError("Marka zorunlu.");
+      return;
+    }
+    if (!form.description || form.description.trim().length < 5) {
+      setError("Ürün açıklaması en az 5 karakter olmalı.");
+      return;
+    }
+    if (!form.price || Number(form.price) <= 0) {
+      setError("Satış fiyatı 0'dan büyük olmalı.");
+      return;
+    }
+    if (!form.originalPrice || Number(form.originalPrice) <= 0) {
+      setError("Normal fiyat 0'dan büyük olmalı.");
+      return;
+    }
+    if (!form.stock || Number(form.stock) < 0) {
+      setError("Stok sayısı en az 0 olmalı.");
       return;
     }
 

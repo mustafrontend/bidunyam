@@ -33,7 +33,7 @@ services:
       start_period: 30s
 
   mongo:
-    image: mongo:7
+    image: mongo:4.4
     container_name: trendyol_mongo
     restart: unless-stopped
     environment:
@@ -43,7 +43,7 @@ services:
     networks:
       - trendyol-net
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand({ ping: 1 }).ok\" | grep 1"]
+      test: ["CMD-SHELL", "mongo --quiet --eval \"db.adminCommand({ ping: 1 }).ok\" | grep 1"]
       interval: 10s
       timeout: 5s
       retries: 5

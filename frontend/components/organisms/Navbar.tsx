@@ -137,29 +137,78 @@ export const Navbar: React.FC = () => {
                 <div className="relative">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400 transition-colors"
+                    className="flex flex-col items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400 transition-colors"
                   >
-                    {user?.name}
+                    <span className="text-xs font-medium text-slate-500">Hesabım</span>
+                    <span className="font-bold text-slate-900">{user?.name}</span>
                   </button>
                   {isUserMenuOpen && (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
-                      <Link
-                        href="/favorites"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="block w-full px-4 py-2 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-                      >
-                        Favorilerim
-                      </Link>
-                      <button
-                        onClick={() => {
-                          logout();
-                          clearFavorites();
-                          setIsUserMenuOpen(false);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
-                      >
-                        Çıkış Yap
-                      </button>
+                    <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+                      {/* Header */}
+                      <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+                        <p className="text-sm font-bold text-slate-900">{user?.name}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{user?.email}</p>
+                      </div>
+
+                      {/* Menu Items */}
+                      <nav className="px-2 py-2 space-y-1">
+                        <Link
+                          href="/account/orders"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                        >
+                          <span>📦</span>
+                          Siparişlerim
+                        </Link>
+                        <Link
+                          href="/account/requests"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                        >
+                          <span>💬</span>
+                          Soru ve Taleplerim
+                        </Link>
+                        <Link
+                          href="/account/info"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                        >
+                          <span>👤</span>
+                          Kullanıcı Bilgilerim
+                        </Link>
+                        <Link
+                          href="/account/reviews"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                        >
+                          <span>⭐</span>
+                          Değerlendirmelerim
+                        </Link>
+                        <Link
+                          href="/favorites"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                        >
+                          <span>❤️</span>
+                          Beğendiklerim
+                        </Link>
+                      </nav>
+
+                      {/* Logout */}
+                      <div className="border-t border-slate-100 px-2 py-2">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            logout();
+                            clearFavorites();
+                            setIsUserMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <span>🚪</span>
+                          Çıkış Yap
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

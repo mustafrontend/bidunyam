@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 import { ProductController } from './controllers/product.controller';
 import { ProductService } from './services/product.service';
 import { ZodError } from 'zod';
+import xmlUploadRoutes from './routes/xmlUpload.routes';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3002;
@@ -29,6 +30,10 @@ app.get('/health', (_req, res) => {
 });
 
 // ─── Routes ────────────────────────────────────────────────────
+// XML Upload Routes
+app.use('/', xmlUploadRoutes);
+
+// Product CRUD Routes
 app.get('/meta/options', ProductController.getCatalogOptions);
 app.post('/meta/brand', ProductController.createBrandOption);
 app.post('/meta/category', ProductController.createCategoryOption);

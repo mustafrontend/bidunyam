@@ -9,8 +9,8 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Trendyol Demo | En İyi Alışveriş Deneyimi",
-  description: "Dockerized Node.js & React B2C Demo",
+  title: "Bidunyam | Türkiye'nin Yeni Pazarı",
+  description: "Kaliteli ürünler, uygun fiyatlar. Türkiye'nin en hızlı teslim ağı ile hizmetinizdeyiz.",
 };
 
 export default function RootLayout({

@@ -1,0 +1,235 @@
+version: "3.9"
+
+networks:
+  trendyol-net:
+    driver: bridge
+
+volumes:
+  pg-data:
+  mongo-data:
+  redis-data:
+
+services:
+  # ─────────────────────────────────────────────────────────────
+  # 🗄️  DATA LAYER
+  # ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: trendyol_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    networks:
+      - trendyol-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mongo:
+    image: mongo:4.4
+    container_name: trendyol_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - trendyol-net
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'db.runCommand({ ping: 1 }).ok' | mongo localhost:27017/test --quiet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: trendyol_redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - trendyol-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    container_name: trendyol_elastic
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    networks:
+      - trendyol-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'status.*green\\|status.*yellow'"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.1
+    container_name: trendyol_kibana
+    profiles:
+      - observability
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - trendyol-net
+
+  # ─────────────────────────────────────────────────────────────
+  # ⚙️  MICROSERVICES LAYER
+  # ─────────────────────────────────────────────────────────────
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: trendyol_auth
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      REDIS_URL: ${REDIS_URL}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - trendyol-net
+
+  product-service:
+    build:
+      context: ./services/product-service
+      dockerfile: Dockerfile
+    container_name: trendyol_products
+    restart: unless-stopped
+    environment:
+      MONGO_URI: mongodb://mongo:27017/${MONGO_INITDB_DATABASE}
+      NODE_ENV: production
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - trendyol-net
+
+  cart-service:
+    build:
+      context: ./services/cart-service
+      dockerfile: Dockerfile
+    container_name: trendyol_cart
+    restart: unless-stopped
+    environment:
+      - PORT=3004
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - trendyol-net
+
+  order-service:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: trendyol_orders
+    restart: unless-stopped
+    environment:
+      - PORT=3005
+      - MONGO_URI=mongodb://mongo:27017/trendyol_orders
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - trendyol-net
+
+  search-service:
+    build:
+      context: ./services/search-service
+      dockerfile: Dockerfile
+    container_name: trendyol_search
+    restart: unless-stopped
+    environment:
+      - PORT=3006
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - trendyol-net
+
+  log-service:
+    build:
+      context: ./services/log-service
+      dockerfile: Dockerfile
+    container_name: trendyol_logger
+    restart: unless-stopped
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      NODE_ENV: production
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - trendyol-net
+
+  # ─────────────────────────────────────────────────────────────
+  # 🚦  API GATEWAY
+  # ─────────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: trendyol_gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL}
+      CART_SERVICE_URL: http://cart-service:3004
+      FRONTEND_URL: ${FRONTEND_URL:-}
+      NODE_ENV: production
+    depends_on:
+      - auth-service
+      - product-service
+    networks:
+      - trendyol-net
+
+  # ─────────────────────────────────────────────────────────────
+  # 🖥️  FRONTEND
+  # ─────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: trendyol_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - gateway
+    networks:
+      - trendyol-net

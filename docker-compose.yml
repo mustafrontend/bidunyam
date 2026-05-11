@@ -196,26 +196,6 @@ services:
       - trendyol-net
 
   # ─────────────────────────────────────────────────────────────
-  # 🌐  REVERSE PROXY (Nginx)
-  # ─────────────────────────────────────────────────────────────
-  nginx:
-    image: nginx:alpine
-    container_name: trendyol_nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./deploy/nginx/bidunyam.com.conf:/etc/nginx/conf.d/default.conf:ro
-    environment:
-      - NODE_ENV=production
-    depends_on:
-      - frontend
-      - gateway
-    networks:
-      - trendyol-net
-
-  # ─────────────────────────────────────────────────────────────
   # 🚦  API GATEWAY
   # ─────────────────────────────────────────────────────────────
   gateway:

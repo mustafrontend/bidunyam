@@ -92,6 +92,25 @@ export const ProductService = {
     return product;
   },
 
+  async deleteProduct(id: string): Promise<void> {
+    const deleted = await ProductRepository.deleteById(id);
+    if (!deleted) {
+      const err = new Error('Product not found') as Error & { statusCode: number };
+      err.statusCode = 404;
+      throw err;
+    }
+  },
+
+  async getProductByIdAny(id: string) {
+    const product = await ProductRepository.findByIdAny(id);
+    if (!product) {
+      const err = new Error('Product not found') as Error & { statusCode: number };
+      err.statusCode = 404;
+      throw err;
+    }
+    return product;
+  },
+
   async getCatalogOptions() {
     return CatalogRepository.getOptions();
   },

@@ -246,10 +246,18 @@ export default function UrunlerPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 12;
+  const [duplicateTarget, setDuplicateTarget] = useState<Product | null>(null);
+  const [duplicateCount, setDuplicateCount] = useState("1");
+  const [duplicating, setDuplicating] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const fetchProducts = async () => {
     try {
-      const res = await apiClient.get("/products?limit=200");
+      const res = await apiClient.get("/products?limit=500&includeAll=true");
       const nextProducts: Product[] = res.data?.data?.products || [];
       setProducts(nextProducts);
 
@@ -266,8 +274,9 @@ export default function UrunlerPage() {
         setCategoryTree(buildCategoryTree(nextProducts));
         setBrandOptions(getUniqueValues(nextProducts, (product) => product.brand));
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("Ürünleri yüklerken hata oluştu:", err?.response?.data || err?.message || err);
+      setError(`Ürünler yüklenemedi: ${err?.response?.data?.message || err?.message || "Bilinmeyen hata"}`);
     } finally {
       setLoading(false);
     }
@@ -306,6 +315,99 @@ export default function UrunlerPage() {
     setCategorySubDraft("");
     setBrandDraft("");
     setError(null);
+    setEditingProduct(null);
+  };
+
+  const openEditForm = async (product: Product) => {
+    try {
+      let p: any = product;
+      try {
+        const res = await apiClient.get(`/products/admin/${product._id}`);
+        p = res.data?.data || product;
+      } catch {
+        // fallback to local product data if admin endpoint not reachable yet
+        p = product;
+      }
+      const { main, sub } = splitCategoryPath(p.categoryPath || p.category);
+      setForm({
+        barcode: p.barcode || "",
+        modelCode: p.modelCode || "",
+        sku: p.sku || "",
+        name: p.name || "",
+        categoryMain: main,
+        categorySub: sub,
+        brand: p.brand || "",
+        originalPrice: String(p.originalPrice ?? ""),
+        price: String(p.price ?? ""),
+        vatRate: (String(p.vatRate ?? "20") as FormState["vatRate"]) || "20",
+        purchasePrice: String(p.purchasePrice ?? "0"),
+        stock: String(p.stock ?? ""),
+        shortDescription: p.shortDescription || "",
+        description: p.description || "",
+        bulletPoints: Array.isArray(p.bulletPoints) ? p.bulletPoints.join("\n") : "",
+        desi: String(p.desi ?? "0"),
+        preparationDays: String(p.preparationDays ?? "1"),
+        shippingType: (p.shippingType as FormState["shippingType"]) || "MARKETPLACE_LOGISTICS",
+        saleStatus: p.isActive ? "ACTIVE" : "PASSIVE",
+        approvalStatus: (p.approvalStatus as FormState["approvalStatus"]) || "PENDING",
+      });
+      const slots = Array.from({ length: 5 }, (_, i) => (p.imageUrls?.[i] || (i === 0 ? p.imageUrl : "")) || "");
+      setImageSlots(slots);
+      setVariantGroups(
+        Array.isArray(p.variants) && p.variants.length > 0
+          ? p.variants.map((g: any) => ({
+              name: g.name,
+              type: g.type,
+              valuesText: (g.values || []).map((v: any) => `${v.label}|${v.price}|${v.stock}`).join("\n"),
+            }))
+          : DEFAULT_VARIANTS
+      );
+      setExtraServices(
+        Array.isArray(p.extraServices) && p.extraServices.length > 0
+          ? p.extraServices.map((s: any) => ({ name: s.name, price: String(s.price), description: s.description }))
+          : DEFAULT_EXTRA_SERVICES
+      );
+      setEditingProduct(product);
+      setShowForm(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err: any) {
+      setError("Ürün bilgileri yüklenemedi.");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await apiClient.delete(`/products/${deleteTarget._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDeleteTarget(null);
+      await fetchProducts();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Silme sırasında hata oluştu.");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleToggleActive = async (product: Product) => {
+    if (togglingId) return;
+    setTogglingId(product._id);
+    try {
+      const newStatus = product.isActive ? "PASSIVE" : "ACTIVE";
+      await apiClient.patch(`/products/${product._id}`, { saleStatus: newStatus }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setProducts((prev) =>
+        prev.map((p) => p._id === product._id ? { ...p, isActive: !p.isActive } : p)
+      );
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Durum güncellenemedi.");
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   const addCategoryMain = async () => {
@@ -391,6 +493,58 @@ export default function UrunlerPage() {
     if (!file) return;
     const dataUrl = await compressImageToDataUrl(file);
     setImageSlots((prev) => prev.map((item, i) => (i === index ? dataUrl : item)));
+  };
+
+  const handleDuplicate = async () => {
+    if (!duplicateTarget) return;
+    const count = parseInt(duplicateCount, 10);
+    if (!count || count < 1 || count > 50) {
+      setDuplicateError("1 ile 50 arasında bir sayı girin.");
+      return;
+    }
+    setDuplicating(true);
+    setDuplicateError(null);
+    try {
+      for (let i = 1; i <= count; i++) {
+        const suffix = `-K${i}`;
+        const payload = {
+          barcode: (duplicateTarget.barcode || "00000000") + suffix,
+          modelCode: (duplicateTarget.modelCode || "MODEL") + suffix,
+          sku: (duplicateTarget.sku || "SKU") + suffix,
+          name: duplicateTarget.name + ` (Kopya ${i})`,
+          categoryPath: duplicateTarget.categoryPath || duplicateTarget.category,
+          brand: duplicateTarget.brand,
+          category: duplicateTarget.category,
+          originalPrice: duplicateTarget.originalPrice,
+          price: duplicateTarget.price,
+          purchasePrice: 0,
+          vatRate: 20,
+          stock: duplicateTarget.stock,
+          imageUrls: (duplicateTarget.imageUrls?.filter(Boolean) ?? [duplicateTarget.imageUrl]).filter(Boolean).slice(0, 5),
+          imageUrl: duplicateTarget.imageUrl,
+          description: duplicateTarget.name + " - kopya ürün",
+          shortDescription: "",
+          bulletPoints: [],
+          desi: 0,
+          preparationDays: 1,
+          shippingType: "MARKETPLACE_LOGISTICS",
+          saleStatus: "ACTIVE",
+          approvalStatus: "PENDING",
+          variants: [],
+          extraServices: [],
+        };
+        await apiClient.post("/products", payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+      setDuplicateTarget(null);
+      setDuplicateCount("1");
+      await fetchProducts();
+    } catch (err: any) {
+      setDuplicateError(err?.response?.data?.message || "Çoğaltma sırasında hata oluştu.");
+    } finally {
+      setDuplicating(false);
+    }
   };
 
   const handleSave = async () => {
@@ -480,9 +634,15 @@ export default function UrunlerPage() {
         extraServices: services,
       };
 
-      await apiClient.post("/products", payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      if (editingProduct) {
+        await apiClient.patch(`/products/${editingProduct._id}`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        await apiClient.post("/products", payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
 
       resetForm();
       setShowForm(false);
@@ -497,6 +657,75 @@ export default function UrunlerPage() {
 
   return (
     <div className="space-y-6">
+      {/* Duplicate Modal */}
+      {duplicateTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <h3 className="mb-1 text-base font-black text-slate-800">Ürün Çoğalt</h3>
+            <p className="mb-4 text-sm text-slate-500 line-clamp-1">{duplicateTarget.name}</p>
+            <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Kaç kopya oluşturulsun?</label>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={duplicateCount}
+              onChange={(e) => setDuplicateCount(e.target.value)}
+              className="mb-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#ff6000]"
+              autoFocus
+            />
+            <p className="mb-4 text-[11px] text-slate-400">Maksimum 50 kopya oluşturabilirsiniz.</p>
+            {duplicateError && (
+              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{duplicateError}</div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={handleDuplicate}
+                disabled={duplicating}
+                className="flex-1 rounded-lg bg-[#ff6000] py-2 text-sm font-black text-white disabled:opacity-60"
+              >
+                {duplicating ? "Çoğaltılıyor..." : `${duplicateCount} Kopya Oluştur`}
+              </button>
+              <button
+                onClick={() => { setDuplicateTarget(null); setDuplicateCount("1"); setDuplicateError(null); }}
+                disabled={duplicating}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              >
+                Vazgeç
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <h3 className="mb-1 text-base font-black text-slate-800">Ürünü Sil</h3>
+            <p className="mb-4 text-sm text-slate-500">
+              <span className="font-semibold text-slate-700">{deleteTarget.name}</span> ürününü kalıcı olarak silmek istediğinize emin misiniz?
+            </p>
+            <p className="mb-4 text-xs text-red-500 font-semibold">Bu işlem geri alınamaz.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-black text-white disabled:opacity-60"
+              >
+                {deleting ? "Siliniyor..." : "Evet, Sil"}
+              </button>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              >
+                Vazgeç
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black tracking-tight text-slate-800">Ürün Yönetimi</h2>
@@ -512,7 +741,9 @@ export default function UrunlerPage() {
 
       {showForm && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-5 text-base font-black text-slate-700">Sade Ürün Kartı</h3>
+          <h3 className="mb-5 text-base font-black text-slate-700">
+            {editingProduct ? `Ürün Düzenle — ${editingProduct.name}` : "Sade Ürün Kartı"}
+          </h3>
 
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
@@ -846,7 +1077,7 @@ export default function UrunlerPage() {
               disabled={saving}
               className="rounded-lg bg-[#ff6000] px-5 py-2 text-sm font-black text-white disabled:opacity-60"
             >
-              {saving ? "Kaydediliyor..." : "Kaydet"}
+              {saving ? "Kaydediliyor..." : editingProduct ? "Güncelle" : "Kaydet"}
             </button>
             <button
               onClick={() => {
@@ -906,6 +1137,7 @@ export default function UrunlerPage() {
                   "Fiyat",
                   "Stok",
                   "Durum",
+                  "İşlem",
                 ].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase text-slate-500">{h}</th>
                 ))}
@@ -934,9 +1166,38 @@ export default function UrunlerPage() {
                     <td className="px-4 py-3 font-black text-[#ff6000]">{p.price.toLocaleString("tr-TR")} TL</td>
                     <td className="px-4 py-3"><span className={`font-bold ${p.stock < 10 ? "text-red-500" : "text-slate-700"}`}>{p.stock}</span></td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${p.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
-                        {p.isActive ? "Aktif" : "Pasif"}
-                      </span>
+                      <button
+                        onClick={() => handleToggleActive(p)}
+                        disabled={togglingId === p._id}
+                        title={p.isActive ? "Pasife al" : "Aktife al"}
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-opacity hover:opacity-70 disabled:cursor-wait ${
+                          p.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                        }`}
+                      >
+                        {togglingId === p._id ? "..." : p.isActive ? "Aktif" : "Pasif"}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => openEditForm(p)}
+                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:border-[#ff6000] hover:text-[#ff6000]"
+                        >
+                          Düzenle
+                        </button>
+                        <button
+                          onClick={() => { setDuplicateTarget(p); setDuplicateCount("1"); setDuplicateError(null); }}
+                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:border-[#ff6000] hover:text-[#ff6000]"
+                        >
+                          Çoğalt
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(p)}
+                          className="rounded-lg border border-red-200 px-3 py-1.5 text-[11px] font-bold text-red-500 hover:bg-red-50"
+                        >
+                          Sil
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

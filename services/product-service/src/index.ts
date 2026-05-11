@@ -32,10 +32,12 @@ app.get('/health', (_req, res) => {
 app.get('/meta/options', ProductController.getCatalogOptions);
 app.post('/meta/brand', ProductController.createBrandOption);
 app.post('/meta/category', ProductController.createCategoryOption);
+app.get('/admin/:id', ProductController.getByIdAny);
 app.get('/', ProductController.getAll);
 app.get('/:id', ProductController.getById);
 app.post('/', ProductController.create);
 app.patch('/:id', ProductController.update);
+app.delete('/:id', ProductController.remove);
 
 // ─── Error Handler ─────────────────────────────────────────────
 app.use((err: Error & { statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {

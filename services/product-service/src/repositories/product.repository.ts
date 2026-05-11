@@ -6,6 +6,7 @@ export interface ProductFilters {
   minPrice?: number;
   maxPrice?: number;
   search?: string;
+  includeAll?: boolean;
 }
 
 export interface PaginationOptions {
@@ -18,7 +19,7 @@ export const ProductRepository = {
     filters: ProductFilters,
     pagination: PaginationOptions
   ): Promise<{ products: IProduct[]; total: number }> {
-    const query: Record<string, unknown> = { isActive: true };
+    const query: Record<string, unknown> = filters.includeAll ? {} : { isActive: true };
 
     if (filters.category) query.category = filters.category;
     if (filters.brand) query.brand = filters.brand;
@@ -53,5 +54,14 @@ export const ProductRepository = {
 
   async updateById(id: string, input: Partial<IProduct>): Promise<IProduct | null> {
     return Product.findByIdAndUpdate(id, input, { new: true, runValidators: true });
+  },
+
+  async findByIdAny(id: string): Promise<IProduct | null> {
+    return Product.findById(id);
+  },
+
+  async deleteById(id: string): Promise<boolean> {
+    const result = await Product.findByIdAndDelete(id);
+    return result !== null;
   },
 };

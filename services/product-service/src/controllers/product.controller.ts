@@ -10,6 +10,7 @@ const QuerySchema = z.object({
   minPrice: z.coerce.number().optional(),
   maxPrice: z.coerce.number().optional(),
   search: z.string().optional(),
+  includeAll: z.coerce.boolean().default(false),
 });
 
 const ProductInputSchema = z.object({
@@ -133,6 +134,26 @@ export const ProductController = {
       const body = ProductUpdateSchema.parse(req.body);
       const product = await ProductService.updateProduct(id, body);
       res.status(200).json({ success: true, data: product });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getByIdAny(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const product = await ProductService.getProductByIdAny(id);
+      res.json({ success: true, data: product });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      await ProductService.deleteProduct(id);
+      res.status(200).json({ success: true, message: 'Product deleted' });
     } catch (err) {
       next(err);
     }

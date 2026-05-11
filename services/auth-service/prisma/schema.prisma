@@ -10,6 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Normal müşteri hesapları ─────────────────────────────────
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -24,8 +25,36 @@ model User {
   @@map("users")
 }
 
+// ─── Panel / Satıcı hesapları ──────────────────────────────────
+model SellerAccount {
+  id          String      @id @default(uuid())
+  email       String      @unique
+  password    String
+  accountType AccountType @default(BIREYSEL)
+
+  // Bireysel
+  fullName    String?
+
+  // Tüzel
+  companyName String?
+  taxNo       String?
+  taxOffice   String?
+
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([email])
+  @@map("seller_accounts")
+}
+
 enum Role {
   CUSTOMER
   ADMIN
   SELLER
+}
+
+enum AccountType {
+  BIREYSEL
+  TUZEL
 }

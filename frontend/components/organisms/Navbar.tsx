@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from 'react';
-import { ShoppingCart, User, Search, Menu, LogOut, ChevronDown, Loader2 } from 'lucide-react';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { LoginModal } from '../molecules/LoginModal';
 import { apiClient } from '@/lib/api';
 import { Logo } from '../atoms/Logo';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 export const Navbar: React.FC = () => {
+  const pathname = usePathname();
   const totalItems = useCartStore((state) => state.getTotalItems());
   const { user, logout, isAuthenticated } = useAuthStore();
   const [isMounted, setIsMounted] = useState(false);
@@ -23,7 +23,6 @@ export const Navbar: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   useEffect(() => {
     setIsMounted(true);
@@ -59,99 +58,129 @@ export const Navbar: React.FC = () => {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
+  // Admin panelde global magazaya ait header gorunmesin.
+  if (pathname?.startsWith('/yonetim')) {
+    return null;
+  }
+
   return (
     <>
-      <header className="sticky top-0 z-50 w-full bg-white border-b-[0.5px] border-slate-200 h-16 md:h-20 flex items-center shadow-sm">
-        <div className="max-w-7xl mx-auto w-full px-4 md:px-6 flex items-center justify-between gap-4 md:gap-8">
-          <Link href="/" className="flex-shrink-0">
-            <Logo />
-          </Link>
-
-          {/* Search Bar with Elasticsearch */}
-          <div className="hidden md:flex flex-1 max-w-2xl relative group" ref={searchRef}>
-            <div className="relative w-full">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
-                placeholder="Ürün, kategori veya marka ara..."
-                className="w-full bg-white border-[0.5px] border-slate-200 rounded-lg py-3 px-4 pl-12 text-sm focus:ring-2 focus:ring-brand-orange transition-all outline-none font-medium shadow-sm hover:border-slate-300"
-              />
-              <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                {isSearching ? <Loader2 size={18} className="animate-spin text-brand-orange" /> : <Search className="text-slate-400" size={18} />}
-              </div>
-              <button className="absolute right-1 top-1 bottom-1 px-4 bg-brand-orange text-white rounded-md text-xs font-black active:scale-95 transition-all">
-                ARA
-              </button>
+      <header className="sticky top-0 z-50 w-full bg-white border-b border-slate-200 shadow-sm">
+        <div className="w-full border-b border-slate-100 bg-[#f6f6f6]">
+          <div className="mx-auto w-full max-w-7xl px-4 py-2 text-[11px] text-slate-600 md:px-6">
+            <div className="flex flex-wrap items-center justify-end gap-3 md:gap-6">
+              <span>Siparislerim</span>
+              <span>Super Fiyat</span>
+              <span>Kampanyalar</span>
+              <span>Girisimci Kadinlar</span>
+              <span>Musteri Hizmetleri</span>
             </div>
+          </div>
+        </div>
 
-            {/* Search Results Dropdown */}
-            {showResults && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border-[0.5px] border-slate-200 overflow-hidden z-[60] animate-in fade-in slide-in-from-top-2">
-                {searchResults.length > 0 ? (
-                  <div className="py-2">
-                    {searchResults.map((product) => (
-                      <Link 
-                        key={product.id} 
-                        href={`/product/${product.id}`}
-                        onClick={() => setShowResults(false)}
-                        className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors group"
-                      >
-                        <img src={product.imageUrl} className="w-12 h-12 object-cover rounded-lg bg-slate-100" alt="" />
-                        <div>
-                          <p className="text-sm font-black text-slate-900 line-clamp-1">{product.name}</p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{product.brand} • {product.category}</p>
-                        </div>
-                        <div className="ml-auto text-sm font-black text-brand-orange">
-                          {product.price.toLocaleString('tr-TR')} TL
-                        </div>
-                      </Link>
-                    ))}
+        <div className="mx-auto w-full max-w-7xl px-4 py-3 md:px-6 md:py-4">
+          <div className="flex flex-wrap items-center gap-3 md:gap-5">
+            <Link href="/" className="shrink-0">
+              <Logo />
+            </Link>
+
+            {/* Search Bar with Elasticsearch */}
+            <div className="order-3 w-full md:order-0 md:flex md:flex-1 md:max-w-2xl" ref={searchRef}>
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
+                  placeholder="Urun, kategori veya marka ara"
+                  className="w-full rounded-lg border-2 border-[#ff6000]/55 bg-white py-3 pl-4 pr-20 text-sm outline-none transition-all focus:border-[#ff6000]"
+                />
+                <button className="absolute right-1 top-1 bottom-1 rounded-md bg-[#ff6000] px-4 text-xs font-black text-white">
+                  ARA
+                </button>
+                {isSearching && <p className="mt-1 text-[10px] text-[#ff6000]">Araniyor...</p>}
+
+                {/* Search Results Dropdown */}
+                {showResults && (
+                  <div className="absolute left-0 right-0 top-full z-60 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+                    {searchResults.length > 0 ? (
+                      <div className="py-2">
+                        {searchResults.map((product) => (
+                          <Link
+                            key={product.id}
+                            href={`/product/${product.id}`}
+                            onClick={() => setShowResults(false)}
+                            className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-slate-50"
+                          >
+                            <img src={product.imageUrl} className="h-12 w-12 rounded-lg bg-slate-100 object-cover" alt="" />
+                            <div>
+                              <p className="line-clamp-1 text-sm font-black text-slate-900">{product.name}</p>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{product.brand} • {product.category}</p>
+                            </div>
+                            <div className="ml-auto text-sm font-black text-[#ff6000]">
+                              {product.price.toLocaleString('tr-TR')} TL
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center text-sm font-bold text-slate-400">Sonuc bulunamadi.</div>
+                    )}
                   </div>
-                ) : (
-                  <div className="p-8 text-center text-slate-400 font-bold text-sm">Sonuç bulunamadı.</div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
 
-          <nav className="flex items-center gap-2 md:gap-6">
+            <nav className="ml-auto flex items-center gap-2 md:gap-3">
+              <div className="hidden rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 md:block">
+                Konum
+                <p className="font-semibold text-[#ff6000]">Konum sec</p>
+              </div>
+
             {isMounted && isAuthenticated() ? (
               <div className="relative">
-                <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex flex-col items-center gap-0.5 text-slate-600 hover:text-brand-orange transition-colors group">
-                  <User size={22} className="group-active:scale-90 transition-transform" />
-                  <div className="flex items-center gap-0.5">
-                    <span className="text-[10px] md:text-xs font-bold capitalize">{user?.name}</span>
-                    <ChevronDown size={12} />
-                  </div>
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700"
+                >
+                  {user?.name}
                 </button>
                 {isUserMenuOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white border-[0.5px] border-slate-200 rounded-xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                    <button onClick={() => { logout(); setIsUserMenuOpen(false); }} className="w-full px-4 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 transition-colors">
-                      <LogOut size={16} />
+                  <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-xs font-bold text-red-500 transition-colors hover:bg-red-50"
+                    >
                       Çıkış Yap
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              <button onClick={() => setIsLoginModalOpen(true)} className="flex flex-col items-center gap-0.5 text-slate-600 hover:text-brand-orange transition-colors group">
-                <User size={22} className="group-active:scale-90 transition-transform" />
-                <span className="text-[10px] md:text-xs font-bold">Giriş Yap</span>
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700"
+              >
+                Giris Yap
               </button>
             )}
-            
-            <Link href="/cart" className="flex flex-col items-center gap-0.5 text-slate-600 hover:text-brand-orange transition-colors group relative">
-              <ShoppingCart size={22} className="group-active:scale-90 transition-transform" />
-              <span className="text-[10px] md:text-xs font-bold">Sepetim</span>
+
+            <Link href="/cart" className="relative rounded-lg bg-[#75757a] px-4 py-2 text-xs font-black text-white">
+              Sepetim
               {isMounted && totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-brand-orange text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white animate-in zoom-in">
+                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black text-[#75757a]">
                   {totalItems}
                 </span>
               )}
             </Link>
           </nav>
+        </div>
+          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-[#f3f3f3]">
+            <div className="h-full w-1/4 bg-[#ff6000]" />
+          </div>
         </div>
       </header>
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />

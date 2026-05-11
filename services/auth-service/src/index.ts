@@ -25,9 +25,15 @@ app.get('/health', (_req, res) => {
 });
 
 // ─── Routes ────────────────────────────────────────────────────
+// Müşteri (normal kullanıcı) rotaları
 app.post('/register', AuthController.register);
 app.post('/login', AuthController.login);
 app.get('/profile', authenticate, AuthController.profile);
+
+// Satıcı / Panel hesabı rotaları
+app.post('/seller/register', AuthController.sellerRegister);
+app.post('/seller/login', AuthController.sellerLogin);
+app.get('/seller/profile', authenticate, AuthController.sellerProfile);
 
 // ─── Error Handler ─────────────────────────────────────────────
 app.use(errorHandler);

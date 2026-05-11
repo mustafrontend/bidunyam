@@ -72,9 +72,27 @@ export default function CartPage() {
                   <div className="flex-1 text-center md:text-left">
                     <h3 className="font-black text-slate-900 text-lg mb-1">{item.name}</h3>
                     <p className="text-slate-400 text-sm font-bold mb-4">{item.brand}</p>
+                    {item.selectedVariant && Object.keys(item.selectedVariant).length > 0 && (
+                      <div className="mb-3 flex flex-wrap justify-center gap-2 md:justify-start">
+                        {Object.entries(item.selectedVariant).map(([key, value]) => (
+                          <span key={key} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">
+                            {key}: {value}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {item.selectedServices && item.selectedServices.length > 0 && (
+                      <div className="mb-4 flex flex-wrap justify-center gap-2 md:justify-start">
+                        {item.selectedServices.map((service) => (
+                          <span key={service.name} className="rounded-full border border-brand-orange/20 bg-brand-orange/5 px-3 py-1 text-[11px] font-semibold text-brand-orange">
+                            {service.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex items-center justify-center md:justify-start gap-4">
                       <div className="flex items-center bg-slate-100 rounded-lg p-1 border-[0.5px] border-slate-200">
-                        <button onClick={() => removeItem(item._id, token)} className="p-1.5 hover:bg-white rounded-md transition-colors text-slate-600">
+                        <button onClick={() => removeItem(item.cartKey || item._id, token)} className="p-1.5 hover:bg-white rounded-md transition-colors text-slate-600">
                           <Minus size={16} />
                         </button>
                         <span className="w-10 text-center font-black text-sm">{item.quantity}</span>
@@ -84,11 +102,11 @@ export default function CartPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-center md:text-right flex flex-col items-center md:items-end gap-2 min-w-[120px]">
+                  <div className="text-center md:text-right flex flex-col items-center md:items-end gap-2 min-w-30">
                     <span className="text-xl font-black text-brand-orange tracking-tighter">
                       {(item.price * item.quantity).toLocaleString('tr-TR')} TL
                     </span>
-                    <button onClick={() => removeItem(item._id, token)} className="text-slate-300 hover:text-red-500 transition-colors p-2">
+                    <button onClick={() => removeItem(item.cartKey || item._id, token)} className="text-slate-300 hover:text-red-500 transition-colors p-2">
                       <Trash2 size={20} />
                     </button>
                   </div>
@@ -97,7 +115,7 @@ export default function CartPage() {
             </AnimatePresence>
           </div>
 
-          <div className="w-full lg:w-[380px]">
+          <div className="w-full lg:w-95">
             <div className="bg-white p-6 md:p-8 rounded-3xl border-[0.5px] border-slate-200 shadow-xl sticky top-28">
               <h2 className="text-xl font-black text-slate-900 mb-6 uppercase tracking-tight">Sipariş Özeti</h2>
               <div className="space-y-4 mb-8">

@@ -4,11 +4,14 @@ import { apiClient } from '@/lib/api';
 
 interface CartItem {
   _id: string;
+  cartKey?: string;
   name: string;
   price: number;
   brand: string;
   imageUrl: string;
   quantity: number;
+  selectedVariant?: Record<string, string>;
+  selectedServices?: Array<{ name: string; price: number; description?: string }>;
 }
 
 interface CartState {
@@ -37,17 +40,18 @@ export const useCartStore = create<CartState>()(
       },
       addItem: async (product, token) => {
         const items = get().items;
-        const existingItem = items.find((item) => item._id === product._id);
+        const cartKey = product.cartKey || product._id;
+        const existingItem = items.find((item) => (item.cartKey || item._id) === cartKey);
         
         let newItems;
         if (existingItem) {
           newItems = items.map((item) =>
-            item._id === product._id
+            (item.cartKey || item._id) === cartKey
               ? { ...item, quantity: item.quantity + 1 }
               : item
           );
         } else {
-          newItems = [...items, { ...product, quantity: 1 }];
+          newItems = [...items, { ...product, cartKey, quantity: 1 }];
         }
         
         set({ items: newItems });
@@ -65,17 +69,17 @@ export const useCartStore = create<CartState>()(
       },
       removeItem: async (productId, token) => {
         const items = get().items;
-        const existingItem = items.find((item) => item._id === productId);
+        const existingItem = items.find((item) => (item.cartKey || item._id) === productId);
 
         let newItems;
         if (existingItem && existingItem.quantity > 1) {
           newItems = items.map((item) =>
-            item._id === productId
+            (item.cartKey || item._id) === productId
               ? { ...item, quantity: item.quantity - 1 }
               : item
           );
         } else {
-          newItems = items.filter((item) => item._id !== productId);
+          newItems = items.filter((item) => (item.cartKey || item._id) !== productId);
         }
 
         set({ items: newItems });

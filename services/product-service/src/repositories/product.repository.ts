@@ -46,7 +46,12 @@ export const ProductRepository = {
     return Product.findOne({ _id: id, isActive: true });
   },
 
-  async seed(products: Partial<IProduct>[]): Promise<void> {
-    await Product.insertMany(products, { ordered: false });
+  async create(input: Partial<IProduct>): Promise<IProduct> {
+    const product = await Product.create(input);
+    return product;
+  },
+
+  async updateById(id: string, input: Partial<IProduct>): Promise<IProduct | null> {
+    return Product.findByIdAndUpdate(id, input, { new: true, runValidators: true });
   },
 };

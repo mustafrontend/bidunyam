@@ -1,7 +1,9 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { UserRepository } from '../repositories/user.repository';
+import { SellerRepository, CreateSellerInput } from '../repositories/seller.repository';
 import { publishEvent, getRedisClient } from '../repositories/redis.client';
+import { AccountType } from '@prisma/client';
 
 const SALT_ROUNDS = 12;
 
@@ -127,5 +129,91 @@ export const AuthService = {
       throw err;
     }
     return user;
+  },
+
+  // ─── Seller (Panel) işlemleri ────────────────────────────────
+  async registerSeller(input: {
+    email: string;
+    password: string;
+    accountType: string;
+    fullName?: string;
+    companyName?: string;
+    taxNo?: string;
+    taxOffice?: string;
+  }) {
+    const exists = await SellerRepository.existsByEmail(input.email);
+    if (exists) {
+      const err = new Error('Bu e-posta zaten kayıtlı') as Error & { statusCode: number };
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const hashedPassword = await bcrypt.hash(input.password, SALT_ROUNDS);
+    const accountType: AccountType = input.accountType === 'TUZEL' ? 'TUZEL' : 'BIREYSEL';
+
+    const seller = await SellerRepository.create({
+      email: input.email,
+      password: hashedPassword,
+      accountType,
+      fullName: input.fullName,
+      companyName: input.companyName,
+      taxNo: input.taxNo,
+      taxOffice: input.taxOffice,
+    });
+
+    const displayName = accountType === 'TUZEL' ? seller.companyName! : seller.fullName!;
+    const token = signToken({ id: seller.id, email: seller.email, role: 'SELLER' });
+
+    const redis = getRedisClient();
+    await redis.set(`auth:token:${token}`, seller.id, 'EX', 7 * 24 * 60 * 60);
+
+    return {
+      token,
+      user: { id: seller.id, email: seller.email, name: displayName, role: 'SELLER', accountType },
+    };
+  },
+
+  async loginSeller(input: { email: string; password: string }) {
+    const seller = await SellerRepository.findByEmail(input.email);
+
+    if (!seller || !seller.isActive) {
+      const err = new Error('Geçersiz e-posta veya şifre') as Error & { statusCode: number };
+      err.statusCode = 401;
+      throw err;
+    }
+
+    const isValid = await bcrypt.compare(input.password, seller.password);
+    if (!isValid) {
+      const err = new Error('Geçersiz e-posta veya şifre') as Error & { statusCode: number };
+      err.statusCode = 401;
+      throw err;
+    }
+
+    const displayName = seller.accountType === 'TUZEL' ? seller.companyName! : seller.fullName!;
+    const token = signToken({ id: seller.id, email: seller.email, role: 'SELLER' });
+
+    const redis = getRedisClient();
+    await redis.set(`auth:token:${token}`, seller.id, 'EX', 7 * 24 * 60 * 60);
+
+    return {
+      token,
+      user: {
+        id: seller.id,
+        email: seller.email,
+        name: displayName,
+        role: 'SELLER',
+        accountType: seller.accountType,
+      },
+    };
+  },
+
+  async getSellerProfile(sellerId: string) {
+    const seller = await SellerRepository.findById(sellerId);
+    if (!seller) {
+      const err = new Error('Hesap bulunamadı') as Error & { statusCode: number };
+      err.statusCode = 404;
+      throw err;
+    }
+    return seller;
   },
 };

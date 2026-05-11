@@ -31,7 +31,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
           name: i.name,
           price: i.price,
           quantity: i.quantity,
-          imageUrl: i.imageUrl
+          imageUrl: i.imageUrl,
+          selectedVariant: i.selectedVariant,
+          selectedServices: i.selectedServices,
         })),
         totalAmount: getTotalPrice(),
         address: "Kadıköy, İstanbul / Türkiye",
@@ -74,13 +76,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200]"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-200"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl bg-white rounded-3xl shadow-2xl z-[201] overflow-hidden"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl bg-white rounded-3xl shadow-2xl z-201 overflow-hidden"
           >
             <div className="p-8">
               {/* Header */}
@@ -106,7 +108,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
               )}
 
               {/* Steps Content */}
-              <div className="min-h-[300px]">
+              <div className="min-h-75">
                 {step === 'address' && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                     <div className="bg-slate-50 p-6 rounded-2xl border-2 border-brand-orange flex items-start gap-4">
@@ -194,7 +196,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                   <button 
                     disabled={loading}
                     onClick={step === 'address' ? () => setStep('payment') : handlePayment}
-                    className="flex-[2] bg-slate-900 text-white py-4 rounded-2xl font-black hover:bg-brand-orange active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-xl"
+                    className="flex-2 bg-slate-900 text-white py-4 rounded-2xl font-black hover:bg-brand-orange active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-xl"
                   >
                     {loading ? (
                       <Loader2 className="animate-spin" size={20} />

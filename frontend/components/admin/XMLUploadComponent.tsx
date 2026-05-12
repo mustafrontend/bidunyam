@@ -12,37 +12,20 @@ interface PreviewData {
 }
 
 export const XMLUploadComponent: React.FC = () => {
-  const [file, setFile] = useState<File | null>(null);
+  const [xmlUrl, setXmlUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // File seçildiğinde
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      // XML dosya kontrolü
-      if (!selectedFile.name.endsWith(".xml")) {
-        setError("Lütfen XML dosyası seçiniz");
-        return;
-      }
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        setError("Dosya boyutu 10MB'den küçük olmalıdır");
-        return;
-      }
-      setFile(selectedFile);
-      setError(null);
-      setPreview(null);
-    }
-  };
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Örnek XML dosyası indir
   const handleDownloadSample = async () => {
     try {
-      const response = await fetch("http://localhost:8080/product/admin/xml/sample");
-      const blob = await response.blob();
+      const response = await apiClient.get("/product/admin/xml/sample", {
+        responseType: "blob",
+      });
+      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -53,10 +36,19 @@ export const XMLUploadComponent: React.FC = () => {
     }
   };
 
+  const validateXmlUrl = (value: string) => {
+    try {
+      const parsed = new URL(value.trim());
+      return ["http:", "https:"].includes(parsed.protocol);
+    } catch {
+      return false;
+    }
+  };
+
   // Preview yapılması
   const handlePreview = async () => {
-    if (!file) {
-      setError("Lütfen dosya seçiniz");
+    if (!validateXmlUrl(xmlUrl)) {
+      setError("Lütfen geçerli bir XML linki giriniz");
       return;
     }
 
@@ -64,17 +56,13 @@ export const XMLUploadComponent: React.FC = () => {
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("http://localhost:8080/product/admin/xml/preview", {
-        method: "POST",
-        body: formData,
+      const response = await apiClient.post("/product/admin/xml/preview-url", {
+        url: xmlUrl.trim(),
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (!response.ok) {
+      if (!data.success) {
         setError(data.error || "Preview oluşturulamadı");
         return;
       }
@@ -89,13 +77,13 @@ export const XMLUploadComponent: React.FC = () => {
 
   // Upload yapılması
   const handleUpload = async () => {
-    if (!file) {
-      setError("Lütfen dosya seçiniz");
+    if (!preview) {
+      setError("Lütfen önce preview yapınız");
       return;
     }
 
-    if (!preview) {
-      setError("Lütfen önce preview yapınız");
+    if (!validateXmlUrl(xmlUrl)) {
+      setError("Lütfen geçerli bir XML linki giriniz");
       return;
     }
 
@@ -104,26 +92,22 @@ export const XMLUploadComponent: React.FC = () => {
     setSuccess(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("http://localhost:8080/product/admin/xml/upload", {
-        method: "POST",
-        body: formData,
+      const response = await apiClient.post("/product/admin/xml/import-url", {
+        url: xmlUrl.trim(),
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (!response.ok) {
+      if (!data.success) {
         setError(data.message || "Upload başarısız");
         return;
       }
 
       setSuccess(`${data.totalProducts} ürün başarıyla yüklendi!`);
-      setFile(null);
+      setXmlUrl("");
       setPreview(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      if (inputRef.current) {
+        inputRef.current.value = "";
       }
     } catch (err: any) {
       setError("Upload sırasında hata oluştu: " + err.message);
@@ -138,7 +122,7 @@ export const XMLUploadComponent: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">XML ile Ürün İçeri Aktar</h1>
         <p className="mt-2 text-slate-500">
-          XML dosyası kullanarak toplu ürün yüklemeleri yapabilirsiniz.
+          XML linki kullanarak toplu ürün yüklemeleri yapabilirsiniz.
         </p>
       </div>
 
@@ -156,32 +140,35 @@ export const XMLUploadComponent: React.FC = () => {
         </button>
       </div>
 
-      {/* File Upload Section */}
+      {/* XML URL Section */}
       <div className="rounded-lg border border-slate-200 p-6">
         <label className="block text-sm font-semibold text-slate-900 mb-3">
-          XML Dosyası Seç
+          XML Linki
         </label>
         <div className="flex items-center gap-3">
           <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xml"
-            onChange={handleFileSelect}
+            ref={inputRef}
+            type="url"
+            value={xmlUrl}
+            onChange={(e) => {
+              setXmlUrl(e.target.value);
+              setError(null);
+              setPreview(null);
+            }}
+            placeholder="https://www.dropsepetim.com/012546xml.php?mid=91"
             disabled={loading}
-            className="flex-1 text-sm text-slate-500 file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
+            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition-colors focus:border-[#ff6000]"
           />
-          {file && (
-            <span className="text-sm font-medium text-green-600">
-              ✓ {file.name} ({(file.size / 1024).toFixed(2)} KB)
-            </span>
-          )}
         </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Örnek: https://www.dropsepetim.com/012546xml.php?mid=91
+        </p>
       </div>
 
       {/* Preview Section */}
       {preview && (
         <div className="rounded-lg border border-slate-200 p-6 space-y-4">
-          <h3 className="font-semibold text-slate-900">📊 Dosya Özeti</h3>
+          <h3 className="font-semibold text-slate-900">📊 XML Özeti</h3>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4">
@@ -259,7 +246,7 @@ export const XMLUploadComponent: React.FC = () => {
       <div className="flex gap-3">
         <button
           onClick={handlePreview}
-          disabled={!file || loading}
+          disabled={!validateXmlUrl(xmlUrl) || loading}
           className="flex-1 rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
         >
           {loading ? "⏳ Yükleniyor..." : "👁️ Önizle"}
@@ -280,6 +267,7 @@ export const XMLUploadComponent: React.FC = () => {
           <li>Tüm ürünler &lt;urunler&gt; tag'ı altında &lt;urun&gt; elemanları olmalıdır</li>
           <li>Gerekli alanlar: urunKodu, urunAdi, fiyat, stok</li>
           <li>Opsiyonel alanlar: kategori, aciklama, resim, marka</li>
+          <li>Link https/http olmalı ve XML döndürmelidir</li>
           <li>Maksimum dosya boyutu: 10MB</li>
           <li>Fiyat ve stok sayısal değerler olmalıdır</li>
         </ul>

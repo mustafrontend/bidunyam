@@ -731,12 +731,20 @@ export default function UrunlerPage() {
           <h2 className="text-2xl font-black tracking-tight text-slate-800">Ürün Yönetimi</h2>
           <p className="mt-1 text-sm text-slate-500">{filtered.length} ürün listelendi</p>
         </div>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="rounded-xl bg-[#ff6000] px-5 py-2.5 text-sm font-black text-white transition-colors hover:bg-[#d85000]"
-        >
-          + Yeni Ürün Ekle
-        </button>
+        <div className="flex gap-3">
+          <a
+            href="/yonetim/xml-import"
+            className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            XML Iceri Aktar
+          </a>
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="rounded-xl bg-[#ff6000] px-5 py-2.5 text-sm font-black text-white transition-colors hover:bg-[#d85000]"
+          >
+            + Yeni Ürün Ekle
+          </button>
+        </div>
       </div>
 
       {showForm && (

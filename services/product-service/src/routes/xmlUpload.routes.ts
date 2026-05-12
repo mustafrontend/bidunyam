@@ -38,6 +38,57 @@ const upload = multer({
   },
 });
 
+const MAX_REMOTE_XML_SIZE = 10 * 1024 * 1024;
+
+function normalizeRemoteXmlUrl(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error('XML linki gereklidir');
+  }
+
+  const trimmed = value.trim();
+  const parsedUrl = new URL(trimmed);
+
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    throw new Error('Sadece http ve https linkleri desteklenir');
+  }
+
+  return parsedUrl.toString();
+}
+
+async function fetchRemoteXmlContent(xmlUrl: string): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(xmlUrl, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/xml,text/xml,text/plain,*/*',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`XML linki okunamadı (${response.status})`);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    const body = await response.text();
+
+    if (body.length > MAX_REMOTE_XML_SIZE) {
+      throw new Error('XML içeriği 10MB sınırını aşıyor');
+    }
+
+    if (!contentType.includes('xml') && !body.trim().startsWith('<')) {
+      throw new Error('Link XML içeriği döndürmüyor');
+    }
+
+    return body;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /**
  * GET /admin/xml/sample
  * Örnek XML dosyası indir
@@ -53,6 +104,75 @@ router.get('/admin/xml/sample', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Örnek XML oluşturulamadı',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /admin/xml/preview-url
+ * XML linkini preview et
+ */
+router.post('/admin/xml/preview-url', async (req: Request, res: Response) => {
+  try {
+    const xmlUrl = normalizeRemoteXmlUrl(req.body?.url);
+    const xmlContent = await fetchRemoteXmlContent(xmlUrl);
+    const products = xmlParserService.parseXMLString(xmlContent);
+    const validation = xmlParserService.validateProducts(products);
+
+    res.status(200).json({
+      success: true,
+      sourceUrl: xmlUrl,
+      totalProducts: products.length,
+      validProducts: products.length - Object.keys(validation.errors).length,
+      invalidProducts: Object.keys(validation.errors).length,
+      errors: validation.errors,
+      preview: products.slice(0, 10),
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: 'XML linki preview edilemedi',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /admin/xml/import-url
+ * XML linkinden ürünleri içeri aktar
+ */
+router.post('/admin/xml/import-url', async (req: Request, res: Response) => {
+  try {
+    const xmlUrl = normalizeRemoteXmlUrl(req.body?.url);
+    const xmlContent = await fetchRemoteXmlContent(xmlUrl);
+    const products = xmlParserService.parseXMLString(xmlContent);
+    const validation = xmlParserService.validateProducts(products);
+
+    if (!validation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'XML dosyasında validasyon hataları vardır',
+        errors: validation.errors,
+        totalProducts: products.length,
+        validProducts: products.length - Object.keys(validation.errors).length,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `${products.length} ürün başarıyla alındı`,
+      sourceUrl: xmlUrl,
+      totalProducts: products.length,
+      data: {
+        uploadedAt: new Date(),
+        products: products.slice(0, 5),
+      },
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: 'XML linki işlenirken hata oluştu',
       error: error.message,
     });
   }

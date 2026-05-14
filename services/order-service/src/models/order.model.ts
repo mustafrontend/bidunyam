@@ -6,6 +6,7 @@ export interface IOrderItem {
   price: number;
   quantity: number;
   imageUrl: string;
+  barcode?: string;  // XML'den gelen barkod
 }
 
 export interface IOrder extends Document {
@@ -18,6 +19,7 @@ export interface IOrder extends Document {
     cardLast4: string;
     paymentId: string;
   };
+  xmlFileName?: string;  // XML import'undan gelen dosya adı
   createdAt: Date;
 }
 
@@ -29,6 +31,7 @@ const OrderSchema: Schema = new Schema({
     price: { type: Number, required: true },
     quantity: { type: Number, required: true },
     imageUrl: { type: String },
+    barcode: { type: String },  // XML'den gelen barkod
   }],
   totalAmount: { type: Number, required: true },
   status: { type: String, enum: ['PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'], default: 'PAID' },
@@ -37,6 +40,7 @@ const OrderSchema: Schema = new Schema({
     cardLast4: { type: String },
     paymentId: { type: String },
   },
+  xmlFileName: { type: String },  // XML import'undan gelen dosya adı
   createdAt: { type: Date, default: Date.now }
 });
 

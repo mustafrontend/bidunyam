@@ -11,6 +11,7 @@ import { useUiStore } from "@/stores/uiStore";
 interface Product {
   _id: string;
   name: string;
+  barcode?: string;
   price: number;
   originalPrice: number;
   discountPercent: number;
@@ -27,6 +28,7 @@ function normalizeProducts(data: Product[]): Product[] {
   return data.map((item, i) => ({
     _id: item._id || `p-${i}`,
     name: item.name || "Ürün",
+    barcode: item.barcode ? String(item.barcode) : undefined,
     price: item.price || 0,
     originalPrice: item.originalPrice || item.price || 0,
     discountPercent: item.discountPercent || 0,
@@ -65,7 +67,19 @@ function ProductCard({ product, badge }: { product: Product; badge?: "hot" | "ne
   const doAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addToCart({ productId: product._id, name: product.name, price: product.price, imageUrl: product.imageUrl, quantity: 1, sellerId: "" }, token);
+    addToCart(
+      {
+        productId: product._id,
+        name: product.name,
+        price: product.price,
+        imageUrl: product.imageUrl,
+        quantity: 1,
+        sellerId: "",
+        brand: product.brand,
+        barcode: product.barcode,
+      },
+      token
+    );
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   };
@@ -253,9 +267,21 @@ export default function Home() {
   const fetchFavorites = useFavoriteStore((s) => s.fetchFavorites);
 
   useEffect(() => {
-    apiClient
-      .get("/products?limit=100")
-      .then((res) => setProducts(normalizeProducts(res?.data?.data?.products || [])))
+    Promise.all([
+      apiClient.get("/products?limit=100"),
+      apiClient.get("/products/xml/catalog?limit=120&page=1").catch(() => null),
+    ])
+      .then(([dbRes, xmlRes]) => {
+        const dbProducts = normalizeProducts(dbRes?.data?.data?.products || []);
+        const xmlProducts = normalizeProducts(xmlRes?.data?.data?.products || []);
+        const deduped = new Map<string, Product>();
+
+        for (const product of [...xmlProducts, ...dbProducts]) {
+          deduped.set(product._id, product);
+        }
+
+        setProducts(Array.from(deduped.values()));
+      })
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
   }, []);

@@ -30,6 +30,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
           productId: i._id,
           name: i.name,
           price: i.price,
+          barcode: i.barcode,  // ✅ Barkod tutma
           quantity: i.quantity,
           imageUrl: i.imageUrl,
           selectedVariant: i.selectedVariant,

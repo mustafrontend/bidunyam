@@ -10,6 +10,7 @@ interface CartItem {
   brand: string;
   imageUrl: string;
   quantity: number;
+  barcode?: string;  // ✅ XML'den gelen barkod
   selectedVariant?: Record<string, string>;
   selectedServices?: Array<{ name: string; price: number; description?: string }>;
 }

@@ -26,6 +26,7 @@ interface ExtraService {
 
 interface Product {
   _id: string;
+  barcode?: string;
   name: string;
   description: string;
   shortDescription?: string;
@@ -84,7 +85,37 @@ export default function ProductDetail() {
         });
         setSelectedVariants(initialVariants);
         setSelectedImageIndex(0);
-      } catch (err) {
+      } catch (err: any) {
+        try {
+          // Fallback for products published from XML request catalog.
+          const xmlRes = await apiClient.get(`/products/xml/catalog/${id}`);
+          const xmlProduct = xmlRes.data?.data;
+          if (xmlProduct) {
+            const mapped: Product = {
+              _id: xmlProduct._id,
+              barcode: xmlProduct.barcode ? String(xmlProduct.barcode) : undefined,
+              name: xmlProduct.name || "Ürün",
+              description: xmlProduct.name || "",
+              shortDescription: xmlProduct.name || "",
+              price: Number(xmlProduct.price) || 0,
+              originalPrice: Number(xmlProduct.originalPrice) || Number(xmlProduct.price) || 0,
+              discountPercent: Number(xmlProduct.discountPercent) || 0,
+              stock: Number(xmlProduct.stock) || 0,
+              imageUrl: xmlProduct.imageUrl || "",
+              imageUrls: xmlProduct.imageUrl ? [xmlProduct.imageUrl] : [],
+              brand: xmlProduct.brand || "XML Market",
+              category: xmlProduct.category || "XML Katalog",
+              rating: Number(xmlProduct.rating) || 4.6,
+              reviewCount: Number(xmlProduct.reviewCount) || 0,
+              variants: [],
+              extraServices: [],
+            };
+            setProduct(mapped);
+            return;
+          }
+        } catch {
+          // no-op
+        }
         console.error("Failed to fetch product", err);
       } finally {
         setLoading(false);

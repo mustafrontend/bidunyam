@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <urunler>
+    <urun>
+      <urunKodu>SKU-001</urunKodu>
+      <urunAdi>Premium Elektronik Cihazı</urunAdi>
+      <kategori>Elektronik</kategori>
+      <fiyat>2599.99</fiyat>
+      <stok>25</stok>
+      <aciklama>Yüksek performanslı elektronik ürün</aciklama>
+      <resim>https://example.com/image1.jpg</resim>
+      <marka>TechBrand</marka>
+    </urun>
+    <urun>
+      <urunKodu>SKU-002</urunKodu>
+      <urunAdi>Conforlu Giyim Ürünü</urunAdi>
+      <kategori>Giyim</kategori>
+      <fiyat>449.99</fiyat>
+      <stok>150</stok>
+      <aciklama>Rahat ve şık giyim</aciklama>
+      <resim>https://example.com/image2.jpg</resim>
+      <marka>FashionBrand</marka>
+    </urun>
+    <urun>
+      <urunKodu>SKU-003</urunKodu>
+      <urunAdi>Ev Dekorasyon Aksesuarı</urunAdi>
+      <kategori>Ev & Bahçe</kategori>
+      <fiyat>189.99</fiyat>
+      <stok>85</stok>
+      <aciklama>Modern ev dekorasyonu</aciklama>
+      <resim>https://example.com/image3.jpg</resim>
+      <marka>HomeLiving</marka>
+    </urun>
+  </urunler>
+</root>

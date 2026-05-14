@@ -13,11 +13,67 @@ interface ProductXML {
 }
 
 interface ParsedXMLData {
+  root?: {
+    urunler?: {
+      urun?: ProductXML | ProductXML[];
+    };
+  };
   urunler?: ProductXML | ProductXML[];
+  urun?: ProductXML | ProductXML[];
 }
 
 export class XMLParserService {
   private parser: XMLParser;
+
+  private toArray<T>(value: T | T[] | undefined): T[] {
+    if (!value) {
+      return [];
+    }
+    return Array.isArray(value) ? value : [value];
+  }
+
+  private looksLikeProduct(value: any): value is ProductXML {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    return Boolean(
+      value.urunKodu ||
+      value.urunAdi ||
+      value.urun_adi ||
+      value.barkodno ||
+      value.fiyat ||
+      value.bayifiyat
+    );
+  }
+
+  private extractProducts(parsed: ParsedXMLData): ProductXML[] {
+    // Common structure: <urunler><urun>...</urun></urunler>
+    const nestedUnderUrunler = this.toArray((parsed.urunler as any)?.urun);
+    if (nestedUnderUrunler.length > 0) {
+      return nestedUnderUrunler;
+    }
+
+    // Alternate structure: <root><urunler><urun>...</urun></urunler></root>
+    const nestedUnderRoot = this.toArray(parsed.root?.urunler?.urun);
+    if (nestedUnderRoot.length > 0) {
+      return nestedUnderRoot;
+    }
+
+    // Flat structure: <urunler>...</urunler> where urunler may already be array/object
+    const flatUrunler = this.toArray(parsed.urunler);
+    if (flatUrunler.length > 0 && this.looksLikeProduct(flatUrunler[0])) {
+      return flatUrunler;
+    }
+
+    // Fallback structure: <urun>...</urun>
+    const directUrun = this.toArray(parsed.urun);
+    if (directUrun.length > 0) {
+      return directUrun;
+    }
+
+    return [];
+  }
 
   constructor() {
     this.parser = new XMLParser({
@@ -60,14 +116,7 @@ export class XMLParserService {
 
       // Parse
       const parsed: ParsedXMLData = this.parser.parse(xmlContent);
-      
-      // Extract products array
-      let products: ProductXML[] = [];
-      if (parsed.urunler) {
-        products = Array.isArray(parsed.urunler)
-          ? parsed.urunler
-          : [parsed.urunler];
-      }
+      const products = this.extractProducts(parsed);
 
       if (products.length === 0) {
         throw new Error('XML dosyasında ürün bulunamadı');
@@ -90,13 +139,7 @@ export class XMLParserService {
       }
 
       const parsed: ParsedXMLData = this.parser.parse(xmlContent);
-      
-      let products: ProductXML[] = [];
-      if (parsed.urunler) {
-        products = Array.isArray(parsed.urunler)
-          ? parsed.urunler
-          : [parsed.urunler];
-      }
+      const products = this.extractProducts(parsed);
 
       if (products.length === 0) {
         throw new Error('XML dosyasında ürün bulunamadı');
@@ -109,32 +152,38 @@ export class XMLParserService {
   }
 
   /**
-   * Ürün verisini validate et
+   * Ürün verisini validate et (Birden fazla format desteği)
    */
   validateProduct(product: ProductXML, index: number): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
 
+    // Flexible field mapping - Birden fazla format desteği
+    const urunAdi = product.urunAdi || (product as any).urun_adi;
+    const urunKodu = product.urunKodu || (product as any).barkodno;
+    const fiyatStr = String(product.fiyat || (product as any).bayifiyat || '0');
+    const stokStr = String(product.stok || '0');
+
     // Required fields
-    if (!product.urunKodu || String(product.urunKodu).trim() === '') {
-      errors.push(`Ürün ${index + 1}: urunKodu gereklidir`);
+    if (!urunKodu || String(urunKodu).trim() === '') {
+      errors.push(`Ürün ${index + 1}: urunKodu/barkodno gereklidir`);
     }
-    if (!product.urunAdi || String(product.urunAdi).trim() === '') {
+    if (!urunAdi || String(urunAdi).trim() === '') {
       errors.push(`Ürün ${index + 1}: urunAdi gereklidir`);
     }
 
     // Numeric validations
-    const fiyat = parseFloat(String(product.fiyat || '0'));
+    const fiyat = parseFloat(fiyatStr);
     if (isNaN(fiyat) || fiyat < 0) {
       errors.push(`Ürün ${index + 1}: fiyat geçerli bir sayı olmalıdır`);
     }
 
-    const stok = parseInt(String(product.stok || '0'), 10);
+    const stok = parseInt(stokStr, 10);
     if (isNaN(stok) || stok < 0) {
       errors.push(`Ürün ${index + 1}: stok geçerli bir sayı olmalıdır`);
     }
 
     // Length validations
-    if (product.urunAdi && String(product.urunAdi).length > 255) {
+    if (urunAdi && String(urunAdi).length > 255) {
       errors.push(`Ürün ${index + 1}: urunAdi en fazla 255 karakter olabilir`);
     }
 

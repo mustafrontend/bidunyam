@@ -1,237 +1,52 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Timer, Star, ChevronRight, Sparkles, Plus, Percent } from "lucide-react";
 import { apiClient } from "@/lib/api";
-import { useCartStore } from "@/stores/cartStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useFavoriteStore } from "@/stores/favoriteStore";
-import { useUiStore } from "@/stores/uiStore";
+import { ProductCard, Product } from "@/components/molecules/ProductCard";
+import { TrustBar } from "@/components/molecules/TrustBar";
+import { Footer } from "@/components/organisms/Footer";
+import { MobileBottomNav } from "@/components/molecules/MobileBottomNav";
 
-interface Product {
-  _id: string;
-  name: string;
-  barcode?: string;
-  price: number;
-  originalPrice: number;
-  discountPercent: number;
-  imageUrl: string;
-  brand: string;
-  category: string;
-  rating: number;
-  reviewCount: number;
-  stock?: number;
-}
+const CATEGORIES = [
+  "Tümü", "Elektronik", "Moda", "Ev & Yaşam", "Anne & Bebek",
+  "Kozmetik", "Spor & Outdoor", "Kitap & Kırtasiye", "Oyuncak", "Süpermarket"
+];
+const PAGE_SIZE = 20;
 
-function normalizeProducts(data: Product[]): Product[] {
-  if (!Array.isArray(data) || !data.length) return [];
-  return data.map((item, i) => ({
-    _id: item._id || `p-${i}`,
-    name: item.name || "Ürün",
-    barcode: item.barcode ? String(item.barcode) : undefined,
-    price: item.price || 0,
-    originalPrice: item.originalPrice || item.price || 0,
-    discountPercent: item.discountPercent || 0,
+function normalizeProducts(data: any[]): Product[] {
+  if (!Array.isArray(data)) return [];
+  return data.map((item, idx) => ({
+    _id: item._id || `product-${idx}-${Date.now()}`,
+    name: item.name || "Ürün Açıklaması Yok",
+    price: Number(item.price) || 0,
+    originalPrice: Number(item.originalPrice) || Number(item.price) || 0,
     imageUrl: item.imageUrl || "",
-    brand: item.brand || "Marka",
+    brand: item.brand || "biDunyam",
+    barcode: item.barcode ? String(item.barcode) : undefined,
     category: item.category || "Genel",
-    rating: item.rating || 4.0,
-    reviewCount: item.reviewCount || 0,
-    stock: item.stock ?? 99,
+    rating: Number(item.rating) || 4.2,
+    reviewCount: Number(item.reviewCount) || 0,
+    stock: Number(item.stock) ?? 99,
   }));
 }
 
-/* ─── Star Rating ───────────────────────────────────────────── */
-function Stars({ rating }: { rating: number }) {
-  const full = Math.round(rating);
-  return (
-    <span className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((s) => (
-        <svg key={s} className={`h-3 w-3 ${s <= full ? "text-amber-400" : "text-slate-200"}`} fill="currentColor" viewBox="0 0 20 20">
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-        </svg>
-      ))}
-    </span>
-  );
-}
-
-/* ─── Product Card ──────────────────────────────────────────── */
-function ProductCard({ product, badge }: { product: Product; badge?: "hot" | "new" | "sale" }) {
-  const addToCart = useCartStore((s) => s.addItem);
-  const token = useAuthStore((s) => s.token);
-  const toggleFavoriteInStore = useFavoriteStore((s) => s.toggleFavorite);
-  const isFavorite = useFavoriteStore((s) => s.isFavorite(product._id));
-  const setLoginModalOpen = useUiStore((s) => s.setLoginModalOpen);
-  const [added, setAdded] = useState(false);
-
-  const doAdd = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addToCart(
-      {
-        productId: product._id,
-        name: product.name,
-        price: product.price,
-        imageUrl: product.imageUrl,
-        quantity: 1,
-        sellerId: "",
-        brand: product.brand,
-        barcode: product.barcode,
-      },
-      token
-    );
-    setAdded(true);
-    setTimeout(() => setAdded(false), 1500);
-  };
-
-  const toggleFavorite = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!token) {
-      setLoginModalOpen(true);
-      return;
-    }
-
-    await toggleFavoriteInStore(product._id, token);
-  };
-
-  const hasDiscount = product.originalPrice > product.price;
-  const pct = hasDiscount ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
-  const saved = product.originalPrice - product.price;
-  const lowStock = (product.stock ?? 99) < 10;
-
-  return (
-    <Link href={`/product/${product._id}`} className="group relative flex flex-col bg-white rounded-2xl overflow-hidden border border-slate-100 transition-all duration-200 hover:border-slate-200 hover:shadow-xl hover:shadow-slate-100">
-      {/* Image */}
-      <div className="relative overflow-hidden bg-slate-50" style={{ aspectRatio: "1/1" }}>
-        {product.imageUrl
-          ? <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
-          : <div className="flex h-full w-full items-center justify-center text-4xl text-slate-200">📦</div>
-        }
-
-        {/* Badges */}
-        <div className="absolute left-2.5 top-2.5 flex flex-col gap-1.5">
-          {pct >= 20 && <span className="rounded-lg bg-brand-orange px-2 py-0.5 text-[11px] font-bold text-white">%{pct} İNDİRİM</span>}
-          {badge === "hot" && <span className="rounded-lg bg-rose-500 px-2 py-0.5 text-[11px] font-bold text-white">🔥 ÇOK SATAN</span>}
-          {badge === "new" && <span className="rounded-lg bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-white">✦ YENİ</span>}
-          {lowStock && <span className="rounded-lg bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">⚡ Son {product.stock} adet</span>}
-        </div>
-
-        <button
-          onClick={toggleFavorite}
-          aria-label="Favoriye ekle"
-          className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-sm transition-colors hover:text-rose-500"
-        >
-          <svg className={`h-4 w-4 ${isFavorite ? "fill-rose-500 text-rose-500" : "fill-none"}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12.001 20.729l-.321-.294C6.4 15.6 3 12.5 3 8.7 3 5.72 5.42 3.3 8.4 3.3c1.73 0 3.39.81 4.45 2.09A6.03 6.03 0 0117.3 3.3C20.28 3.3 22.7 5.72 22.7 8.7c0 3.8-3.4 6.9-8.68 11.74l-.319.289z" />
-          </svg>
-        </button>
-
-        {/* Hover overlay CTA */}
-        <div className="absolute inset-x-0 bottom-0 translate-y-full transition-transform duration-200 group-hover:translate-y-0">
-          <button
-            onClick={doAdd}
-            className={`w-full py-3 text-sm font-bold transition-colors ${added ? "bg-emerald-500 text-white" : "bg-slate-900 text-white hover:bg-brand-orange"}`}
-          >
-            {added ? "✓ Sepete Eklendi" : "Sepete Ekle"}
-          </button>
-        </div>
-      </div>
-
-      {/* Info */}
-      <div className="flex flex-1 flex-col p-3.5">
-        <p className="mb-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">{product.brand}</p>
-        <p className="mb-2 line-clamp-2 flex-1 text-[13px] font-medium leading-snug text-slate-800">{product.name}</p>
-
-        {product.reviewCount > 0 && (
-          <div className="mb-2.5 flex items-center gap-1.5">
-            <Stars rating={product.rating} />
-            <span className="text-[11px] text-slate-400">{product.rating.toFixed(1)} ({product.reviewCount})</span>
-          </div>
-        )}
-
-        <div className="flex items-end justify-between gap-1">
-          <div>
-            {hasDiscount && <p className="text-xs text-slate-400 line-through">{product.originalPrice.toLocaleString("tr-TR")} TL</p>}
-            <p className="text-base font-bold text-slate-900">{product.price.toLocaleString("tr-TR")} <span className="text-sm font-semibold text-slate-500">TL</span></p>
-          </div>
-          {hasDiscount && saved >= 10 && (
-            <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
-              {saved.toLocaleString("tr-TR")} TL tasarruf
-            </span>
-          )}
-        </div>
-
-        <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-2.5 py-2">
-          <div className="min-w-0 pr-2">
-            <p className="text-[10px] font-bold text-emerald-600">Sepete özel</p>
-            <div className="flex items-center gap-2">
-              {hasDiscount && <span className="text-xs font-semibold text-slate-400 line-through">{product.originalPrice.toLocaleString("tr-TR")} TL</span>}
-              <span className="text-[28px] leading-none font-extrabold tracking-tight text-emerald-600">{product.price.toLocaleString("tr-TR")}</span>
-              <span className="text-sm font-bold text-emerald-700">TL</span>
-            </div>
-          </div>
-
-          <button
-            onClick={doAdd}
-            aria-label="Sepete ekle"
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors ${added ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-brand-orange hover:text-brand-orange"}`}
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 2.3c-.6.6-.2 1.7.7 1.7H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-/* ─── Horizontal scroll shelf ──────────────────────────────── */
-function Shelf({ title, label, products, badge }: { title: string; label?: string; products: Product[]; badge?: "hot" | "new" | "sale" }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const scroll = (dir: number) => ref.current?.scrollBy({ left: dir * 280, behavior: "smooth" });
-
-  if (!products.length) return null;
-  return (
-    <section>
-      <div className="mb-5 flex items-center justify-between">
-        <div className="flex items-baseline gap-3">
-          <h2 className="text-xl font-bold text-slate-900 md:text-2xl">{title}</h2>
-          {label && <span className="rounded-full bg-brand-orange/10 px-3 py-0.5 text-xs font-bold text-brand-orange">{label}</span>}
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => scroll(-1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-slate-400 transition-colors">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <button onClick={() => scroll(1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-slate-400 transition-colors">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-          </button>
-        </div>
-      </div>
-      <div ref={ref} className="flex gap-4 overflow-x-auto scroll-smooth pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {products.map((p) => (
-          <div key={p._id} className="w-52 shrink-0 md:w-56">
-            <ProductCard product={p} badge={badge} />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* ─── Skeleton ──────────────────────────────────────────────── */
 function SkeletonGrid() {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
+        <div key={i} className="overflow-hidden rounded-2xl border-[0.5px] border-slate-200 bg-white">
           <div className="aspect-square animate-pulse bg-slate-100" />
-          <div className="space-y-2.5 p-4">
-            <div className="h-2.5 w-1/3 animate-pulse rounded-full bg-slate-100" />
-            <div className="h-3.5 animate-pulse rounded-full bg-slate-100" />
-            <div className="h-3.5 w-2/3 animate-pulse rounded-full bg-slate-100" />
-            <div className="mt-3 h-5 w-1/2 animate-pulse rounded-full bg-slate-100" />
+          <div className="space-y-3 p-4">
+            <div className="h-2 w-1/4 animate-pulse rounded bg-slate-100" />
+            <div className="h-3 animate-pulse rounded bg-slate-100" />
+            <div className="h-3 w-5/6 animate-pulse rounded bg-slate-100" />
+            <div className="mt-4 flex justify-between items-center">
+              <div className="h-4 w-1/2 animate-pulse rounded bg-slate-100" />
+              <div className="h-8 w-8 animate-pulse rounded-full bg-slate-100" />
+            </div>
           </div>
         </div>
       ))}
@@ -239,253 +54,315 @@ function SkeletonGrid() {
   );
 }
 
-/* ─── Trust bar ─────────────────────────────────────────────── */
-const PERKS = [
-  { icon: "🚀", title: "Aynı Gün Kargo", desc: "14:00'a kadar siparişlerde" },
-  { icon: "🛡️", title: "Güvenli Ödeme", desc: "256-bit SSL koruması" },
-  { icon: "↩️", title: "30 Gün İade", desc: "Koşulsuz, ücretsiz" },
-  { icon: "🎧", title: "7/24 Destek", desc: "Her zaman yanınızdayız" },
-];
-
-/* ─── Stats ─────────────────────────────────────────────────── */
-const STATS = [
-  { value: "500K+", label: "Mutlu müşteri" },
-  { value: "50K+", label: "Ürün çeşidi" },
-  { value: "4.8★", label: "Ortalama puan" },
-  { value: "1 gün", label: "Ortalama teslimat" },
-];
-
-/* ═══════════════════════════════════════════════════════════════
-   PAGE
-═══════════════════════════════════════════════════════════════ */
 export default function Home() {
+  const router = useRouter();
+  const [selectedCategory, setSelectedCategory] = useState<string>("Tümü");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState("Tümü");
-  const filterRef = useRef<HTMLElement>(null);
-  const token = useAuthStore((s) => s.token);
-  const fetchFavorites = useFavoriteStore((s) => s.fetchFavorites);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Ticking countdown timer state for Flash Deals
+  const [timeLeft, setTimeLeft] = useState({ hours: 4, minutes: 22, seconds: 10 });
 
   useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        let s = prev.seconds - 1;
+        let m = prev.minutes;
+        let h = prev.hours;
+        if (s < 0) {
+          s = 59;
+          m -= 1;
+        }
+        if (m < 0) {
+          m = 59;
+          h -= 1;
+        }
+        if (h < 0) {
+          h = 23;
+        }
+        return { hours: h, minutes: m, seconds: s };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const mergeUnique = (arrays: Product[][]): Product[] => {
+    const map = new Map<string, Product>();
+    arrays.flat().forEach((item) => map.set(item._id, item));
+    return Array.from(map.values());
+  };
+
+  useEffect(() => {
+    setLoading(true);
     Promise.all([
-      apiClient.get("/products?limit=100"),
-      apiClient.get("/products/xml/catalog?limit=120&page=1").catch(() => null),
+      apiClient.get(`/products?limit=${PAGE_SIZE}&page=1`),
+      apiClient.get(`/products/xml/catalog?limit=${PAGE_SIZE}&page=1`).catch(() => null),
     ])
       .then(([dbRes, xmlRes]) => {
         const dbProducts = normalizeProducts(dbRes?.data?.data?.products || []);
         const xmlProducts = normalizeProducts(xmlRes?.data?.data?.products || []);
-        const deduped = new Map<string, Product>();
-
-        for (const product of [...xmlProducts, ...dbProducts]) {
-          deduped.set(product._id, product);
-        }
-
-        setProducts(Array.from(deduped.values()));
+        setProducts(mergeUnique([xmlProducts, dbProducts]));
+        setHasMore(dbProducts.length === PAGE_SIZE || xmlProducts.length === PAGE_SIZE);
       })
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    if (token) {
-      fetchFavorites(token);
-    }
-  }, [token, fetchFavorites]);
+  const loadMore = () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    Promise.all([
+      apiClient.get(`/products?limit=${PAGE_SIZE}&page=${page + 1}`),
+      apiClient.get(`/products/xml/catalog?limit=${PAGE_SIZE}&page=${page + 1}`).catch(() => null),
+    ])
+      .then(([dbRes, xmlRes]) => {
+        const dbProducts = normalizeProducts(dbRes?.data?.data?.products || []);
+        const xmlProducts = normalizeProducts(xmlRes?.data?.data?.products || []);
+        setProducts((prev) => mergeUnique([prev, xmlProducts, dbProducts]));
+        setPage((prev) => prev + 1);
+        setHasMore(dbProducts.length === PAGE_SIZE || xmlProducts.length === PAGE_SIZE);
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
-  const categories = useMemo(() => {
-    const unique = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
-    return ["Tümü", ...unique.slice(0, 14)];
+  const filteredProducts = useMemo(() => {
+    if (selectedCategory === "Tümü") return products;
+    return products.filter((p) => p.category?.toLowerCase() === selectedCategory.toLowerCase());
+  }, [products, selectedCategory]);
+
+  // Extract top items with actual discounts for Lightning Deals
+  const flashDeals = useMemo(() => {
+    return products
+      .filter((p) => p.originalPrice > p.price)
+      .sort((a, b) => {
+        const discA = Math.round(((a.originalPrice - a.price) / a.originalPrice) * 100);
+        const discB = Math.round(((b.originalPrice - b.price) / b.originalPrice) * 100);
+        return discB - discA;
+      })
+      .slice(0, 5);
   }, [products]);
-
-  const filtered = useMemo(
-    () => activeCategory === "Tümü" ? products : products.filter((p) => p.category === activeCategory),
-    [products, activeCategory]
-  );
-
-  const deals = useMemo(
-    () => [...products].filter((p) => p.originalPrice > p.price).sort((a, b) => (b.originalPrice - b.price) - (a.originalPrice - a.price)).slice(0, 16),
-    [products]
-  );
-
-  const topRated = useMemo(
-    () => [...products].sort((a, b) => b.rating - a.rating).slice(0, 16),
-    [products]
-  );
-
-  const newArrivals = useMemo(() => [...products].reverse().slice(0, 16), [products]);
-
-  const scrollToProducts = () => filterRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
     <div className="min-h-screen bg-slate-50">
-
-      {/* ── Hero ─────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-white border-b border-slate-100">
-        <div className="mx-auto max-w-7xl px-4 py-16 md:px-8 md:py-20">
-          <div className="grid gap-12 md:grid-cols-[1fr_auto] md:items-center">
-
-            {/* Left */}
-            <div className="max-w-xl">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-orange/20 bg-brand-orange/5 px-3 py-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-brand-orange animate-pulse" />
-                <span className="text-xs font-semibold text-brand-orange">Yeni Sezon Ürünleri Geldi</span>
-              </div>
-
-              <h1 className="mb-5 text-4xl font-bold leading-[1.1] tracking-tight text-slate-900 md:text-5xl lg:text-6xl">
-                Alışverişin<br />
-                <span className="text-brand-orange">en akıllı</span><br />
-                adresi.
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 space-y-8">
+        
+        {/* Dynamic Bento Hero Banner & Promo Grid */}
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Main Hero Card (2/3 width) */}
+          <div className="lg:col-span-8 relative h-[380px] rounded-2xl overflow-hidden border border-slate-100 group shadow-sm bg-slate-900">
+            <img
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBkupExmyQ6-UuVfMQe4fcqidAnnxxXg-pMLmLaNo298mYsVRrHMXinyGyI13iSP97_FWsdSxC3MkK9g9MvzN5md1MoAaQgGaCzVWvvNov3Ookl1H3qaLyXfq7hKD1mykufd-aObsjYMUmyqnFY7GsGhE4Yn4K8kY-6eRqmE-xuxhf8PSuJeD-O9Oe958dHl8evk5636GU_vWWy5dX5esns-ucjxjXCR0SfmPiN1OsUjGaXMYlivSosmoMUnU3sPX-4ggVIsnwe1Bk"
+              alt="New Season Banner"
+              className="absolute inset-0 w-full h-full object-cover opacity-75 group-hover:scale-105 transition-transform duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/60 to-transparent flex flex-col justify-center p-8 md:p-12 text-white">
+              <span className="bg-[#ff5000] text-white text-[9px] font-black px-3 py-1 rounded-full w-fit uppercase tracking-widest mb-4">
+                YENİ SEZON KOLEKSİYONU
+              </span>
+              <h1 className="text-2xl sm:text-4xl font-black text-white max-w-md leading-tight tracking-tight mb-4 select-none">
+                Hayalindeki Evi Keşfet, Tarzını Yansıt
               </h1>
-
-              <p className="mb-8 text-base leading-relaxed text-slate-500">
-                Binlerce marka, milyonlarca ürün. Güvenli ödeme, hızlı teslimat, kolay iade.
+              <p className="text-slate-300 text-xs font-bold max-w-sm mb-6 leading-relaxed select-none">
+                Doğal malzemeler, el yapımı seramikler ve evine zerafet katacak minimalist aksesuarlar şimdi özel fırsatlarla.
               </p>
+              <button
+                onClick={() => setSelectedCategory("Ev & Yaşam")}
+                className="bg-white hover:bg-[#ff5000] hover:text-white text-slate-900 text-xs font-black uppercase tracking-wider px-8 py-3 rounded-full w-fit transition-all duration-300 active:scale-95 cursor-pointer shadow-md"
+              >
+                Koleksiyonu İncele
+              </button>
+            </div>
+          </div>
 
-              <div className="flex flex-wrap gap-3">
-                <button onClick={scrollToProducts} className="rounded-xl bg-slate-900 px-8 py-3.5 text-sm font-semibold text-white transition-all hover:bg-brand-orange hover:scale-[1.02] active:scale-100">
-                  Keşfet →
-                </button>
-                <Link href="/cart" className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                  Sepetim
-                </Link>
+          {/* Stacked Conversions Cards (1/3 width) */}
+          <div className="lg:col-span-4 flex flex-col gap-6">
+            {/* Flash Deal Promo */}
+            <div className="bg-orange-500/10 border-[0.5px] border-orange-500/30 p-6 rounded-2xl flex flex-col justify-between h-[178px] relative overflow-hidden group select-none">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <p className="font-black text-[#ff5000] text-[10px] uppercase tracking-widest">Günün Fırsatı</p>
+                  <span className="bg-[#ff5000] text-white text-[10px] font-black flex items-center gap-1 px-2.5 py-1 rounded-full border border-orange-300 shadow-sm animate-pulse">
+                    <Timer size={12} strokeWidth={2.5} />
+                    {String(timeLeft.hours).padStart(2, "0")}:{String(timeLeft.minutes).padStart(2, "0")}:{String(timeLeft.seconds).padStart(2, "0")}
+                  </span>
+                </div>
+                <h3 className="font-black text-slate-800 text-base mt-2 tracking-tight">Flaş Fırsatlarda %70'e Varan İndirim</h3>
+                <p className="text-slate-500 text-[10px] font-bold mt-1">Sadece sınırlı bir süre için sepette ekstra indirim!</p>
               </div>
-
-              {/* Stats */}
-              <div className="mt-10 grid grid-cols-4 gap-4 border-t border-slate-100 pt-8">
-                {STATS.map((s) => (
-                  <div key={s.label}>
-                    <p className="text-xl font-bold text-slate-900 md:text-2xl">{s.value}</p>
-                    <p className="text-xs text-slate-400">{s.label}</p>
-                  </div>
-                ))}
-              </div>
+              <button
+                onClick={() => setSelectedCategory("Tümü")}
+                className="bg-slate-950 hover:bg-[#ff5000] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer active:scale-95"
+              >
+                Fırsatları Yakala
+              </button>
             </div>
 
-            {/* Right — top 3 featured cards mini-preview */}
-            {!loading && products.slice(0, 3).length > 0 && (
-              <div className="hidden md:flex md:flex-col md:gap-3 md:w-72">
-                {products.slice(0, 3).map((p, i) => (
-                  <Link key={p._id} href={`/product/${p._id}`} className={`flex items-center gap-3 rounded-2xl border bg-white p-3 transition-shadow hover:shadow-md ${i === 0 ? "border-brand-orange/30 shadow-sm" : "border-slate-100"}`}>
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-50">
-                      {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-slate-800">{p.name}</p>
-                      <p className="text-sm font-bold text-slate-900">{p.price.toLocaleString("tr-TR")} TL</p>
-                    </div>
-                    {i === 0 && <span className="shrink-0 rounded-full bg-brand-orange/10 px-2 py-0.5 text-[10px] font-bold text-brand-orange">#1</span>}
-                  </Link>
-                ))}
+            {/* Vendor Register Card */}
+            <div className="bg-slate-950 p-6 rounded-2xl flex flex-col justify-between h-[178px] select-none">
+              <div>
+                <p className="font-black text-orange-400 text-[10px] uppercase tracking-widest">Mağaza Aç</p>
+                <h3 className="font-black text-white text-base mt-2 tracking-tight">biDunyam'da Kendi Markanı Sat</h3>
+                <p className="text-slate-400 text-[10px] font-bold mt-1">Hemen ücretsiz satıcı hesabı oluştur, 2.4M aktif alıcıya ulaş.</p>
               </div>
-            )}
+              <button
+                onClick={() => router.push("/yonetim/urunler")}
+                className="border border-white/20 hover:bg-white/10 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer active:scale-95"
+              >
+                Mağazanı Başlat
+              </button>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── Trust bar ────────────────────────────────────────── */}
-      <section className="border-b border-slate-100 bg-white">
-        <div className="mx-auto max-w-7xl px-4 md:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4">
-            {PERKS.map((perk, i) => (
-              <div key={perk.title} className={`flex items-center gap-3.5 py-4 px-5 ${i < 3 ? "border-r border-slate-100" : ""} ${i >= 2 ? "border-t border-slate-100 md:border-t-0" : ""}`}>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-lg">{perk.icon}</span>
+        {/* Global Value Trust Propositions */}
+        <TrustBar />
+
+        {/* Dynamic Flash / Lightning Deals section */}
+        {flashDeals.length > 0 && (
+          <section className="bg-white border-[0.5px] border-slate-200 rounded-3xl p-6 md:p-8 space-y-6 select-none shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="bg-red-500 text-white p-2 rounded-xl flex items-center justify-center shrink-0">
+                  <Percent size={18} strokeWidth={3} />
+                </span>
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">{perk.title}</p>
-                  <p className="text-xs text-slate-400">{perk.desc}</p>
+                  <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight">Flaş İndirimler</h2>
+                  <p className="text-slate-400 text-xs font-bold mt-0.5">En yüksek indirim oranına sahip popüler ürünler</p>
                 </div>
               </div>
+              <div className="flex items-center gap-2 self-start md:self-auto bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">
+                <Timer size={14} className="text-[#ff5000] animate-spin" />
+                <span className="text-xs font-black text-slate-700">Kalan Süre:</span>
+                <span className="text-[#ff5000] font-black text-xs">
+                  {String(timeLeft.hours).padStart(2, "0")}:{String(timeLeft.minutes).padStart(2, "0")}:{String(timeLeft.seconds).padStart(2, "0")}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {flashDeals.map((p) => {
+                const discount = Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
+                // dynamic progression
+                const soldPercent = Math.min(95, Math.max(30, Math.round((p.price % 60) + 35)));
+                return (
+                  <div
+                    key={p._id}
+                    onClick={() => router.push(`/product/${p._id}`)}
+                    className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 hover:shadow-lg transition-all duration-300 group cursor-pointer flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="relative aspect-square mb-3 overflow-hidden rounded-xl bg-white flex items-center justify-center p-3 border border-slate-100">
+                        <img
+                          src={p.imageUrl}
+                          alt={p.name}
+                          className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300"
+                        />
+                        <div className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                          -%{discount}
+                        </div>
+                      </div>
+                      <span className="text-[#ff5000] font-black text-[9px] uppercase tracking-widest block">{p.brand}</span>
+                      <h4 className="text-xs font-black text-slate-800 line-clamp-1 mt-1 group-hover:text-[#ff5000] transition-colors">{p.name}</h4>
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-black text-slate-900">{p.price.toLocaleString("tr-TR")} TL</span>
+                        <span className="text-slate-400 line-through text-[10px] font-bold">{p.originalPrice.toLocaleString("tr-TR")} TL</span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          <span>%{soldPercent} Satıldı</span>
+                          <span className="text-red-500">Tükeniyor!</span>
+                        </div>
+                        <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${soldPercent}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Bento Category Scroll Slider Selector (Clean Flex Wrap Layout) */}
+        <section className="space-y-3 select-none">
+          <div className="flex justify-between items-end">
+            <div>
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                İlgini Çeken Kategorileri Keşfet
+              </h2>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-5 py-2.5 rounded-full text-[11px] font-black transition-all duration-200 active:scale-[0.97] cursor-pointer uppercase tracking-wider ${
+                  selectedCategory === cat
+                    ? "bg-[#001819] text-white border border-[#001819] shadow-sm shadow-[#001819]/10"
+                    : "bg-white text-slate-600 border-[0.5px] border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                {cat}
+              </button>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── Content ──────────────────────────────────────────── */}
-      <div className="mx-auto max-w-7xl px-4 pb-24 md:px-8">
-
-        {/* Flash deals */}
-        {!loading && deals.length > 0 && (
-          <div className="mt-12 md:mt-16">
-            <Shelf title="Fırsat Ürünleri" label="Sınırlı stok" products={deals} badge="sale" />
-          </div>
-        )}
-
-        {/* Top rated */}
-        {!loading && topRated.length > 0 && (
-          <div className="mt-12 border-t border-slate-100 pt-12 md:mt-16 md:pt-16">
-            <Shelf title="En Çok Beğenilenler" label="Müşteri favorisi" products={topRated} badge="hot" />
-          </div>
-        )}
-
-        {/* New arrivals */}
-        {!loading && newArrivals.length > 0 && (
-          <div className="mt-12 border-t border-slate-100 pt-12 md:mt-16 md:pt-16">
-            <Shelf title="Yeni Gelenler" label="Bu hafta eklendi" products={newArrivals} badge="new" />
-          </div>
-        )}
-
-        {/* ── All products ─────────────────────────────────── */}
-        <section ref={filterRef} id="products" className="mt-12 border-t border-slate-100 pt-12 md:mt-16 md:pt-16">
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 md:text-2xl">Tüm Ürünler</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                {loading ? "Yükleniyor..." : `${filtered.length} ürün`}
-              </p>
+        {/* Main Infinite Product Feed Showcase */}
+        <section className="space-y-6">
+          <div className="flex justify-between items-center select-none">
+            <h2 className="text-xl font-extrabold tracking-tight text-slate-900 md:text-2xl">
+              Sizin İçin Seçtiklerimiz
+            </h2>
+            <div className="flex items-center gap-1.5 text-xs font-black text-[#001819]">
+              <Sparkles size={14} className="animate-pulse" />
+              <span>Kişiselleştirilmiş Akış</span>
             </div>
           </div>
-
-          {/* Sticky category filter */}
-          <div className="sticky top-16 z-30 mb-6 -mx-4 bg-slate-50 px-4 py-3 md:-mx-8 md:px-8">
-            <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-150 ${
-                    activeCategory === cat
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
+          
           {loading ? (
             <SkeletonGrid />
-          ) : filtered.length === 0 ? (
-            <div className="py-24 text-center">
-              <p className="mb-2 text-3xl">🔍</p>
-              <p className="font-medium text-slate-400">Bu kategoride ürün bulunamadı.</p>
+          ) : filteredProducts.length === 0 ? (
+            <div className="py-24 text-center select-none bg-white rounded-2xl border-[0.5px] border-slate-200 shadow-sm">
+              <span className="text-3xl">🔍</span>
+              <p className="font-bold text-slate-400 mt-3 text-sm">Aradığınız kategoride ürün bulunamadı.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {filtered.map((p, i) => (
-                <ProductCard
-                  key={p._id}
-                  product={p}
-                  badge={i < 3 ? "hot" : p.originalPrice > p.price ? "sale" : undefined}
-                />
-              ))}
+            <div className="space-y-10">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {filteredProducts.map((p) => (
+                  <ProductCard key={p._id} product={p} />
+                ))}
+              </div>
+
+              {/* Dynamic load more CTA button */}
+              {hasMore && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="rounded-full bg-slate-900 px-12 py-4 text-xs font-black text-white uppercase tracking-widest shadow-sm transition-all duration-300 hover:bg-[#ff5000] hover:shadow-lg disabled:opacity-50 cursor-pointer active:scale-95"
+                  >
+                    {loadingMore ? "Yükleniyor..." : "Daha Fazla Keşfet"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </section>
       </div>
 
-      {/* ── Back to top ───────────────────────────────────────── */}
-      <button
-        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className="fixed bottom-6 right-6 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition-all hover:bg-brand-orange hover:scale-110 active:scale-100"
-        aria-label="Başa dön"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-        </svg>
-      </button>
+      {/* Global Footer & Mobile Navigation */}
+      <Footer />
+      <MobileBottomNav />
     </div>
   );
 }
-

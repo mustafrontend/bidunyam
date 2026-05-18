@@ -1,263 +1,255 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from 'react';
-import { useCartStore } from '@/stores/cartStore';
-import { useAuthStore } from '@/stores/authStore';
-import { useFavoriteStore } from '@/stores/favoriteStore';
-import { useUiStore } from '@/stores/uiStore';
-import { LoginModal } from '../molecules/LoginModal';
-import { apiClient } from '@/lib/api';
-import { Logo } from '../atoms/Logo';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import React, { useEffect, useState, useRef } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { 
+  User, 
+  HelpCircle, 
+  Globe, 
+  ShoppingCart, 
+  Search, 
+  ChevronDown, 
+  Heart, 
+  Menu, 
+  Zap, 
+  CheckCircle2, 
+  Shirt, 
+  Home as HomeIcon, 
+  Laptop, 
+  Smile, 
+  Sparkles, 
+  Activity 
+} from "lucide-react";
+import { useCartStore } from "@/stores/cartStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useFavoriteStore } from "@/stores/favoriteStore";
+import { useUiStore } from "@/stores/uiStore";
+import { apiClient } from "@/lib/api";
+import { Logo } from "../atoms/Logo";
+import { LoginModal } from "../molecules/LoginModal";
+import { UserMenu } from "../molecules/UserMenu";
+import { SearchResults } from "../molecules/SearchResults";
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
-  const totalItems = useCartStore((state) => state.getTotalItems());
+  const router = useRouter();
+  const totalItems = useCartStore((s) => s.getTotalItems());
   const { user, token, logout } = useAuthStore();
-  const favoriteCount = useFavoriteStore((state) => state.productIds.length);
-  const fetchFavorites = useFavoriteStore((state) => state.fetchFavorites);
-  const clearFavorites = useFavoriteStore((state) => state.clearFavorites);
+  const favoriteCount = useFavoriteStore((s) => s.productIds.length);
+  const fetchFavorites = useFavoriteStore((s) => s.fetchFavorites);
+  const clearFavorites = useFavoriteStore((s) => s.clearFavorites);
   const { isLoginModalOpen, setLoginModalOpen } = useUiStore();
+
   const [isMounted, setIsMounted] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
+  // Active Individual (Bireysel) / Brand (Kurumsal) toggle state
+  const [isBrandMode, setIsBrandMode] = useState(false);
+
   useEffect(() => {
     setIsMounted(true);
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+    const clickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowResults(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", clickOutside);
+    return () => document.removeEventListener("mousedown", clickOutside);
   }, []);
 
   useEffect(() => {
     if (token) {
       fetchFavorites(token);
-      return;
+    } else {
+      clearFavorites();
     }
-
-    clearFavorites();
   }, [token, fetchFavorites, clearFavorites]);
 
-  // Search effect
   useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
+    const delayDebounce = setTimeout(async () => {
       if (searchQuery.length >= 2) {
-        setIsSearching(true);
         try {
           const res = await apiClient.get(`/search?q=${searchQuery}`);
           setSearchResults(res.data.data);
           setShowResults(true);
         } catch (err) {
           console.error("Search failed", err);
-        } finally {
-          setIsSearching(false);
         }
       } else {
         setSearchResults([]);
         setShowResults(false);
       }
     }, 300);
-
-    return () => clearTimeout(delayDebounceFn);
+    return () => clearTimeout(delayDebounce);
   }, [searchQuery]);
 
-  // Admin panelde global magazaya ait header gorunmesin.
-  if (pathname?.startsWith('/yonetim')) {
-    return null;
-  }
+  if (pathname?.startsWith("/yonetim")) return null;
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white shadow-sm">
-        <div className="mx-auto w-full max-w-7xl px-4 py-3 md:px-8 md:py-4">
-          <div className="flex flex-wrap items-center gap-3 md:gap-5">
+      {/* 1. Slim Top Promo Banner (Turkish) */}
+      <div className="w-full bg-[#001819] text-white py-2 text-center text-[10px] font-black uppercase tracking-widest select-none">
+        Milyonlarca Ürün, Güvenli Teslimat, 24/7 Destek. Alışverişe Başla
+      </div>
+
+      {/* 2. Main Premium Header Wrapper */}
+      <header className="sticky top-0 z-50 w-full bg-white text-slate-800 shadow-sm border-b-[0.5px] border-slate-200">
+        <div className="mx-auto w-full max-w-7xl px-4 py-3 md:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            
+            {/* Brand Logo */}
             <Link href="/" className="shrink-0">
-              <Logo />
+              <Logo light={false} />
             </Link>
 
-            {/* Search Bar */}
-            <div className="order-3 w-full md:order-0 md:flex md:flex-1 md:max-w-2xl" ref={searchRef}>
+            {/* Mode Switcher pill capsule (Turkish) */}
+            <div className="hidden md:flex bg-slate-100 p-0.5 rounded-full border border-slate-200/60 text-[10px] font-black uppercase tracking-wider select-none shrink-0">
+              <button 
+                onClick={() => setIsBrandMode(false)}
+                className={`px-4 py-1.5 rounded-full transition-all cursor-pointer ${
+                  !isBrandMode 
+                    ? "bg-white text-slate-800 font-black shadow-sm" 
+                    : "text-slate-400 hover:text-slate-700"
+                }`}
+              >
+                Bireysel
+              </button>
+              <button 
+                onClick={() => setIsBrandMode(true)}
+                className={`px-4 py-1.5 rounded-full transition-all cursor-pointer ${
+                  isBrandMode 
+                    ? "bg-white text-slate-800 font-black shadow-sm" 
+                    : "text-slate-400 hover:text-slate-700"
+                }`}
+              >
+                Kurumsal
+              </button>
+            </div>
+
+            {/* Categories Hamburger Trigger (Turkish) */}
+            <button className="hidden lg:flex items-center gap-1.5 font-black text-xs text-slate-700 hover:bg-slate-50 px-3.5 py-2.5 rounded-full transition-all cursor-pointer active:scale-95 border border-slate-200/60">
+              <Menu size={16} strokeWidth={2.5} className="text-[#001819]" />
+              <span>Kategoriler</span>
+            </button>
+
+            {/* Oversized Pinned Search Bar (Turkish) */}
+            <div className="order-3 w-full md:order-none md:flex-1 md:max-w-xl" ref={searchRef}>
               <div className="relative w-full">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
-                  placeholder="Ürün, kategori veya marka ara..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-4 pr-20 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+                  placeholder="Milyonlarca ürün arasından ara..."
+                  className="w-full rounded-full border-none bg-slate-100 py-2.5 pl-5 pr-14 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:ring-4 focus:ring-slate-200 focus:bg-white"
                 />
-                <button className="absolute bottom-1 right-1 top-1 rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white transition-colors hover:bg-brand-orange">
-                  Ara
+                <button className="absolute right-1 top-1 bottom-1 rounded-full bg-[#001819] px-4 text-white hover:bg-slate-800 transition-colors active:scale-95 flex items-center justify-center cursor-pointer">
+                  <Search size={14} strokeWidth={2.5} />
                 </button>
 
-                {/* Search Results Dropdown */}
+                {/* Autocomplete dropdown */}
                 {showResults && (
-                  <div className="absolute left-0 right-0 top-full z-60 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-                    {searchResults.length > 0 ? (
-                      <div className="py-2">
-                        {searchResults.map((product) => (
-                          <Link
-                            key={product.id}
-                            href={`/product/${product.id}`}
-                            onClick={() => setShowResults(false)}
-                            className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-slate-50"
-                          >
-                            <img src={product.imageUrl} className="h-12 w-12 rounded-lg bg-slate-100 object-cover" alt="" />
-                            <div>
-                              <p className="line-clamp-1 text-sm font-black text-slate-900">{product.name}</p>
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{product.brand} • {product.category}</p>
-                            </div>
-                            <div className="ml-auto text-sm font-black text-[#ff6000]">
-                              {product.price.toLocaleString('tr-TR')} TL
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-8 text-center text-sm font-bold text-slate-400">Sonuc bulunamadi.</div>
-                    )}
-                  </div>
+                  <SearchResults results={searchResults} onClose={() => setShowResults(false)} />
                 )}
               </div>
             </div>
 
-            <nav className="ml-auto flex items-center gap-2 md:gap-3">
+            {/* Header Action Controls */}
+            <nav className="flex items-center gap-3.5 md:gap-5 text-slate-700">
+              
+              {/* Account Dropdown */}
               {isMounted && !!token ? (
                 <div className="relative">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex flex-col items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400 transition-colors"
+                    className="flex items-center gap-1.5 rounded-full px-2.5 py-2 hover:bg-slate-100 active:scale-95 transition-all text-xs font-black cursor-pointer"
                   >
-                    <span className="text-xs font-medium text-slate-500">Hesabım</span>
-                    <span className="font-bold text-slate-900">{user?.name}</span>
+                    <User size={18} strokeWidth={2.5} className="text-[#001819]" />
+                    <span className="hidden lg:inline line-clamp-1 max-w-[80px] text-slate-800">{user?.name}</span>
                   </button>
                   {isUserMenuOpen && (
-                    <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
-                      {/* Header */}
-                      <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
-                        <p className="text-sm font-bold text-slate-900">{user?.name}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{user?.email}</p>
-                      </div>
-
-                      {/* Menu Items */}
-                      <nav className="px-2 py-2 space-y-1">
-                        <Link
-                          href="/account/orders"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                        >
-                          <span>📦</span>
-                          Siparişlerim
-                        </Link>
-                        <Link
-                          href="/account/requests"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                        >
-                          <span>💬</span>
-                          Soru ve Taleplerim
-                        </Link>
-                        <Link
-                          href="/account/info"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                        >
-                          <span>👤</span>
-                          Kullanıcı Bilgilerim
-                        </Link>
-                        <Link
-                          href="/account/reviews"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                        >
-                          <span>⭐</span>
-                          Değerlendirmelerim
-                        </Link>
-                        <Link
-                          href="/favorites"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                        >
-                          <span>❤️</span>
-                          Beğendiklerim
-                        </Link>
-                      </nav>
-
-                      {/* Logout */}
-                      <div className="border-t border-slate-100 px-2 py-2">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            logout();
-                            clearFavorites();
-                            setIsUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          <span>🚪</span>
-                          Çıkış Yap
-                        </button>
-                      </div>
-                    </div>
+                    <UserMenu user={user} onClose={() => setIsUserMenuOpen(false)} onLogout={logout} />
                   )}
                 </div>
               ) : (
                 <button
                   onClick={() => setLoginModalOpen(true)}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400 transition-colors"
+                  className="flex items-center gap-1.5 rounded-full px-2.5 py-2 hover:bg-slate-100 active:scale-95 transition-all text-xs font-black cursor-pointer"
                 >
-                  Giriş Yap
+                  <User size={18} strokeWidth={2.5} className="text-[#001819]" />
                 </button>
               )}
 
+              {/* Favorites Heart Icon */}
               <Link
-                href="/favorites"
-                onClick={(e) => {
-                  if (!token) {
-                    e.preventDefault();
-                    setLoginModalOpen(true);
-                  }
-                }}
-                className="relative flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:border-rose-300 hover:text-rose-600 transition-colors"
+                href="/favoriler"
+                className="relative flex items-center justify-center h-9 w-9 rounded-full hover:bg-slate-100 active:scale-95 transition-all text-slate-800"
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12.001 20.729l-.321-.294C6.4 15.6 3 12.5 3 8.7 3 5.72 5.42 3.3 8.4 3.3c1.73 0 3.39.81 4.45 2.09A6.03 6.03 0 0117.3 3.3C20.28 3.3 22.7 5.72 22.7 8.7c0 3.8-3.4 6.9-8.68 11.74l-.319.289z" />
-                </svg>
-                Favorilerim
+                <Heart size={18} strokeWidth={2.5} className="text-[#001819]" />
                 {isMounted && favoriteCount > 0 && (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 text-[11px] font-bold text-rose-700">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-black text-white border border-white leading-none">
                     {favoriteCount}
                   </span>
                 )}
               </Link>
 
+              {/* Cart */}
               <Link
                 href="/cart"
-                className="relative flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange transition-colors"
+                className="relative flex items-center justify-center h-9 w-9 rounded-full hover:bg-slate-100 active:scale-95 transition-all text-slate-800"
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                Sepetim
+                <ShoppingCart size={18} strokeWidth={2.5} className="text-[#001819]" />
                 {isMounted && totalItems > 0 && (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-bold text-slate-900">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-black text-white border border-white leading-none animate-bounce">
                     {totalItems}
                   </span>
                 )}
               </Link>
+
+              {/* Sell Item Premium Yellow Button (Turkish) */}
+              <button
+                onClick={() => router.push("/yonetim/urunler")}
+                className="bg-[#fed65b] text-[#745c00] hover:bg-[#fed65b]/90 px-5 py-2.5 rounded-full font-black text-xs uppercase tracking-widest transition-all cursor-pointer active:scale-95 shadow-sm border border-[#e9c349]/20"
+              >
+                Ürün Sat
+              </button>
+
             </nav>
           </div>
+
+          {/* Sub-navigation bar inside header (Turkish) */}
+          <nav className="mt-3.5 flex items-center gap-6 overflow-x-auto no-scrollbar border-t border-slate-100 pt-2.5 text-xs font-black text-slate-500 select-none">
+            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap text-slate-900 font-extrabold border-b-2 border-[#001819]">
+              <Zap size={14} className="text-amber-500 fill-amber-500 shrink-0 animate-bounce" /> Flaş Fırsatlar
+            </Link>
+            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
+              <CheckCircle2 size={14} className="text-emerald-500 shrink-0" /> Sadece Onaylılar
+            </Link>
+            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
+              <Shirt size={14} className="text-blue-500 shrink-0" /> Giyim
+            </Link>
+            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
+              <HomeIcon size={14} className="text-orange-500 shrink-0" /> Ev & Yaşam
+            </Link>
+            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
+              <Laptop size={14} className="text-indigo-500 shrink-0" /> Elektronik
+            </Link>
+            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
+              <Smile size={14} className="text-purple-500 shrink-0" /> Bebek & Çocuk
+            </Link>
+            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
+              <Sparkles size={14} className="text-pink-500 shrink-0" /> Kozmetik
+            </Link>
+            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
+              <Activity size={14} className="text-red-500 shrink-0" /> Spor & Outdoor
+            </Link>
+          </nav>
+
         </div>
       </header>
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setLoginModalOpen(false)} />

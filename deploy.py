@@ -13,7 +13,7 @@ NGINX_SRC = f"{REPO_DIR}/deploy/nginx/bidunyam.com.conf"
 NGINX_DEST = "/etc/nginx/sites-available/bidunyam.com.conf"
 
 def run(client, cmd, label=""):
-    print(f"\n{'─'*50}")
+    print(f"\n{'='*50}")
     print(f">>> {label or cmd[:80]}")
     stdin, stdout, stderr = client.exec_command(cmd, get_pty=True)
     out = stdout.read().decode(errors="replace")
@@ -25,6 +25,9 @@ def run(client, cmd, label=""):
     return out, err
 
 def main():
+    import sys
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     print(f"Connecting to {HOST}...")

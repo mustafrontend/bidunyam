@@ -66,34 +66,7 @@ const CategoryOptionSchema = z.object({
 });
 
 export const ProductController = {
-  async getCatalogOptions(_req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const options = await ProductService.getCatalogOptions();
-      res.json({ success: true, data: options });
-    } catch (err) {
-      next(err);
-    }
-  },
 
-  async createBrandOption(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const body = BrandOptionSchema.parse(req.body);
-      const options = await ProductService.createBrandOption(body.name);
-      res.status(201).json({ success: true, data: options });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  async createCategoryOption(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const body = CategoryOptionSchema.parse(req.body);
-      const options = await ProductService.createCategoryOption(body.mainCategory, body.subCategory);
-      res.status(201).json({ success: true, data: options });
-    } catch (err) {
-      next(err);
-    }
-  },
 
   async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

@@ -1,0 +1,93 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Product {
+  id                   String        @id @default(uuid())
+  barcode              String        @unique
+  modelCode            String
+  sku                  String        @unique
+  name                 String
+  shortDescription     String        @default("")
+  bulletPoints         String[]      @default([])
+  description          String
+  categoryPath         String        @default("")
+  categoryAttributes   Json          @default("{}")
+  price                Float
+  purchasePrice        Float
+  vatRate              Int           @default(20)
+  originalPrice        Float
+  discountPercent      Float         @default(0)
+  category             String
+  brand                String
+  variants             Json          @default("[]")
+  extraServices        Json          @default("[]")
+  variantGroupId       String        @default("")
+  variantValue         String        @default("")
+  imageUrls            String[]      @default([])
+  imageUrl             String
+  desi                 Float         @default(0)
+  preparationDays      Int           @default(1)
+  shippingType         String        @default("MARKETPLACE_LOGISTICS")
+  saleStatus           String        @default("ACTIVE")
+  approvalStatus       String        @default("PENDING")
+  marketplaceListingNo String        @default("")
+  stock                Int           @default(0)
+  rating               Float         @default(0)
+  reviewCount          Int           @default(0)
+  isActive             Boolean       @default(true)
+  sellerName           String        @default("FUAR BOX")
+  sellerRating         Float         @default(9.3)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  
+  questions            Question[]
+  reviews              Review[]
+
+  @@index([name])
+  @@index([category])
+  @@index([brand])
+  @@map("products")
+}
+
+model Question {
+  id           String    @id @default(uuid())
+  productId    String
+  category     String    @default("tümü")
+  question     String
+  user         String    @default("M** Ö**")
+  purchased    Boolean   @default(true)
+  sellerName   String    @default("FUAR BOX")
+  responseRate String?   @default("15 saat içinde cevaplandı.")
+  answer       String?
+  status       String    @default("PENDING") // PENDING, ANSWERED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("questions")
+}
+
+model Review {
+  id           String    @id @default(uuid())
+  productId    String
+  rating       Int       @default(5)
+  comment      String
+  user         String    @default("N** Ö**")
+  dateString   String    @default("26 Ağustos 2025")
+  sellerName   String    @default("KOZMETİK PINARIM")
+  likes        Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("reviews")
+}

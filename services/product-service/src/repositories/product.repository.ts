@@ -1,4 +1,4 @@
-import { Product, IProduct } from '../models/product.model';
+import prisma from './prisma.client';
 
 export interface ProductFilters {
   category?: string;
@@ -15,53 +15,52 @@ export interface PaginationOptions {
 }
 
 export const ProductRepository = {
-  async findAll(
-    filters: ProductFilters,
-    pagination: PaginationOptions
-  ): Promise<{ products: IProduct[]; total: number }> {
-    const query: Record<string, unknown> = filters.includeAll ? {} : { isActive: true };
-
-    if (filters.category) query.category = filters.category;
-    if (filters.brand) query.brand = filters.brand;
+  async findAll(filters: ProductFilters, pagination: PaginationOptions) {
+    const where: any = filters.includeAll ? {} : { isActive: true };
+    if (filters.category) where.category = filters.category;
+    if (filters.brand) where.brand = filters.brand;
     if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
-      query.price = {
-        ...(filters.minPrice !== undefined && { $gte: filters.minPrice }),
-        ...(filters.maxPrice !== undefined && { $lte: filters.maxPrice }),
-      };
+      where.price = {};
+      if (filters.minPrice !== undefined) where.price.gte = filters.minPrice;
+      if (filters.maxPrice !== undefined) where.price.lte = filters.maxPrice;
     }
     if (filters.search) {
-      query.$text = { $search: filters.search };
+      where.OR = [
+        { name: { contains: filters.search, mode: 'insensitive' } },
+        { description: { contains: filters.search, mode: 'insensitive' } },
+      ];
     }
-
     const skip = (pagination.page - 1) * pagination.limit;
-
     const [products, total] = await Promise.all([
-      Product.find(query).skip(skip).limit(pagination.limit).sort({ createdAt: -1 }),
-      Product.countDocuments(query),
+      prisma.product.findMany({
+        where,
+        skip,
+        take: pagination.limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.product.count({ where }),
     ]);
-
     return { products, total };
   },
 
-  async findById(id: string): Promise<IProduct | null> {
-    return Product.findOne({ _id: id, isActive: true });
+  async findById(id: string) {
+    return prisma.product.findFirst({ where: { id, isActive: true } });
   },
 
-  async create(input: Partial<IProduct>): Promise<IProduct> {
-    const product = await Product.create(input);
-    return product;
+  async create(input: any) {
+    return prisma.product.create({ data: input });
   },
 
-  async updateById(id: string, input: Partial<IProduct>): Promise<IProduct | null> {
-    return Product.findByIdAndUpdate(id, input, { new: true, runValidators: true });
+  async updateById(id: string, input: any) {
+    return prisma.product.update({ where: { id }, data: input });
   },
 
-  async findByIdAny(id: string): Promise<IProduct | null> {
-    return Product.findById(id);
+  async findByIdAny(id: string) {
+    return prisma.product.findUnique({ where: { id } });
   },
 
-  async deleteById(id: string): Promise<boolean> {
-    const result = await Product.findByIdAndDelete(id);
-    return result !== null;
+  async deleteById(id: string) {
+    await prisma.product.delete({ where: { id } });
+    return true;
   },
 };

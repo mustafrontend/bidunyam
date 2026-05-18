@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronRight, ShieldAlert, Star, ShoppingCart, Truck, ShieldCheck, Plus, Minus, Heart } from "lucide-react";
+import { ChevronRight, ChevronLeft, ShieldAlert, Star, ShoppingCart, Truck, ShieldCheck, Plus, Minus, Heart } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useCartStore } from "@/stores/cartStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -11,6 +11,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { ProductGallery } from "@/components/molecules/ProductGallery";
 import { DeliverySidebar } from "@/components/molecules/DeliverySidebar";
 import { ProductReviews } from "@/components/organisms/ProductReviews";
+import { ProductQuestions } from "@/components/organisms/ProductQuestions";
 import { ProductTabs } from "@/components/organisms/ProductTabs";
 
 interface VariantValue {
@@ -51,6 +52,159 @@ interface Product {
   extraServices?: ExtraService[];
 }
 
+interface DecorativeItem {
+  badge: string | null;
+  badgeColor: string | null;
+  bottomBar: string | null;
+  bottomBarColor: string | null;
+  rating: number;
+  reviewCount: number;
+  priceTrend: string | null;
+  priceTrendColor: string | null;
+  coupon: string | null;
+  perUnit: string | null;
+}
+
+const getDecoForSimilar = (idx: number): DecorativeItem => {
+  switch (idx % 5) {
+    case 0:
+      return {
+        badge: "AVANTAJLI ÜRÜN",
+        badgeColor: "bg-orange-500",
+        bottomBar: "En çok ziyaret edilen 4. ürün",
+        bottomBarColor: "bg-amber-500",
+        rating: 4.5,
+        reviewCount: 410,
+        priceTrend: null,
+        priceTrendColor: null,
+        coupon: null,
+        perUnit: null
+      };
+    case 1:
+      return {
+        badge: "FLAŞ ÜRÜN",
+        badgeColor: "bg-purple-600 animate-pulse",
+        bottomBar: "Hızlı Teslimat",
+        bottomBarColor: "bg-emerald-500",
+        rating: 4.4,
+        reviewCount: 4596,
+        priceTrend: "Son 10 Günün En Düşük Fiyatı!",
+        priceTrendColor: "text-red-500",
+        coupon: "15 TL Kupon",
+        perUnit: "[3,89 TL / Tablet]"
+      };
+    case 2:
+      return {
+        badge: "AVANTAJLI ÜRÜN",
+        badgeColor: "bg-orange-500",
+        bottomBar: "En çok satılan 2. ürün",
+        bottomBarColor: "bg-amber-500",
+        rating: 4.3,
+        reviewCount: 5342,
+        priceTrend: null,
+        priceTrendColor: null,
+        coupon: null,
+        perUnit: "(5,83 TL / Tablet)"
+      };
+    case 3:
+      return {
+        badge: "EN ÇOK SATILAN",
+        badgeColor: "bg-orange-500",
+        bottomBar: "En çok satılan 3. ürün",
+        bottomBarColor: "bg-amber-500",
+        rating: 4.5,
+        reviewCount: 171,
+        priceTrend: "Sepette %20 İndirim",
+        priceTrendColor: "text-emerald-600",
+        coupon: null,
+        perUnit: null
+      };
+    default:
+      return {
+        badge: "AVANTAJLI ÜRÜN",
+        badgeColor: "bg-orange-500",
+        bottomBar: "En çok favorilenen ürün",
+        bottomBarColor: "bg-amber-500",
+        rating: 4.5,
+        reviewCount: 7382,
+        priceTrend: "Sepette 250 TL İndirim",
+        priceTrendColor: "text-emerald-600",
+        coupon: "Kupon Fırsatı",
+        perUnit: null
+      };
+  }
+};
+
+const getDecoForBought = (idx: number): DecorativeItem => {
+  switch (idx % 5) {
+    case 0:
+      return {
+        badge: "AVANTAJLI ÜRÜN",
+        badgeColor: "bg-orange-500",
+        bottomBar: "En çok ziyaret edilen 2. ürün",
+        bottomBarColor: "bg-amber-500",
+        rating: 4.1,
+        reviewCount: 1485,
+        priceTrend: "Sepette %35 İndirim",
+        priceTrendColor: "text-emerald-600",
+        coupon: null,
+        perUnit: null
+      };
+    case 1:
+      return {
+        badge: "FLAŞ ÜRÜN",
+        badgeColor: "bg-purple-600 animate-pulse",
+        bottomBar: "En çok satılan 8. ürün",
+        bottomBarColor: "bg-amber-500",
+        rating: 4.5,
+        reviewCount: 1290,
+        priceTrend: null,
+        priceTrendColor: null,
+        coupon: "Kupon Fırsatı",
+        perUnit: null
+      };
+    case 2:
+      return {
+        badge: "EN ÇOK SATILAN",
+        badgeColor: "bg-orange-500",
+        bottomBar: "En çok ziyaret edilen 9. ürün",
+        bottomBarColor: "bg-amber-500",
+        rating: 4.2,
+        reviewCount: 775,
+        priceTrend: null,
+        priceTrendColor: null,
+        coupon: null,
+        perUnit: "(4,27 TL / G)"
+      };
+    case 3:
+      return {
+        badge: "AVANTAJLI ÜRÜN",
+        badgeColor: "bg-orange-500",
+        bottomBar: "Hızlı Teslimat",
+        bottomBarColor: "bg-emerald-500",
+        rating: 4.4,
+        reviewCount: 164,
+        priceTrend: "Son 14 Günün En Düşük Fiyatı!",
+        priceTrendColor: "text-red-500",
+        coupon: null,
+        perUnit: null
+      };
+    default:
+      return {
+        badge: "EN ÇOK SATILAN",
+        badgeColor: "bg-orange-500",
+        bottomBar: "En çok favorilenen ürün",
+        bottomBarColor: "bg-amber-500",
+        rating: 4.5,
+        reviewCount: 1492,
+        priceTrend: "Trendyol Plus'a Özel",
+        priceTrendColor: "text-orange-500",
+        coupon: "Kupon Fırsatı",
+        perUnit: null
+      };
+  }
+};
+
 export default function ProductDetail() {
   const { id } = useParams();
   const router = useRouter();
@@ -67,6 +221,19 @@ export default function ProductDetail() {
   const setLoginModalOpen = useUiStore((s) => s.setLoginModalOpen);
   
   const isFav = useMemo(() => favs.includes(id as string), [favs, id]);
+
+  const similarScrollRef = useRef<HTMLDivElement>(null);
+  const boughtScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollShelf = (ref: React.RefObject<HTMLDivElement | null>, direction: "left" | "right") => {
+    if (ref.current) {
+      const amount = 220;
+      ref.current.scrollBy({
+        left: direction === "left" ? -amount : amount,
+        behavior: "smooth"
+      });
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -145,7 +312,7 @@ export default function ProductDetail() {
       
       const items = normalized
         .filter((item: Product) => item._id !== product._id)
-        .slice(0, 4);
+        .slice(0, 8);
       setSimilarProducts(items);
     };
 
@@ -299,6 +466,11 @@ export default function ProductDetail() {
                 <span className="bg-slate-200/60 text-slate-500 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest">{product.category} alanında en iyiler</span>
               </div>
               <h1 className="text-xl md:text-2xl font-black text-slate-900 leading-tight tracking-tight">{product.name}</h1>
+              {product.sellerName && (
+                <div className="text-xs font-bold text-slate-500 mt-1">
+                  Satıcı: <span className="text-slate-800">{product.sellerName}</span>
+                </div>
+              )}
               
               <div className="flex items-center gap-4 text-xs">
                 <div className="flex items-center gap-1 text-[#ff5000]">
@@ -463,61 +635,247 @@ export default function ProductDetail() {
           <div className="lg:col-span-8 space-y-12">
             <ProductTabs description={product.description} bulletPoints={product.bulletPoints || []} />
             <ProductReviews rating={displayRating} reviewCount={displayReviewCount} productImageUrl={gallery[0] || product.imageUrl} />
+            <ProductQuestions />
           </div>
           <div className="lg:col-span-4">
             <DeliverySidebar />
           </div>
         </div>
 
-        {/* Recommended Shelf - Dynamic similar products */}
+        {/* Benzer Ürünler Carousel Section */}
         <section className="pt-16 border-t border-slate-200 select-none">
-          <div className="flex justify-between items-end mb-8">
+          <div className="flex justify-between items-end mb-6">
             <div>
-              <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight">Bunları da Beğenebilirsiniz</h2>
-              <p className="text-slate-400 text-xs font-bold mt-1">Bu minderle sıklıkla birlikte satın alınan ürünler</p>
+              <h2 className="text-base font-black text-slate-800 uppercase tracking-tight">Benzer Ürünler</h2>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {similarProducts.length > 0 ? (
-              similarProducts.map((item) => {
-                const discount = item.originalPrice > item.price ? Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100) : 0;
-                return (
-                  <div
-                    key={item._id}
-                    onClick={() => router.push(`/product/${item._id}`)}
-                    className="bg-white border border-slate-200 rounded-xl p-3 hover:shadow-lg transition-all group relative cursor-pointer flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="relative aspect-square mb-3 overflow-hidden rounded-lg bg-slate-50 flex items-center justify-center p-4">
-                        <img
-                          src={item.imageUrl}
-                          alt={item.name}
-                          className="w-full h-full object-contain group-hover:scale-115 transition-transform duration-200"
-                        />
+          <div className="relative group">
+            {/* Left Scroll Arrow */}
+            <button
+              onClick={() => scrollShelf(similarScrollRef, "left")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 w-8 h-8 rounded-full bg-white border border-slate-200/80 shadow-md flex items-center justify-center z-10 hover:scale-105 active:scale-95 transition-all text-slate-700 cursor-pointer hidden md:flex"
+            >
+              <ChevronLeft size={16} strokeWidth={2.5} />
+            </button>
+
+            {/* Right Scroll Arrow */}
+            <button
+              onClick={() => scrollShelf(similarScrollRef, "right")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 w-8 h-8 rounded-full bg-white border border-slate-200/80 shadow-md flex items-center justify-center z-10 hover:scale-105 active:scale-95 transition-all text-slate-700 cursor-pointer hidden md:flex"
+            >
+              <ChevronRight size={16} strokeWidth={2.5} />
+            </button>
+
+            {/* Horizontal Scroll container */}
+            <div
+              ref={similarScrollRef}
+              className="flex gap-4 overflow-x-auto no-scrollbar scroll-smooth py-2 px-0.5"
+            >
+              {similarProducts.length > 0 ? (
+                similarProducts.map((item, idx) => {
+                  const deco = getDecoForSimilar(idx);
+                  return (
+                    <div
+                      key={item._id}
+                      onClick={() => router.push(`/product/${item._id}`)}
+                      className="bg-white border border-slate-200 rounded-2xl p-3 hover:shadow-lg transition-all group relative cursor-pointer flex flex-col justify-between min-w-[190px] max-w-[210px] select-none shrink-0"
+                    >
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (token) toggleFavorite(item._id, token);
+                          else setLoginModalOpen(true);
+                        }}
+                        className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-white border border-slate-200/80 shadow-sm flex items-center justify-center text-slate-400 hover:text-red-500 hover:scale-105 active:scale-95 transition-all"
+                      >
+                        <Heart size={13} className={favs.includes(item._id) ? "fill-red-500 text-red-500" : ""} />
+                      </button>
+
+                      <div>
+                        {/* Image Container with Badges */}
+                        <div className="relative aspect-square mb-2.5 overflow-hidden rounded-xl bg-slate-50 flex items-center justify-center p-3">
+                          {deco.badge && (
+                            <span className={`absolute top-2 left-2 z-10 text-[8px] font-black text-white px-2 py-0.5 rounded shadow-sm uppercase tracking-widest ${deco.badgeColor}`}>
+                              {deco.badge}
+                            </span>
+                          )}
+                          <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300"
+                          />
+                          {deco.bottomBar && (
+                            <div className={`absolute bottom-0 left-0 right-0 py-1.5 text-center text-white text-[8px] font-black uppercase tracking-wider flex items-center justify-center gap-0.5 ${deco.bottomBarColor}`}>
+                              {deco.bottomBar === "Hızlı Teslimat" && <Truck size={10} className="shrink-0" />}
+                              {deco.bottomBar}
+                            </div>
+                          )}
+                        </div>
+
+                        {deco.coupon && (
+                          <span className="text-[9px] font-bold text-slate-400 block mb-0.5">Sponsorlu</span>
+                        )}
+                        <span className="text-slate-800 font-black text-[10px] uppercase tracking-wider block mt-1">{item.brand}</span>
+                        <h4 className="text-xs font-black text-slate-500 line-clamp-1 mt-0.5">{item.name}</h4>
+
+                        {/* Rating stars & review count */}
+                        <div className="flex items-center gap-0.5 mt-1 text-amber-500">
+                          <Star size={11} fill="currentColor" className="stroke-none" />
+                          <span className="text-[10px] font-black text-slate-700">{deco.rating}</span>
+                          <span className="text-slate-400 text-[10px] font-bold ml-0.5">({deco.reviewCount})</span>
+                        </div>
+
+                        {/* Coupon badge if present */}
+                        {deco.coupon && (
+                          <span className="inline-block bg-pink-500 text-white text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider mt-1.5 shadow-sm">
+                            {deco.coupon}
+                          </span>
+                        )}
+
+                        {/* Special Price trends / campaigns */}
+                        {deco.priceTrend && (
+                          <span className={`text-[9px] font-black mt-1 uppercase block tracking-wider ${deco.priceTrendColor}`}>
+                            {deco.priceTrend}
+                          </span>
+                        )}
                       </div>
-                      <span className="text-emerald-600 font-black text-[9px] uppercase tracking-widest">{item.brand}</span>
-                      <h4 className="text-xs font-black text-slate-800 line-clamp-1 mt-1">{item.name}</h4>
-                      
-                      <div className="flex items-center gap-1 mt-1 text-[#ff5000]">
-                        <Star size={12} fill="currentColor" className="stroke-none" />
-                        <span className="text-[10px] font-black text-slate-700">{item.rating > 0 ? item.rating : 4.8}</span>
-                        <span className="text-slate-400 text-[10px] font-bold ml-1">({item.reviewCount > 0 ? item.reviewCount : 141})</span>
+
+                      {/* Pricing block */}
+                      <div className="mt-3">
+                        <span className="text-sm font-black text-slate-800">{item.price.toLocaleString("tr-TR")} TL</span>
+                        {deco.perUnit && (
+                          <span className="text-[9px] font-bold text-slate-400 block mt-0.5">
+                            {deco.perUnit}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    
-                    <div className="mt-3 flex items-baseline gap-2">
-                      <div className="text-sm font-black text-slate-800">{item.price.toLocaleString("tr-TR")} TL</div>
-                      {discount > 0 && (
-                        <div className="text-[10px] text-red-500 font-black">-%{discount}</div>
-                      )}
+                  );
+                })
+              ) : (
+                <div className="w-full text-center text-xs font-bold text-slate-400 py-12">Benzer ürün bulunamadı.</div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Bu Ürünü Alanlar Bunları da Aldı Carousel Section */}
+        <section className="pt-12 border-t border-slate-200 select-none pb-12">
+          <div className="flex justify-between items-end mb-6">
+            <div>
+              <h2 className="text-base font-black text-slate-800 uppercase tracking-tight">Bu Ürünü Alanlar Bunları da Aldı</h2>
+            </div>
+          </div>
+
+          <div className="relative group">
+            {/* Left Scroll Arrow */}
+            <button
+              onClick={() => scrollShelf(boughtScrollRef, "left")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 w-8 h-8 rounded-full bg-white border border-slate-200/80 shadow-md flex items-center justify-center z-10 hover:scale-105 active:scale-95 transition-all text-slate-700 cursor-pointer hidden md:flex"
+            >
+              <ChevronLeft size={16} strokeWidth={2.5} />
+            </button>
+
+            {/* Right Scroll Arrow */}
+            <button
+              onClick={() => scrollShelf(boughtScrollRef, "right")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 w-8 h-8 rounded-full bg-white border border-slate-200/80 shadow-md flex items-center justify-center z-10 hover:scale-105 active:scale-95 transition-all text-slate-700 cursor-pointer hidden md:flex"
+            >
+              <ChevronRight size={16} strokeWidth={2.5} />
+            </button>
+
+            {/* Horizontal Scroll container */}
+            <div
+              ref={boughtScrollRef}
+              className="flex gap-4 overflow-x-auto no-scrollbar scroll-smooth py-2 px-0.5"
+            >
+              {similarProducts.length > 0 ? (
+                // Map same array offset by 2 to present a different set of products
+                [...similarProducts.slice(2), ...similarProducts.slice(0, 2)].map((item, idx) => {
+                  const deco = getDecoForBought(idx);
+                  return (
+                    <div
+                      key={`bought-${item._id}`}
+                      onClick={() => router.push(`/product/${item._id}`)}
+                      className="bg-white border border-slate-200 rounded-2xl p-3 hover:shadow-lg transition-all group relative cursor-pointer flex flex-col justify-between min-w-[190px] max-w-[210px] select-none shrink-0"
+                    >
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (token) toggleFavorite(item._id, token);
+                          else setLoginModalOpen(true);
+                        }}
+                        className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-white border border-slate-200/80 shadow-sm flex items-center justify-center text-slate-400 hover:text-red-500 hover:scale-105 active:scale-95 transition-all"
+                      >
+                        <Heart size={13} className={favs.includes(item._id) ? "fill-red-500 text-red-500" : ""} />
+                      </button>
+
+                      <div>
+                        {/* Image Container with Badges */}
+                        <div className="relative aspect-square mb-2.5 overflow-hidden rounded-xl bg-slate-50 flex items-center justify-center p-3">
+                          {deco.badge && (
+                            <span className={`absolute top-2 left-2 z-10 text-[8px] font-black text-white px-2 py-0.5 rounded shadow-sm uppercase tracking-widest ${deco.badgeColor}`}>
+                              {deco.badge}
+                            </span>
+                          )}
+                          <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300"
+                          />
+                          {deco.bottomBar && (
+                            <div className={`absolute bottom-0 left-0 right-0 py-1.5 text-center text-white text-[8px] font-black uppercase tracking-wider flex items-center justify-center gap-0.5 ${deco.bottomBarColor}`}>
+                              {deco.bottomBar === "Hızlı Teslimat" && <Truck size={10} className="shrink-0" />}
+                              {deco.bottomBar}
+                            </div>
+                          )}
+                        </div>
+
+                        {deco.coupon && (
+                          <span className="text-[9px] font-bold text-slate-400 block mb-0.5">Sponsorlu</span>
+                        )}
+                        <span className="text-slate-800 font-black text-[10px] uppercase tracking-wider block mt-1">{item.brand}</span>
+                        <h4 className="text-xs font-black text-slate-500 line-clamp-1 mt-0.5">{item.name}</h4>
+
+                        {/* Rating stars & review count */}
+                        <div className="flex items-center gap-0.5 mt-1 text-amber-500">
+                          <Star size={11} fill="currentColor" className="stroke-none" />
+                          <span className="text-[10px] font-black text-slate-700">{deco.rating}</span>
+                          <span className="text-slate-400 text-[10px] font-bold ml-0.5">({deco.reviewCount})</span>
+                        </div>
+
+                        {/* Coupon badge if present */}
+                        {deco.coupon && (
+                          <span className="inline-block bg-pink-500 text-white text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider mt-1.5 shadow-sm">
+                            {deco.coupon}
+                          </span>
+                        )}
+
+                        {/* Special Price trends / campaigns */}
+                        {deco.priceTrend && (
+                          <span className={`text-[9px] font-black mt-1 uppercase block tracking-wider ${deco.priceTrendColor}`}>
+                            {deco.priceTrend}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Pricing block */}
+                      <div className="mt-3">
+                        <span className="text-sm font-black text-slate-800">{item.price.toLocaleString("tr-TR")} TL</span>
+                        {deco.perUnit && (
+                          <span className="text-[9px] font-bold text-slate-400 block mt-0.5">
+                            {deco.perUnit}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="col-span-4 text-center text-[10px] font-bold text-slate-400 py-12">Yükleniyor...</div>
-            )}
+                  );
+                })
+              ) : (
+                <div className="w-full text-center text-xs font-bold text-slate-400 py-12">Ürün bulunamadı.</div>
+              )}
+            </div>
           </div>
         </section>
       </main>

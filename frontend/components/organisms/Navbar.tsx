@@ -39,7 +39,7 @@ export const Navbar: React.FC = () => {
   const favoriteCount = useFavoriteStore((s) => s.productIds.length);
   const fetchFavorites = useFavoriteStore((s) => s.fetchFavorites);
   const clearFavorites = useFavoriteStore((s) => s.clearFavorites);
-  const { isLoginModalOpen, setLoginModalOpen } = useUiStore();
+  const { isLoginModalOpen, setLoginModalOpen, isBrandMode, setIsBrandMode } = useUiStore();
 
   const [isMounted, setIsMounted] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -47,9 +47,6 @@ export const Navbar: React.FC = () => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-
-  // Active Individual (Bireysel) / Brand (Kurumsal) toggle state
-  const [isBrandMode, setIsBrandMode] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -127,7 +124,7 @@ export const Navbar: React.FC = () => {
                     : "text-slate-400 hover:text-slate-700"
                 }`}
               >
-                Kurumsal
+                Tüzel
               </button>
             </div>
 
@@ -211,13 +208,37 @@ export const Navbar: React.FC = () => {
                 )}
               </Link>
 
-              {/* Sell Item Premium Yellow Button (Turkish) */}
+              {/* Desktop-only: Sell Item Premium Yellow Button (Turkish) */}
               <button
                 onClick={() => router.push("/yonetim/urunler")}
-                className="bg-[#fed65b] text-[#745c00] hover:bg-[#fed65b]/90 px-5 py-2.5 rounded-full font-black text-xs uppercase tracking-widest transition-all cursor-pointer active:scale-95 shadow-sm border border-[#e9c349]/20"
+                className="hidden md:block bg-[#fed65b] text-[#745c00] hover:bg-[#fed65b]/90 px-5 py-2.5 rounded-full font-black text-xs uppercase tracking-widest transition-all cursor-pointer active:scale-95 shadow-sm border border-[#e9c349]/20"
               >
                 Ürün Sat
               </button>
+
+              {/* Mobile-only: Mode Switcher segment toggle (Bireysel / Tüzel) */}
+              <div className="flex md:hidden bg-slate-100 p-0.5 rounded-full border border-slate-200/60 text-[9px] font-black uppercase tracking-wider select-none shrink-0 gap-0.5">
+                <button 
+                  onClick={() => setIsBrandMode(false)}
+                  className={`px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    !isBrandMode 
+                      ? "bg-white text-slate-800 font-black shadow-sm" 
+                      : "text-slate-400 hover:text-slate-700"
+                  }`}
+                >
+                  Bireysel
+                </button>
+                <button 
+                  onClick={() => setIsBrandMode(true)}
+                  className={`px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    isBrandMode 
+                      ? "bg-white text-slate-800 font-black shadow-sm" 
+                      : "text-slate-400 hover:text-slate-700"
+                  }`}
+                >
+                  Tüzel
+                </button>
+              </div>
 
             </nav>
           </div>

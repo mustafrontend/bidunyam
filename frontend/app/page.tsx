@@ -1,14 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+// Kampanya badge verileri
+const CAMPAIGN_BADGES = [
+  { label: "Bugün Fiyatı Düşenler", color: "bg-purple-100", icon: <Timer className="text-purple-500" size={22} /> },
+  { label: "Web Sitesi Açıldı", color: "bg-orange-100", icon: <Sparkles className="text-orange-500" size={22} /> },
+  { label: "trendyol plus", color: "bg-pink-100", icon: <Star className="text-pink-500" size={22} /> },
+  { label: "Kampanya Detayları", color: "bg-yellow-100", icon: <Percent className="text-yellow-500" size={22} /> },
+  { label: "Sen De Al!", color: "bg-blue-100", icon: <Plus className="text-blue-500" size={22} /> },
+  { label: "Avantajlı Ürünler", color: "bg-green-100", icon: <Briefcase className="text-green-500" size={22} /> },
+  { label: "İndirim Kuponlarım", color: "bg-red-100", icon: <ShieldCheck className="text-red-500" size={22} /> },
+  { label: "Krediler", color: "bg-slate-100", icon: <Cpu className="text-slate-500" size={22} /> },
+];
 import { useRouter } from "next/navigation";
-import { Timer, Star, ChevronRight, Sparkles, Plus, Percent } from "lucide-react";
+import { Timer, Star, ChevronRight, Sparkles, Plus, Percent, Briefcase, ShieldCheck, Cpu } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { ProductCard, Product } from "@/components/molecules/ProductCard";
 import { TrustBar } from "@/components/molecules/TrustBar";
 import { Footer } from "@/components/organisms/Footer";
 import { MobileBottomNav } from "@/components/molecules/MobileBottomNav";
+import { useUiStore } from "@/stores/uiStore";
 
 const CATEGORIES = [
   "Tümü", "Elektronik", "Moda", "Ev & Yaşam", "Anne & Bebek",
@@ -56,6 +69,10 @@ function SkeletonGrid() {
 
 export default function Home() {
   const router = useRouter();
+  const { isBrandMode, setIsBrandMode } = useUiStore();
+  const userType = isBrandMode ? "kurumsal" : "bireysel";
+  const setUserType = (type: "bireysel" | "kurumsal") => setIsBrandMode(type === "kurumsal");
+
   const [selectedCategory, setSelectedCategory] = useState<string>("Tümü");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,80 +162,331 @@ export default function Home() {
       .slice(0, 5);
   }, [products]);
 
+  // Extract top showcase/featured products for Vitrindekiler (highest rating and review count)
+  const showcaseProducts = useMemo(() => {
+    return [...products]
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.reviewCount || 0) - (a.reviewCount || 0))
+      .slice(0, 5);
+  }, [products]);
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 space-y-8">
-        
-        {/* Dynamic Bento Hero Banner & Promo Grid */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Main Hero Card (2/3 width) - Hidden on Mobile */}
-          <div className="hidden md:block lg:col-span-8 relative h-[380px] rounded-2xl overflow-hidden border border-slate-100 group shadow-sm bg-slate-900">
-            <img
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBkupExmyQ6-UuVfMQe4fcqidAnnxxXg-pMLmLaNo298mYsVRrHMXinyGyI13iSP97_FWsdSxC3MkK9g9MvzN5md1MoAaQgGaCzVWvvNov3Ookl1H3qaLyXfq7hKD1mykufd-aObsjYMUmyqnFY7GsGhE4Yn4K8kY-6eRqmE-xuxhf8PSuJeD-O9Oe958dHl8evk5636GU_vWWy5dX5esns-ucjxjXCR0SfmPiN1OsUjGaXMYlivSosmoMUnU3sPX-4ggVIsnwe1Bk"
-              alt="New Season Banner"
-              className="absolute inset-0 w-full h-full object-cover opacity-75 group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/60 to-transparent flex flex-col justify-center p-8 md:p-12 text-white">
-              <span className="bg-[#e35933] text-white text-[9px] font-black px-3 py-1.5 rounded-full w-fit uppercase tracking-widest mb-4 shadow-sm">
-                TÜRKİYE'NİN EN DÜŞÜK KOMİSYONLU PAZARYERİ
-              </span>
-              <h1 className="text-2xl sm:text-4xl font-black text-white max-w-lg leading-tight tracking-tight mb-4 select-none">
-                Senin Dünyan, Senin Mağazan!
-              </h1>
-              <p className="text-slate-300 text-xs font-bold max-w-md mb-6 leading-relaxed select-none">
-                Yüksek komisyon oranlarına veda et. biDunyam ile kazancının %99'u senin olsun, ultra düşük komisyon farkıyla bütçeni ve mağazanı katlayarak büyüt.
-              </p>
-              <button
-                onClick={() => router.push("/yonetim/urunler")}
-                className="bg-white hover:bg-[#e35933] hover:text-white text-slate-900 text-xs font-black uppercase tracking-wider px-8 py-3.5 rounded-full w-fit transition-all duration-300 active:scale-95 cursor-pointer shadow-md"
-              >
-                Mağazanı Ücretsiz Aç
-              </button>
+
+        {/* 1. Kampanyalar - Badge/ikonlar */}
+        <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
+          {CAMPAIGN_BADGES.map((b, i) => (
+            <div key={i} className={`flex flex-col items-center min-w-[90px] px-2 py-1 rounded-2xl ${b.color} shadow-sm`}>
+              {b.icon}
+              <span className="text-[11px] font-black text-slate-700 text-center mt-1 whitespace-nowrap">{b.label}</span>
             </div>
+          ))}
+        </div>
+
+        {/* 2. Sana Özel Vitrin/Önerilenler */}
+        <section>
+          <h2 className="text-lg font-black text-slate-800 mb-3">Mustafa, Sana Özel Ürünler</h2>
+          {loading ? <SkeletonGrid /> : (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+              {filteredProducts.slice(0, 12).map((p) => (
+                <ProductCard key={p._id} product={p} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* 3. Vitrin/Öne Çıkanlar */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-black text-slate-800">Vitrindekiler</h2>
+            <span className="text-xs font-bold text-[#ff5000] cursor-pointer">Tümünü Gör</span>
           </div>
-
-          {/* Stacked Conversions Cards (1/3 width) */}
-          <div className="lg:col-span-4 flex flex-col gap-6">
-            {/* Flash Deal Promo */}
-            <div className="bg-[#e35933]/10 border-[0.5px] border-[#e35933]/30 p-6 rounded-2xl flex flex-col justify-between h-[178px] relative overflow-hidden group select-none">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <p className="font-black text-[#e35933] text-[10px] uppercase tracking-widest">Günün Fırsatı</p>
-                  <span className="bg-[#e35933] text-white text-[10px] font-black flex items-center gap-1 px-2.5 py-1 rounded-full border border-orange-300 shadow-sm animate-pulse">
-                    <Timer size={12} strokeWidth={2.5} />
-                    {String(timeLeft.hours).padStart(2, "0")}:{String(timeLeft.minutes).padStart(2, "0")}:{String(timeLeft.seconds).padStart(2, "0")}
-                  </span>
-                </div>
-                <h3 className="font-black text-slate-800 text-base mt-2 tracking-tight">Flaş Fırsatlarda %70'e Varan İndirim</h3>
-                <p className="text-slate-500 text-[10px] font-bold mt-1">Sadece sınırlı bir süre için sepette ekstra indirim!</p>
-              </div>
-              <button
-                onClick={() => setSelectedCategory("Tümü")}
-                className="bg-slate-950 hover:bg-[#e35933] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer active:scale-95"
-              >
-                Fırsatları Yakala
-              </button>
-            </div>
-
-            {/* Vendor Register Card */}
-            <div className="bg-slate-950 p-6 rounded-2xl flex flex-col justify-between h-[178px] select-none">
-              <div>
-                <p className="font-black text-orange-400 text-[10px] uppercase tracking-widest">Mağaza Aç</p>
-                <h3 className="font-black text-white text-base mt-2 tracking-tight">biDunyam'da Kendi Markanı Sat</h3>
-                <p className="text-slate-400 text-[10px] font-bold mt-1">Hemen ücretsiz satıcı hesabı oluştur, 2.4M aktif alıcıya ulaş.</p>
-              </div>
-              <button
-                onClick={() => router.push("/yonetim/urunler")}
-                className="border border-white/20 hover:bg-white/10 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer active:scale-95"
-              >
-                Mağazanı Başlat
-              </button>
-            </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+            {showcaseProducts.map((p) => (
+              <ProductCard key={p._id} product={p} />
+            ))}
           </div>
         </section>
 
+        {/* 4. İndirim Kampanyaları - Renkli kutular */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+          {flashDeals.map((p, i) => {
+            const discount = Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
+            return (
+              <div key={p._id} className="rounded-2xl bg-gradient-to-br from-orange-100 to-orange-50 border border-orange-200 p-5 flex flex-col items-center justify-center shadow-sm">
+                <span className="text-2xl font-black text-orange-500 mb-2">%{discount} İndirim</span>
+                <span className="text-xs font-bold text-slate-700 mb-1 text-center">{p.name}</span>
+                <span className="text-lg font-black text-slate-900">{p.price.toLocaleString("tr-TR")} TL</span>
+                <span className="text-xs font-bold text-slate-400 line-through">{p.originalPrice.toLocaleString("tr-TR")} TL</span>
+              </div>
+            );
+          })}
+        </section>
+
+        {/* ...eski ana içerik ve gridler burada devam edecek... */}
+
+        {/* Dynamic Bento Hero Banner & Promo Grid */}
+        <div className="overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.section
+              key={userType}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.35, ease: "easeInOut" }}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full"
+            >
+              {userType === "bireysel" ? (
+                <>
+                  {/* Main Hero Card (2/3 width) - Bireysel (Customer Focus + Subtle Seller Badge) */}
+                  <div className="hidden md:block lg:col-span-8 relative h-[380px] rounded-2xl overflow-hidden border border-slate-100 group shadow-sm bg-slate-900">
+                    <img
+                      src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1200&auto=format&fit=crop"
+                      alt="New Season Banner"
+                      className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:scale-105 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/60 to-transparent flex flex-col justify-center p-8 md:p-12 text-white">
+                      <span className="bg-[#e35933] text-white text-[9px] font-black px-3 py-1.5 rounded-full w-fit uppercase tracking-widest mb-4 shadow-sm flex items-center gap-1">
+                        <Sparkles size={10} className="animate-pulse" />
+                        ARACI YOK, KOMİSYON YOK: EN HESAPLI ALIŞVERİŞ
+                      </span>
+                      <h1 className="text-2xl sm:text-4xl font-black text-white max-w-lg leading-tight tracking-tight mb-4 select-none">
+                        Komisyonsuz Fiyatlar, En Ucuz Alışveriş!
+                      </h1>
+                      <p className="text-slate-300 text-xs font-bold max-w-md mb-6 leading-relaxed select-none">
+                        biDunyam sıfıra yakın komisyon oranıyla çalışır. Satıcılar yüksek pazaryeri komisyonları ödemediği için, en trend tüm ürünler Türkiye'nin en ucuz fiyatlarıyla doğrudan sana gelir!
+                      </p>
+                      <div className="flex flex-wrap items-center gap-4">
+                        <button
+                          onClick={() => setSelectedCategory("Tümü")}
+                          className="bg-white hover:bg-[#e35933] hover:text-white text-slate-900 text-xs font-black uppercase tracking-wider px-8 py-3.5 rounded-full w-fit transition-all duration-300 active:scale-95 cursor-pointer shadow-md"
+                        >
+                          Alışverişe Başla
+                        </button>
+                        <span className="text-[10px] font-black text-slate-300 bg-white/10 backdrop-blur-sm border border-white/20 px-3.5 py-2.5 rounded-full uppercase tracking-wider select-none">
+                          💡 Satıcı mısınız? Sıfır Komisyonla <span className="text-[#fed65b] hover:underline cursor-pointer font-extrabold" onClick={() => router.push("/yonetim/urunler")}>Mağaza Açın</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stacked Conversions Cards (1/3 width) - Bireysel */}
+                  <div className="lg:col-span-4 flex flex-col gap-6">
+                    {/* Flash Deal Promo */}
+                    <div className="bg-[#e35933]/10 border-[0.5px] border-[#e35933]/30 p-6 rounded-2xl flex flex-col justify-between h-[178px] relative overflow-hidden group select-none">
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <p className="font-black text-[#e35933] text-[10px] uppercase tracking-widest">Günün Fırsatı</p>
+                          <span className="bg-[#e35933] text-white text-[10px] font-black flex items-center gap-1 px-2.5 py-1 rounded-full border border-orange-300 shadow-sm animate-pulse">
+                            <Timer size={12} strokeWidth={2.5} />
+                            {String(timeLeft.hours).padStart(2, "0")}:{String(timeLeft.minutes).padStart(2, "0")}:{String(timeLeft.seconds).padStart(2, "0")}
+                          </span>
+                        </div>
+                        <h3 className="font-black text-slate-800 text-base mt-2 tracking-tight">Flaş Fırsatlarda %70'e Varan İndirim</h3>
+                        <p className="text-slate-500 text-[10px] font-bold mt-1">Sadece sınırlı bir süre için sepette net indirim ve ücretsiz kargo avantajı!</p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedCategory("Tümü")}
+                        className="bg-slate-950 hover:bg-[#e35933] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer active:scale-95"
+                      >
+                        Fırsatları Yakala
+                      </button>
+                    </div>
+
+                    {/* Personalized Shopping Card */}
+                    <div className="bg-slate-950 p-6 rounded-2xl flex flex-col justify-between h-[178px] select-none border-[0.5px] border-slate-800">
+                      <div>
+                        <p className="font-black text-orange-400 text-[10px] uppercase tracking-widest">Sana Özel Seçkiler</p>
+                        <h3 className="font-black text-white text-base mt-2 tracking-tight">Kişiselleştirilmiş Alışveriş</h3>
+                        <p className="text-slate-400 text-[10px] font-bold mt-1">İlgi alanlarına ve geçmiş favorilerine göre yapay zekanın senin için derlediği ürünler.</p>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-2">
+                        <button
+                          onClick={() => setSelectedCategory("Tümü")}
+                          className="border border-white/20 hover:bg-white/10 text-white py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer active:scale-95 flex-1 text-center"
+                        >
+                          Keşfe Başla
+                        </button>
+                        <span 
+                          onClick={() => router.push("/yonetim/urunler")}
+                          className="text-[9px] font-bold text-slate-400 hover:text-white cursor-pointer underline whitespace-nowrap"
+                        >
+                          Satıcı Ol
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Main Hero Card (2/3 width) - Kurumsal (Customer Focus + Subtle Seller Integration Badge) */}
+                  <div className="hidden md:block lg:col-span-8 relative h-[380px] rounded-2xl overflow-hidden border border-slate-100 group shadow-sm bg-slate-950">
+                    <img
+                      src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop"
+                      alt="Corporate Banner"
+                      className="absolute inset-0 w-full h-full object-cover opacity-35 group-hover:scale-105 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#001819] via-slate-950/70 to-transparent flex flex-col justify-center p-8 md:p-12 text-white">
+                      <span className="bg-teal-500 text-white text-[9px] font-black px-3 py-1.5 rounded-full w-fit uppercase tracking-widest mb-4 shadow-sm flex items-center gap-1">
+                        <ShieldCheck size={10} className="animate-pulse" />
+                        TOPTAN ALIMDA KOMİSYON FARKINA SON
+                      </span>
+                      <h1 className="text-2xl sm:text-4xl font-black text-white max-w-lg leading-tight tracking-tight mb-4 select-none">
+                        Sıfıra Yakın Komisyonla En Ekonomik Tedarik!
+                      </h1>
+                      <p className="text-slate-300 text-xs font-bold max-w-md mb-6 leading-relaxed select-none">
+                        Yüksek aracı komisyon masraflarını tamamen kaldırdık. Şirketinizin tüm hammadde ve ofis tedarik ihtiyaçlarını en ucuz fiyatlar, KDV kolaylıkları ve sıfır komisyon avantajıyla doğrudan ilk elden tamamlayın!
+                      </p>
+                      <div className="flex flex-wrap items-center gap-4">
+                        <button
+                          onClick={() => setSelectedCategory("Tümü")}
+                          className="bg-white hover:bg-teal-500 hover:text-white text-[#001819] text-xs font-black uppercase tracking-wider px-8 py-3.5 rounded-full w-fit transition-all duration-300 active:scale-95 cursor-pointer shadow-md"
+                        >
+                          Tüzel Alışveriş
+                        </button>
+                        <span className="text-[10px] font-black text-slate-300 bg-white/10 backdrop-blur-sm border border-white/20 px-3.5 py-2.5 rounded-full uppercase tracking-wider select-none">
+                          🔌 Kurumsal Satıcı: <span className="text-teal-400 hover:underline cursor-pointer font-extrabold" onClick={() => router.push("/yonetim/urunler")}>ERP / XML Entegrasyonu</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stacked Conversions Cards (1/3 width) - Kurumsal */}
+                  <div className="lg:col-span-4 flex flex-col gap-6">
+                    {/* B2B Toptan / Toplu Satınalma */}
+                    <div className="bg-teal-950/20 border-[0.5px] border-teal-500/30 p-6 rounded-2xl flex flex-col justify-between h-[178px] relative overflow-hidden group select-none border-[0.5px] border-teal-950">
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <p className="font-black text-teal-400 text-[10px] uppercase tracking-widest">Toplu Alım / B2B</p>
+                          <span className="bg-teal-500 text-white text-[9px] font-black flex items-center gap-1 px-2.5 py-1 rounded-full border border-teal-300 shadow-sm">
+                            <Briefcase size={10} />
+                            Firmanıza Özel
+                          </span>
+                        </div>
+                        <h3 className="font-black text-slate-800 text-base mt-2 tracking-tight">Hacimli Alımlarda Özel KDV Avantajları</h3>
+                        <p className="text-slate-500 text-[10px] font-bold mt-1">Toptan siparişlerinizde şirketinize özel net indirimler, KDV kolaylıkları ve e-arşiv fatura.</p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedCategory("Tümü")}
+                        className="bg-slate-950 hover:bg-teal-500 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer active:scale-95"
+                      >
+                        Teklif İsteyin
+                      </button>
+                    </div>
+
+                    {/* Fast Express Delivery */}
+                    <div className="bg-slate-950 p-6 rounded-2xl flex flex-col justify-between h-[178px] select-none border-[0.5px] border-slate-800">
+                      <div>
+                        <p className="font-black text-teal-400 text-[10px] uppercase tracking-widest">Hızlı Sevkiyat</p>
+                        <h3 className="font-black text-white text-base mt-2 tracking-tight">Aynı Gün Ofise Teslim</h3>
+                        <p className="text-slate-400 text-[10px] font-bold mt-1">biDunyam Express güvencesiyle İstanbul, Ankara ve İzmir'de iş yerinize aynı gün kurye teslimatı.</p>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-2">
+                        <button
+                          onClick={() => setSelectedCategory("Tümü")}
+                          className="border border-teal-500/20 hover:bg-teal-500/10 text-teal-400 py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer active:scale-95 flex-1 text-center"
+                        >
+                          Kurye Sorgula
+                        </button>
+                        <span 
+                          onClick={() => router.push("/yonetim/urunler")}
+                          className="text-[9px] font-bold text-slate-400 hover:text-white cursor-pointer underline whitespace-nowrap"
+                        >
+                          B2B Satıcı
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </motion.section>
+          </AnimatePresence>
+        </div>
+
         {/* Global Value Trust Propositions */}
         <TrustBar />
+
+        {/* Showcase / Vitrindekiler Section */}
+        {showcaseProducts.length > 0 && (
+          <section className="bg-white border-[0.5px] border-slate-200 rounded-3xl p-6 md:p-8 space-y-6 select-none shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="bg-amber-500 text-white p-2 rounded-xl flex items-center justify-center shrink-0">
+                  <Star size={18} fill="currentColor" strokeWidth={0} />
+                </span>
+                <div>
+                  <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight">Vitrindekiler</h2>
+                  <p className="text-slate-400 text-xs font-bold mt-0.5">En çok tercih edilen ve en yüksek puanlı öne çıkan ürünler</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-start md:self-auto bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+                <Sparkles size={14} className="text-amber-500 animate-pulse" />
+                <span className="text-xs font-black text-amber-700">Editörün Seçimi</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {showcaseProducts.map((p) => {
+                const discount = p.originalPrice > p.price ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100) : 0;
+                const popularityPercent = Math.min(98, Math.max(75, Math.round(((p.rating || 4.2) / 5) * 100)));
+                return (
+                  <div
+                    key={`showcase-${p._id}`}
+                    onClick={() => router.push(`/product/${p._id}`)}
+                    className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 hover:shadow-lg transition-all duration-300 group cursor-pointer flex flex-col justify-between active:scale-[0.98]"
+                  >
+                    <div>
+                      <div className="relative aspect-square mb-3 overflow-hidden rounded-xl bg-white flex items-center justify-center p-3 border border-slate-100">
+                        {p.imageUrl ? (
+                          <img
+                            src={p.imageUrl}
+                            alt={p.name}
+                            className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-slate-100 rounded-lg flex items-center justify-center">
+                            <Sparkles className="text-slate-300" size={24} />
+                          </div>
+                        )}
+                        {discount > 0 ? (
+                          <div className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                            -%{discount}
+                          </div>
+                        ) : (
+                          <div className="absolute top-2 left-2 bg-amber-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                            <Star size={8} fill="currentColor" strokeWidth={0} /> {(p.rating || 4.2).toFixed(1)}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[#e35933] font-black text-[9px] uppercase tracking-widest block">{p.brand}</span>
+                      <h4 className="text-xs font-black text-slate-800 line-clamp-1 mt-1 group-hover:text-[#e35933] transition-colors">{p.name}</h4>
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-black text-slate-900">{p.price.toLocaleString("tr-TR")} TL</span>
+                        {p.originalPrice > p.price && (
+                          <span className="text-slate-400 line-through text-[10px] font-bold">{p.originalPrice.toLocaleString("tr-TR")} TL</span>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          <span>%{popularityPercent} İlgi Oranı</span>
+                          <span className="text-amber-500 flex items-center gap-0.5 font-bold">
+                            <Star size={8} fill="currentColor" strokeWidth={0} /> {(p.rating || 4.2).toFixed(1)}
+                          </span>
+                        </div>
+                        <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${popularityPercent}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Dynamic Flash / Lightning Deals section */}
         {flashDeals.length > 0 && (

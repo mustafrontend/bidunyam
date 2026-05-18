@@ -1,11 +1,8 @@
 import { ProductRepository, ProductFilters } from '../repositories/product.repository';
-import { indexProduct } from '../repositories/elasticsearch.client';
-import { CatalogRepository } from '../repositories/catalog.repository';
 
 export const ProductService = {
   async getProducts(filters: ProductFilters, page: number, limit: number) {
     const { products, total } = await ProductRepository.findAll(filters, { page, limit });
-
     return {
       products,
       pagination: {
@@ -49,12 +46,6 @@ export const ProductService = {
     };
 
     const product = await ProductRepository.create(payload);
-    await CatalogRepository.syncFromProduct({
-      brand: product.brand,
-      category: product.category,
-      categoryPath: product.categoryPath,
-    });
-    await indexProduct(product);
     return product;
   },
 
@@ -82,23 +73,11 @@ export const ProductService = {
       err.statusCode = 404;
       throw err;
     }
-
-    await CatalogRepository.syncFromProduct({
-      brand: product.brand,
-      category: product.category,
-      categoryPath: product.categoryPath,
-    });
-    await indexProduct(product);
     return product;
   },
 
   async deleteProduct(id: string): Promise<void> {
-    const deleted = await ProductRepository.deleteById(id);
-    if (!deleted) {
-      const err = new Error('Product not found') as Error & { statusCode: number };
-      err.statusCode = 404;
-      throw err;
-    }
+    await ProductRepository.deleteById(id);
   },
 
   async getProductByIdAny(id: string) {
@@ -109,41 +88,5 @@ export const ProductService = {
       throw err;
     }
     return product;
-  },
-
-  async getCatalogOptions() {
-    return CatalogRepository.getOptions();
-  },
-
-  async createBrandOption(name: string) {
-    await CatalogRepository.upsertBrand(name);
-    return CatalogRepository.getOptions();
-  },
-
-  async createCategoryOption(mainCategory: string, subCategory?: string) {
-    await CatalogRepository.upsertCategory(mainCategory, subCategory);
-    return CatalogRepository.getOptions();
-  },
-
-  async syncAllToSearch(): Promise<void> {
-
-    // 🚀 Sync all products to Elasticsearch on startup (with a small delay for ES to be ready)
-    setTimeout(async () => {
-      try {
-        console.log('[Product] 🔄 Starting Elasticsearch sync...');
-        const { products } = await ProductRepository.findAll({}, { page: 1, limit: 1000 });
-        for (const product of products) {
-          await CatalogRepository.syncFromProduct({
-            brand: product.brand,
-            category: product.category,
-            categoryPath: product.categoryPath,
-          });
-          await indexProduct(product);
-        }
-        console.log('[Product] ✅ Elasticsearch and catalog sync completed.');
-      } catch (err) {
-        console.error('[Product] ❌ Elasticsearch sync failed:', err);
-      }
-    }, 15000); // 15 saniye bekle
   },
 };

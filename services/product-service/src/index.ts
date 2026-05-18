@@ -6,6 +6,8 @@ import morgan from 'morgan';
 import mongoose from 'mongoose';
 import { ProductController } from './controllers/product.controller';
 import { ProductService } from './services/product.service';
+import { QuestionController } from './controllers/question.controller';
+import { ReviewController } from './controllers/review.controller';
 import { ZodError } from 'zod';
 import xmlUploadRoutes from './routes/xmlUpload.routes';
 
@@ -44,6 +46,20 @@ app.post('/', ProductController.create);
 app.patch('/:id', ProductController.update);
 app.delete('/:id', ProductController.remove);
 
+// Question CRUD Routes
+app.get('/questions', QuestionController.getAll);
+app.get('/questions/:id', QuestionController.getById);
+app.post('/questions', QuestionController.create);
+app.patch('/questions/:id', QuestionController.update);
+app.delete('/questions/:id', QuestionController.remove);
+
+// Review CRUD Routes
+app.get('/reviews', ReviewController.getAll);
+app.get('/reviews/:id', ReviewController.getById);
+app.post('/reviews', ReviewController.create);
+app.patch('/reviews/:id', ReviewController.update);
+app.delete('/reviews/:id', ReviewController.remove);
+
 // ─── Error Handler ─────────────────────────────────────────────
 app.use((err: Error & { statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
   console.error('[Product] Error:', err.message);
@@ -64,7 +80,6 @@ const start = async (): Promise<void> => {
   await mongoose.connect(mongoUri);
   console.log('[Product] ✅ MongoDB connected');
 
-  await ProductService.syncAllToSearch();
 
   app.listen(PORT, () => {
     console.log(`📦 Product Service running on http://localhost:${PORT}`);

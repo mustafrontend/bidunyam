@@ -151,15 +151,15 @@ export default function Home() {
         
         {/* Dynamic Bento Hero Banner & Promo Grid */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Main Hero Card (2/3 width) */}
-          <div className="lg:col-span-8 relative h-[380px] rounded-2xl overflow-hidden border border-slate-100 group shadow-sm bg-slate-900">
+          {/* Main Hero Card (2/3 width) - Hidden on Mobile */}
+          <div className="hidden md:block lg:col-span-8 relative h-[380px] rounded-2xl overflow-hidden border border-slate-100 group shadow-sm bg-slate-900">
             <img
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuBkupExmyQ6-UuVfMQe4fcqidAnnxxXg-pMLmLaNo298mYsVRrHMXinyGyI13iSP97_FWsdSxC3MkK9g9MvzN5md1MoAaQgGaCzVWvvNov3Ookl1H3qaLyXfq7hKD1mykufd-aObsjYMUmyqnFY7GsGhE4Yn4K8kY-6eRqmE-xuxhf8PSuJeD-O9Oe958dHl8evk5636GU_vWWy5dX5esns-ucjxjXCR0SfmPiN1OsUjGaXMYlivSosmoMUnU3sPX-4ggVIsnwe1Bk"
               alt="New Season Banner"
               className="absolute inset-0 w-full h-full object-cover opacity-75 group-hover:scale-105 transition-transform duration-700"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/60 to-transparent flex flex-col justify-center p-8 md:p-12 text-white">
-              <span className="bg-[#ff5000] text-white text-[9px] font-black px-3 py-1 rounded-full w-fit uppercase tracking-widest mb-4">
+              <span className="bg-[#e35933] text-white text-[9px] font-black px-3 py-1 rounded-full w-fit uppercase tracking-widest mb-4">
                 YENİ SEZON KOLEKSİYONU
               </span>
               <h1 className="text-2xl sm:text-4xl font-black text-white max-w-md leading-tight tracking-tight mb-4 select-none">
@@ -170,7 +170,7 @@ export default function Home() {
               </p>
               <button
                 onClick={() => setSelectedCategory("Ev & Yaşam")}
-                className="bg-white hover:bg-[#ff5000] hover:text-white text-slate-900 text-xs font-black uppercase tracking-wider px-8 py-3 rounded-full w-fit transition-all duration-300 active:scale-95 cursor-pointer shadow-md"
+                className="bg-white hover:bg-[#e35933] hover:text-white text-slate-900 text-xs font-black uppercase tracking-wider px-8 py-3 rounded-full w-fit transition-all duration-300 active:scale-95 cursor-pointer shadow-md"
               >
                 Koleksiyonu İncele
               </button>
@@ -180,11 +180,11 @@ export default function Home() {
           {/* Stacked Conversions Cards (1/3 width) */}
           <div className="lg:col-span-4 flex flex-col gap-6">
             {/* Flash Deal Promo */}
-            <div className="bg-orange-500/10 border-[0.5px] border-orange-500/30 p-6 rounded-2xl flex flex-col justify-between h-[178px] relative overflow-hidden group select-none">
+            <div className="bg-[#e35933]/10 border-[0.5px] border-[#e35933]/30 p-6 rounded-2xl flex flex-col justify-between h-[178px] relative overflow-hidden group select-none">
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <p className="font-black text-[#ff5000] text-[10px] uppercase tracking-widest">Günün Fırsatı</p>
-                  <span className="bg-[#ff5000] text-white text-[10px] font-black flex items-center gap-1 px-2.5 py-1 rounded-full border border-orange-300 shadow-sm animate-pulse">
+                  <p className="font-black text-[#e35933] text-[10px] uppercase tracking-widest">Günün Fırsatı</p>
+                  <span className="bg-[#e35933] text-white text-[10px] font-black flex items-center gap-1 px-2.5 py-1 rounded-full border border-orange-300 shadow-sm animate-pulse">
                     <Timer size={12} strokeWidth={2.5} />
                     {String(timeLeft.hours).padStart(2, "0")}:{String(timeLeft.minutes).padStart(2, "0")}:{String(timeLeft.seconds).padStart(2, "0")}
                   </span>
@@ -194,7 +194,7 @@ export default function Home() {
               </div>
               <button
                 onClick={() => setSelectedCategory("Tümü")}
-                className="bg-slate-950 hover:bg-[#ff5000] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer active:scale-95"
+                className="bg-slate-950 hover:bg-[#e35933] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer active:scale-95"
               >
                 Fırsatları Yakala
               </button>

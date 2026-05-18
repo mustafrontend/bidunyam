@@ -159,20 +159,20 @@ export default function Home() {
               className="absolute inset-0 w-full h-full object-cover opacity-75 group-hover:scale-105 transition-transform duration-700"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/60 to-transparent flex flex-col justify-center p-8 md:p-12 text-white">
-              <span className="bg-[#e35933] text-white text-[9px] font-black px-3 py-1 rounded-full w-fit uppercase tracking-widest mb-4">
-                YENİ SEZON KOLEKSİYONU
+              <span className="bg-[#e35933] text-white text-[9px] font-black px-3 py-1.5 rounded-full w-fit uppercase tracking-widest mb-4 shadow-sm">
+                TÜRKİYE'NİN EN DÜŞÜK KOMİSYONLU PAZARYERİ
               </span>
-              <h1 className="text-2xl sm:text-4xl font-black text-white max-w-md leading-tight tracking-tight mb-4 select-none">
-                Hayalindeki Evi Keşfet, Tarzını Yansıt
+              <h1 className="text-2xl sm:text-4xl font-black text-white max-w-lg leading-tight tracking-tight mb-4 select-none">
+                Senin Dünyan, Senin Mağazan!
               </h1>
-              <p className="text-slate-300 text-xs font-bold max-w-sm mb-6 leading-relaxed select-none">
-                Doğal malzemeler, el yapımı seramikler ve evine zerafet katacak minimalist aksesuarlar şimdi özel fırsatlarla.
+              <p className="text-slate-300 text-xs font-bold max-w-md mb-6 leading-relaxed select-none">
+                Yüksek komisyon oranlarına veda et. biDunyam ile kazancının %99'u senin olsun, ultra düşük komisyon farkıyla bütçeni ve mağazanı katlayarak büyüt.
               </p>
               <button
-                onClick={() => setSelectedCategory("Ev & Yaşam")}
-                className="bg-white hover:bg-[#e35933] hover:text-white text-slate-900 text-xs font-black uppercase tracking-wider px-8 py-3 rounded-full w-fit transition-all duration-300 active:scale-95 cursor-pointer shadow-md"
+                onClick={() => router.push("/yonetim/urunler")}
+                className="bg-white hover:bg-[#e35933] hover:text-white text-slate-900 text-xs font-black uppercase tracking-wider px-8 py-3.5 rounded-full w-fit transition-all duration-300 active:scale-95 cursor-pointer shadow-md"
               >
-                Koleksiyonu İncele
+                Mağazanı Ücretsiz Aç
               </button>
             </div>
           </div>

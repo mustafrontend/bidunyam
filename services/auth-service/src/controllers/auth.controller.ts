@@ -45,7 +45,8 @@ export const AuthController = {
   async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const body = RegisterSchema.parse(req.body);
-      const result = await AuthService.register(body);
+      const deviceId = (req.headers['x-device-id'] as string) || req.body.deviceId;
+      const result = await AuthService.register(body, deviceId);
       res.status(201).json({ success: true, message: 'User registered successfully', data: result });
     } catch (err) {
       next(err);
@@ -55,7 +56,8 @@ export const AuthController = {
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const body = LoginSchema.parse(req.body);
-      const result = await AuthService.login(body);
+      const deviceId = (req.headers['x-device-id'] as string) || req.body.deviceId;
+      const result = await AuthService.login(body, deviceId);
       res.status(200).json({ success: true, message: 'Login successful', data: result });
     } catch (err) {
       next(err);
@@ -80,7 +82,8 @@ export const AuthController = {
   async sellerRegister(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const body = SellerRegisterSchema.parse(req.body);
-      const result = await AuthService.registerSeller(body);
+      const deviceId = (req.headers['x-device-id'] as string) || req.body.deviceId;
+      const result = await AuthService.registerSeller(body, deviceId);
       res.status(201).json({ success: true, message: 'Hesap oluşturuldu', data: result });
     } catch (err) {
       next(err);
@@ -90,7 +93,8 @@ export const AuthController = {
   async sellerLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const body = SellerLoginSchema.parse(req.body);
-      const result = await AuthService.loginSeller(body);
+      const deviceId = (req.headers['x-device-id'] as string) || req.body.deviceId;
+      const result = await AuthService.loginSeller(body, deviceId);
       res.status(200).json({ success: true, message: 'Giriş başarılı', data: result });
     } catch (err) {
       next(err);

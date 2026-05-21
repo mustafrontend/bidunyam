@@ -6,6 +6,7 @@ import http from 'http';
 import https from 'https';
 import { xmlParserService } from '../services/xmlParser.service';
 import { xmlCatalogService } from '../services/xmlCatalog.service';
+import { authenticate, optionalAuthenticate, AuthenticatedRequest } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -77,7 +78,7 @@ function isUpstreamXmlError(error: any): boolean {
 
 function parseCatalogQuery(req: Request) {
   const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 48));
+  const limit = Math.min(50000, Math.max(1, Number(req.query.limit) || 48));
   const category = typeof req.query.category === 'string' ? req.query.category : undefined;
   const brand = typeof req.query.brand === 'string' ? req.query.brand : undefined;
   const search = typeof req.query.search === 'string' ? req.query.search : undefined;
@@ -245,10 +246,11 @@ router.get('/admin/xml/sample', (req: Request, res: Response) => {
  * GET /xml/catalog
  * Public XML catalog for published request
  */
-router.get('/xml/catalog', (req: Request, res: Response) => {
+router.get('/xml/catalog', optionalAuthenticate, (req: AuthenticatedRequest, res: Response) => {
   try {
     const query = parseCatalogQuery(req);
-    const data = xmlCatalogService.getCatalog(query);
+    const userId = req.user?.id;
+    const data = xmlCatalogService.getCatalog({ ...query, userId });
 
     res.status(200).json({
       success: true,
@@ -292,9 +294,10 @@ router.get('/xml/catalog/:id', (req: Request, res: Response) => {
  * GET /admin/xml/requests
  * Admin request list for published XML catalogs
  */
-router.get('/admin/xml/requests', (_req: Request, res: Response) => {
-  const activeRequest = xmlCatalogService.getActiveRequestMeta();
-  const requests = xmlCatalogService.getRequests();
+router.get('/admin/xml/requests', authenticate, (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
+  const activeRequest = xmlCatalogService.getActiveRequestMeta(userId);
+  const requests = xmlCatalogService.getRequests(userId);
 
   res.status(200).json({
     success: true,
@@ -309,7 +312,7 @@ router.get('/admin/xml/requests', (_req: Request, res: Response) => {
  * POST /admin/xml/preview-url
  * XML linkini preview et
  */
-router.post('/admin/xml/preview-url', async (req: Request, res: Response) => {
+router.post('/admin/xml/preview-url', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const xmlUrl = normalizeRemoteXmlUrl(req.body?.url);
     const xmlContent = await fetchRemoteXmlContent(xmlUrl);
@@ -355,7 +358,7 @@ router.post('/admin/xml/preview-url', async (req: Request, res: Response) => {
  * POST /admin/xml/import-url
  * XML linkinden ürünleri içeri aktar (Mock DB yazma ile)
  */
-router.post('/admin/xml/import-url', async (req: Request, res: Response) => {
+router.post('/admin/xml/import-url', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const xmlUrl = normalizeRemoteXmlUrl(req.body?.url);
     const xmlContent = await fetchRemoteXmlContent(xmlUrl);
@@ -374,14 +377,16 @@ router.post('/admin/xml/import-url', async (req: Request, res: Response) => {
 
     // Publish to lightweight XML request catalog (no Product collection writes)
     const xmlFileName = `import-${Date.now()}.xml`;
+    const userId = req.user!.id;
     const publishInfo = xmlCatalogService.publishProducts({
       products,
       sourceUrl: xmlUrl,
       xmlFileName,
+      userId,
     });
 
     // 🔄 Mock DB yazma işlemi - Veritabanına yazıyormuş gibi yap
-    const mockOrders = generateMockOrdersFromXML(products, xmlFileName);
+    const mockOrders = generateMockOrdersFromXML(products, xmlFileName, userId);
 
     res.status(200).json({
       success: true,
@@ -435,7 +440,7 @@ router.post('/admin/xml/import-url', async (req: Request, res: Response) => {
 /**
  * 🔄 Helper: XML'den Mock Order'ları oluştur (Sanal DB yazma)
  */
-function generateMockOrdersFromXML(products: any[], xmlFileName: string) {
+function generateMockOrdersFromXML(products: any[], xmlFileName: string, userId: string) {
   const mockOrders = [];
 
   // Her 5 ürün için bir mock order oluştur
@@ -446,7 +451,7 @@ function generateMockOrdersFromXML(products: any[], xmlFileName: string) {
 
     const mockOrder = {
       _id: `mock-order-${xmlFileName}-${i + 1}`,
-      userId: 'admin-user-001',
+      userId: userId,
       items: orderProducts.map((p: any, idx: number) => {
         // Flexible field mapping
         const name = p.urun_adi || p.urunAdi || 'Unknown Product';
@@ -488,7 +493,7 @@ function generateMockOrdersFromXML(products: any[], xmlFileName: string) {
  * POST /admin/xml/upload
  * XML dosya yükle ve ürünleri içeri aktar (Mock DB yazma ile)
  */
-router.post('/admin/xml/upload', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/admin/xml/upload', authenticate, upload.single('file'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     // File kontrol
     if (!req.file) {
@@ -520,14 +525,16 @@ router.post('/admin/xml/upload', upload.single('file'), async (req: Request, res
 
     // Publish to lightweight XML request catalog (no Product collection writes)
     const xmlFileName = req.file.originalname;
+    const userId = req.user!.id;
     const publishInfo = xmlCatalogService.publishProducts({
       products,
       sourceUrl: `file://${req.file.originalname}`,
       xmlFileName,
+      userId,
     });
 
     // 🔄 Mock DB yazma işlemi - Veritabanına yazıyormuş gibi yap
-    const mockOrders = generateMockOrdersFromXML(products, xmlFileName);
+    const mockOrders = generateMockOrdersFromXML(products, xmlFileName, userId);
 
     res.status(200).json({
       success: true,
@@ -589,7 +596,7 @@ router.post('/admin/xml/upload', upload.single('file'), async (req: Request, res
  * POST /admin/xml/preview
  * XML dosyayı preview et (import etmeden önce)
  */
-router.post('/admin/xml/preview', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/admin/xml/preview', authenticate, upload.single('file'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({

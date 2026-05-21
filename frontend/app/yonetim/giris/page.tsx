@@ -26,6 +26,7 @@ export default function YonetimGirisPage() {
   const [regPassword, setRegPassword] = useState("");
   const [regPasswordConfirm, setRegPasswordConfirm] = useState("");
   const [accountType, setAccountType] = useState<"bireysel" | "tüzel">("bireysel");
+  
   // Tüzel ek alanlar
   const [companyName, setCompanyName] = useState("");
   const [taxNo, setTaxNo] = useState("");
@@ -33,7 +34,7 @@ export default function YonetimGirisPage() {
 
   useEffect(() => {
     if (isAuthenticated()) router.replace("/yonetim");
-  }, []);
+  }, [isAuthenticated, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,27 +94,31 @@ export default function YonetimGirisPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex flex-col leading-none">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 antialiased font-sans">
+      <div className="w-full max-w-[420px] space-y-6">
+        {/* Title / Logo Header */}
+        <div className="text-center space-y-1">
+          <div className="inline-flex items-center space-x-1.5 leading-none">
             <span className="text-[#ff6000] font-black text-4xl tracking-tight">bidunyam</span>
-            <span className="text-[11px] font-bold text-[#1b1c57] tracking-widest uppercase mt-0.5">Yönetim Paneli</span>
+            <span className="rounded-[4px] bg-[#ff6000]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#ff6000]">
+              Partner
+            </span>
           </div>
+          <p className="text-xs font-bold text-slate-400 tracking-wide">Satıcı Portalı ve Yönetim Paneli</p>
         </div>
 
-        <div className="rounded-2xl bg-white shadow-lg overflow-hidden">
-          {/* Tab Header */}
-          <div className="grid grid-cols-2 border-b border-slate-100">
+        {/* Card Component */}
+        <div className="bg-white rounded-2xl border-[0.5px] border-slate-200/80 shadow-sm overflow-hidden">
+          {/* Tab Selection */}
+          <div className="grid grid-cols-2 border-b-[0.5px] border-slate-100">
             {(["giris", "kayit"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => { setTab(t); setError(null); setSuccess(null); }}
-                className={`py-4 text-sm font-black tracking-wide transition-colors ${
+                className={`py-4 text-xs font-black tracking-wider uppercase transition-all duration-200 active:scale-[0.98] ${
                   tab === t
                     ? "text-[#ff6000] border-b-2 border-[#ff6000]"
-                    : "text-slate-400 hover:text-slate-600"
+                    : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/50"
                 }`}
               >
                 {t === "giris" ? "Giriş Yap" : "Kayıt Ol"}
@@ -121,85 +126,89 @@ export default function YonetimGirisPage() {
             ))}
           </div>
 
-          <div className="p-8">
-            {/* Bildirimler */}
+          <div className="p-7">
+            {/* Feedback Banners */}
             {error && (
-              <div className="mb-5 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-xs font-bold text-red-600">
-                {error}
+              <div className="mb-5 rounded-xl bg-red-50 border-[0.5px] border-red-200/80 px-4 py-3 text-xs font-black text-red-600">
+                ⚠️ {error}
               </div>
             )}
             {success && (
-              <div className="mb-5 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-xs font-bold text-green-700">
-                {success}
+              <div className="mb-5 rounded-xl bg-emerald-50 border-[0.5px] border-emerald-200/80 px-4 py-3 text-xs font-black text-emerald-700">
+                ✅ {success}
               </div>
             )}
 
-            {/* ──── GİRİŞ FORMU ──── */}
+            {/* Giriş Tab */}
             {tab === "giris" && (
               <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">E-Posta</label>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">E-Posta Adresi</label>
                   <input
                     type="email"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     required
-                    placeholder="ornek@sirket.com"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#ff6000] transition-colors"
+                    placeholder="isim@sirket.com"
+                    className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
                   />
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">Şifre</label>
+                
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Şifre</label>
                   <input
                     type="password"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     required
                     placeholder="••••••••"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#ff6000] transition-colors"
+                    className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
                   />
                 </div>
+
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-2 w-full rounded-xl bg-[#ff6000] py-3.5 text-sm font-black text-white hover:bg-[#d85000] transition-colors disabled:opacity-60"
+                  className="w-full mt-2 rounded-xl bg-[#ff6000] py-3.5 text-xs font-black text-white hover:bg-[#ff6000]/95 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 uppercase tracking-wider"
                 >
-                  {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
+                  {loading ? "Giriş yapılıyor..." : "Güvenli Giriş Yap"}
                 </button>
-                <p className="text-center text-xs text-slate-400 pt-2">
-                  Demo: <span className="font-bold text-slate-600">mustafa@demo.com</span> / <span className="font-bold text-slate-600">123456</span>
-                </p>
+
+                <div className="pt-3 border-t-[0.5px] border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>Demo Seller:</span>
+                  <span className="font-bold text-slate-600">mustafa@demo.com / 123</span>
+                </div>
               </form>
             )}
 
-            {/* ──── KAYIT FORMU ──── */}
+            {/* Kayıt Tab */}
             {tab === "kayit" && (
               <form onSubmit={handleRegister} className="space-y-4">
-                {/* Hesap Türü */}
-                <div>
-                  <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Hesap Türü</label>
+                {/* Account Type Toggle */}
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Hesap Türü</label>
                   <div className="grid grid-cols-2 gap-2">
                     {(["bireysel", "tüzel"] as const).map((type) => (
                       <button
                         key={type}
                         type="button"
                         onClick={() => setAccountType(type)}
-                        className={`rounded-xl border py-3 text-sm font-black transition-colors ${
+                        className={`rounded-xl border-[0.5px] py-2.5 text-xs font-black transition-all duration-200 active:scale-[0.97] ${
                           accountType === type
                             ? "border-[#ff6000] bg-[#ff6000]/5 text-[#ff6000]"
                             : "border-slate-200 text-slate-500 hover:border-slate-300"
                         }`}
                       >
-                        {type === "bireysel" ? "Bireysel" : "Tüzel Kişi"}
+                        {type === "bireysel" ? "Bireysel" : "Tüzel (Şirket)"}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Bireysel: Ad Soyad */}
-                {accountType === "bireysel" && (
-                  <div>
-                    <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">Ad Soyad</label>
+                {/* Account-specific Fields */}
+                {accountType === "bireysel" ? (
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Ad Soyad</label>
                     <input
                       type="text"
                       value={regName}
@@ -207,96 +216,93 @@ export default function YonetimGirisPage() {
                       required
                       minLength={2}
                       placeholder="Mustafa Öztürk"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#ff6000] transition-colors"
+                      className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
                     />
                   </div>
-                )}
-
-                {/* Tüzel: Şirket Bilgileri */}
-                {accountType === "tüzel" && (
-                  <>
-                    <div>
-                      <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">Şirket / Ticaret Unvanı</label>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Şirket Ticari Unvanı</label>
                       <input
                         type="text"
                         value={companyName}
                         onChange={(e) => setCompanyName(e.target.value)}
                         required
                         placeholder="Örnek A.Ş."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#ff6000] transition-colors"
+                        className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">Vergi No</label>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Vergi Numarası</label>
                         <input
                           type="text"
                           value={taxNo}
                           onChange={(e) => setTaxNo(e.target.value.replace(/\D/g, "").slice(0, 10))}
                           required
-                          placeholder="1234567890"
+                          placeholder="10 Haneli No"
                           maxLength={10}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#ff6000] transition-colors"
+                          className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
                         />
                       </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">Vergi Dairesi</label>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Vergi Dairesi</label>
                         <input
                           type="text"
                           value={taxOffice}
                           onChange={(e) => setTaxOffice(e.target.value)}
                           required
-                          placeholder="Kadıköy VD"
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#ff6000] transition-colors"
+                          placeholder="Mecidiyeköy VD"
+                          className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
                         />
                       </div>
                     </div>
-                  </>
+                  </div>
                 )}
 
-                <div>
-                  <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">E-Posta</label>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">E-Posta Adresi</label>
                   <input
                     type="email"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     required
-                    placeholder="ornek@sirket.com"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#ff6000] transition-colors"
+                    placeholder="isim@sirket.com"
+                    className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">Şifre</label>
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Şifre</label>
                     <input
                       type="password"
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
                       required
                       minLength={8}
-                      placeholder="Min. 8 karakter"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#ff6000] transition-colors"
+                      placeholder="Min. 8 Karakter"
+                      className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">Şifre Tekrar</label>
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Şifre Tekrarı</label>
                     <input
                       type="password"
                       value={regPasswordConfirm}
                       onChange={(e) => setRegPasswordConfirm(e.target.value)}
                       required
                       placeholder="••••••••"
-                      className={`w-full rounded-xl border bg-slate-50 px-4 py-3 text-sm outline-none transition-colors ${
+                      className={`w-full rounded-xl border-[0.5px] bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none transition-all duration-200 ${
                         regPasswordConfirm && regPassword !== regPasswordConfirm
-                          ? "border-red-400 focus:border-red-500"
-                          : "border-slate-200 focus:border-[#ff6000]"
+                          ? "border-red-400 focus:border-red-500 focus:bg-white"
+                          : "border-slate-200 focus:border-[#ff6000] focus:bg-white"
                       }`}
                     />
                   </div>
                 </div>
 
-                {/* Şifre gücü göstergesi */}
+                {/* Password strength bar */}
                 {regPassword && (
                   <div className="space-y-1">
                     <div className="flex gap-1">
@@ -309,17 +315,17 @@ export default function YonetimGirisPage() {
                         return (
                           <div
                             key={i}
-                            className={`h-1 flex-1 rounded-full transition-colors ${
+                            className={`h-1 flex-1 rounded-full transition-all duration-300 ${
                               i < strength
-                                ? strength === 1 ? "bg-red-400" : strength === 2 ? "bg-amber-400" : strength === 3 ? "bg-blue-400" : "bg-green-500"
-                                : "bg-slate-200"
+                                ? strength === 1 ? "bg-red-400" : strength === 2 ? "bg-amber-400" : strength === 3 ? "bg-[#ff6000]/60" : "bg-emerald-500"
+                                : "bg-slate-100"
                             }`}
                           />
                         );
                       })}
                     </div>
-                    <p className="text-[10px] text-slate-400">
-                      {regPassword.length < 8 ? "Çok kısa" : regPassword.length < 12 ? "Zayıf" : /[A-Z]/.test(regPassword) && /[0-9]/.test(regPassword) ? "Güçlü" : "Orta"}
+                    <p className="text-[9px] text-slate-400 font-bold">
+                      Şifre gücü: {regPassword.length < 8 ? "Zayıf" : regPassword.length < 12 ? "Orta" : "Güçlü"}
                     </p>
                   </div>
                 )}
@@ -327,18 +333,21 @@ export default function YonetimGirisPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-2 w-full rounded-xl bg-[#1b1c57] py-3.5 text-sm font-black text-white hover:bg-[#ff6000] transition-colors disabled:opacity-60"
+                  className="w-full mt-2 rounded-xl bg-slate-800 py-3.5 text-xs font-black text-white hover:bg-slate-900 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 uppercase tracking-wider"
                 >
-                  {loading ? "Hesap oluşturuluyor..." : "Hesap Oluştur"}
+                  {loading ? "Kaydediliyor..." : "Partner Hesabı Oluştur"}
                 </button>
-
-                <p className="text-center text-[10px] text-slate-400 leading-relaxed">
-                  Kayıt olarak <span className="underline cursor-pointer">Kullanıcı Sözleşmesi</span>'ni ve{" "}
-                  <span className="underline cursor-pointer">Gizlilik Politikası</span>'nı kabul etmiş olursunuz.
-                </p>
               </form>
             )}
           </div>
+        </div>
+
+        {/* Dynamic device-security confirmation card */}
+        <div className="bg-[#ff6000]/5 rounded-xl border-[0.5px] border-[#ff6000]/25 p-4 text-center space-y-1">
+          <p className="text-[10px] font-black text-[#ff6000] uppercase tracking-wider">🔒 BİLGİSAYAR TABANLI GÜVENLİK SİSTEMİ</p>
+          <p className="text-[9px] text-slate-500 leading-relaxed font-semibold">
+            Oturumunuz bu tarayıcıya/bilgisayara özel şifreli bir kimlikle bağlanır. Token çalınsa dahi başka bir bilgisayardan yönetim paneline erişim sağlanamaz.
+          </p>
         </div>
       </div>
     </div>

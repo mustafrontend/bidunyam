@@ -32,7 +32,7 @@ const PAGE_SIZE = 20;
 function normalizeProducts(data: any[]): Product[] {
   if (!Array.isArray(data)) return [];
   return data.map((item, idx) => ({
-    _id: item._id || `product-${idx}-${Date.now()}`,
+    _id: item.id || item._id || `product-${idx}-${Date.now()}`,
     name: item.name || "Ürün Açıklaması Yok",
     price: Number(item.price) || 0,
     originalPrice: Number(item.originalPrice) || Number(item.price) || 0,

@@ -36,7 +36,7 @@ export const ProductReviews: React.FC<ProductReviewsProps> = ({
     setLoading(true);
     import("@/lib/api").then(({ apiClient }) => {
       apiClient
-        .get(`/reviews?productId=${id}`)
+        .get(`/products/${id}/reviews`)
         .then((res) => setReviews(res.data.data))
         .catch(() => setError("Yorumlar yüklenemedi"))
         .finally(() => setLoading(false));
@@ -133,11 +133,11 @@ export const ProductReviews: React.FC<ProductReviewsProps> = ({
                 </div>
 
                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                  {rev.user} <span className="text-slate-300 mx-1">•</span> {rev.date}
+                  {rev.user} <span className="text-slate-300 mx-1">•</span> {rev.dateString || "Yeni Değerlendirme"}
                 </div>
 
                 <p className="text-xs text-slate-600 font-bold leading-relaxed line-clamp-4">
-                  {rev.text}
+                  {rev.comment}
                 </p>
 
                 <button className="text-[10px] font-black text-slate-800 hover:text-[#ff5000] uppercase tracking-wider block mt-1">
@@ -145,7 +145,7 @@ export const ProductReviews: React.FC<ProductReviewsProps> = ({
                 </button>
 
                 <span className="text-[10px] font-black text-[#ff5000]/90 block mt-2 hover:underline cursor-pointer">
-                  {rev.seller} satıcısından alındı
+                  {rev.sellerName} satıcısından alındı
                 </span>
               </div>
 

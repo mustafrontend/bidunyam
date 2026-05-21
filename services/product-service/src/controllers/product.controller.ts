@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { ProductService } from '../services/product.service';
+import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 
 const QuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -20,24 +21,12 @@ const ProductInputSchema = z.object({
   name: z.string().min(3),
   categoryPath: z.string().min(1),
   brand: z.string().min(1),
-  variants: z.array(z.object({
-    name: z.string().min(1),
-    type: z.enum(['COLOR', 'SIZE', 'CUSTOM']),
-    values: z.array(z.object({
-      label: z.string().min(1),
-      price: z.coerce.number().min(0).default(0),
-      stock: z.coerce.number().int().min(0).default(0),
-    })).min(1),
-  })).default([]),
-  extraServices: z.array(z.object({
-    name: z.string().min(1),
-    price: z.coerce.number().min(0),
-    description: z.string().default(''),
-  })).default([]),
-  categoryAttributes: z.record(z.string()).default({}),
+  variants: z.any().default([]),
+  extraServices: z.any().default([]),
+  categoryAttributes: z.any().default({}),
   originalPrice: z.coerce.number().min(0),
   price: z.coerce.number().min(0),
-  vatRate: z.union([z.literal(1), z.literal(10), z.literal(20)]),
+  vatRate: z.union([z.literal(1), z.literal(10), z.literal(20)]).default(20),
   purchasePrice: z.coerce.number().min(0),
   variantGroupId: z.string().default(''),
   variantValue: z.string().default(''),
@@ -48,10 +37,12 @@ const ProductInputSchema = z.object({
   bulletPoints: z.array(z.string()).max(5).default([]),
   desi: z.coerce.number().min(0),
   preparationDays: z.coerce.number().int().min(0),
-  shippingType: z.enum(['SELF_SHIPPING', 'MARKETPLACE_LOGISTICS']),
-  saleStatus: z.enum(['ACTIVE', 'PASSIVE']),
-  approvalStatus: z.enum(['APPROVED', 'REJECTED', 'PENDING']),
+  shippingType: z.string().default('MARKETPLACE_LOGISTICS'),
+  saleStatus: z.string().default('ACTIVE'),
+  approvalStatus: z.string().default('APPROVED'),
   marketplaceListingNo: z.string().default(''),
+  sellerName: z.string().default('FUAR BOX'),
+  sellerRating: z.coerce.number().default(9.3),
 });
 
 const ProductUpdateSchema = ProductInputSchema.partial();
@@ -65,15 +56,63 @@ const CategoryOptionSchema = z.object({
   subCategory: z.string().optional(),
 });
 
+const QuestionInputSchema = z.object({
+  question: z.string().min(5),
+  user: z.string().optional(),
+  purchased: z.boolean().optional(),
+  sellerName: z.string().optional(),
+  category: z.string().optional(),
+});
+
+const ReviewInputSchema = z.object({
+  rating: z.coerce.number().int().min(1).max(5),
+  comment: z.string().min(3),
+  user: z.string().optional(),
+  dateString: z.string().optional(),
+  sellerName: z.string().optional(),
+});
+
 export const ProductController = {
+  async getCatalogOptions(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const options = await ProductService.getCatalogOptions();
+      res.json({ success: true, data: options });
+    } catch (err) {
+      next(err);
+    }
+  },
 
+  async createBrandOption(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const body = BrandOptionSchema.parse(req.body);
+      const options = await ProductService.createBrandOption(body.name);
+      res.status(201).json({ success: true, data: options });
+    } catch (err) {
+      next(err);
+    }
+  },
 
-  async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async createCategoryOption(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const body = CategoryOptionSchema.parse(req.body);
+      const options = await ProductService.createCategoryOption(body.mainCategory, body.subCategory);
+      res.status(201).json({ success: true, data: options });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getAll(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const query = QuerySchema.parse(req.query);
       const { page, limit, ...filters } = query;
 
-      const result = await ProductService.getProducts(filters, page, limit);
+      const filtersWithUser: any = { ...filters };
+      if (req.user?.id) {
+        filtersWithUser.userId = req.user.id;
+      }
+
+      const result = await ProductService.getProducts(filtersWithUser, page, limit);
 
       res.json({ success: true, data: result });
     } catch (err) {
@@ -91,42 +130,108 @@ export const ProductController = {
     }
   },
 
-  async create(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async create(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const body = ProductInputSchema.parse(req.body);
-      const product = await ProductService.createProduct(body);
+      const userId = req.user?.id;
+      const product = await ProductService.createProduct(body, userId);
       res.status(201).json({ success: true, data: product });
     } catch (err) {
       next(err);
     }
   },
 
-  async update(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async update(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const body = ProductUpdateSchema.parse(req.body);
-      const product = await ProductService.updateProduct(id, body);
+      const userId = req.user?.id;
+      const product = await ProductService.updateProduct(id, body, userId);
       res.status(200).json({ success: true, data: product });
     } catch (err) {
       next(err);
     }
   },
 
-  async getByIdAny(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getByIdAny(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
+      const userId = req.user?.id;
       const product = await ProductService.getProductByIdAny(id);
+      
+      if (userId && product.userId !== userId) {
+        const err = new Error('You do not own this product') as Error & { statusCode: number };
+        err.statusCode = 403;
+        throw err;
+      }
+
       res.json({ success: true, data: product });
     } catch (err) {
       next(err);
     }
   },
 
-  async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async remove(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      await ProductService.deleteProduct(id);
+      const userId = req.user?.id;
+      await ProductService.deleteProduct(id, userId);
       res.status(200).json({ success: true, message: 'Product deleted' });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // ─── Q&As Controllers ─────────────────────────────────────────
+  async getQuestions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const questions = await ProductService.getQuestionsByProductId(id);
+      res.json({ success: true, data: questions });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async createQuestion(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const body = QuestionInputSchema.parse(req.body);
+      const question = await ProductService.createQuestion(id, body);
+      res.status(201).json({ success: true, data: question });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async answerQuestion(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { questionId } = req.params;
+      const { answer } = req.body;
+      const result = await ProductService.createAnswerForQuestion(questionId, answer);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // ─── Reviews Controllers ──────────────────────────────────────
+  async getReviews(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const reviews = await ProductService.getReviewsByProductId(id);
+      res.json({ success: true, data: reviews });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async createReview(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const body = ReviewInputSchema.parse(req.body);
+      const review = await ProductService.createReview(id, body);
+      res.status(201).json({ success: true, data: review });
     } catch (err) {
       next(err);
     }

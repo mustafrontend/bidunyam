@@ -29,7 +29,7 @@ export interface AuthResponse {
   };
 }
 
-const signToken = (payload: { id: string; email: string; role: string }): string => {
+const signToken = (payload: { id: string; email: string; role: string; deviceId?: string }): string => {
   const secret = process.env.JWT_SECRET;
   const expiresIn = process.env.JWT_EXPIRES_IN ?? '7d';
 
@@ -59,7 +59,7 @@ export const AuthService = {
     }
   },
 
-  async register(input: RegisterInput): Promise<AuthResponse> {
+  async register(input: RegisterInput, deviceId?: string): Promise<AuthResponse> {
     const exists = await UserRepository.existsByEmail(input.email);
     if (exists) {
       const err = new Error('Email is already registered') as Error & { statusCode: number };
@@ -81,7 +81,7 @@ export const AuthService = {
       registeredAt: new Date().toISOString(),
     });
 
-    const token = signToken({ id: user.id, email: user.email, role: user.role });
+    const token = signToken({ id: user.id, email: user.email, role: user.role, deviceId });
     
     // Store in Redis (Whitelist)
     const redis = getRedisClient();
@@ -93,7 +93,7 @@ export const AuthService = {
     };
   },
 
-  async login(input: LoginInput): Promise<AuthResponse> {
+  async login(input: LoginInput, deviceId?: string): Promise<AuthResponse> {
     const user = await UserRepository.findByEmail(input.email);
 
     if (!user || !user.isActive) {
@@ -109,7 +109,7 @@ export const AuthService = {
       throw err;
     }
 
-    const token = signToken({ id: user.id, email: user.email, role: user.role });
+    const token = signToken({ id: user.id, email: user.email, role: user.role, deviceId });
 
     // 🚀 Store session in Redis
     const redis = getRedisClient();
@@ -141,7 +141,7 @@ export const AuthService = {
     companyName?: string;
     taxNo?: string;
     taxOffice?: string;
-  }) {
+  }, deviceId?: string) {
     const exists = await SellerRepository.existsByEmail(input.email);
     if (exists) {
       const err = new Error('Bu e-posta zaten kayıtlı') as Error & { statusCode: number };
@@ -163,7 +163,7 @@ export const AuthService = {
     });
 
     const displayName = accountType === 'TUZEL' ? seller.companyName! : seller.fullName!;
-    const token = signToken({ id: seller.id, email: seller.email, role: 'SELLER' });
+    const token = signToken({ id: seller.id, email: seller.email, role: 'SELLER', deviceId });
 
     const redis = getRedisClient();
     await redis.set(`auth:token:${token}`, seller.id, 'EX', 7 * 24 * 60 * 60);
@@ -174,7 +174,7 @@ export const AuthService = {
     };
   },
 
-  async loginSeller(input: { email: string; password: string }) {
+  async loginSeller(input: { email: string; password: string }, deviceId?: string) {
     const seller = await SellerRepository.findByEmail(input.email);
 
     if (!seller || !seller.isActive) {
@@ -191,7 +191,7 @@ export const AuthService = {
     }
 
     const displayName = seller.accountType === 'TUZEL' ? seller.companyName! : seller.fullName!;
-    const token = signToken({ id: seller.id, email: seller.email, role: 'SELLER' });
+    const token = signToken({ id: seller.id, email: seller.email, role: 'SELLER', deviceId });
 
     const redis = getRedisClient();
     await redis.set(`auth:token:${token}`, seller.id, 'EX', 7 * 24 * 60 * 60);
@@ -215,7 +215,7 @@ export const AuthService = {
       err.statusCode = 404;
       throw err;
     }
-    return seller;
+    return { ...seller, role: 'SELLER' };
   },
 
   async getFavorites(userId: string) {

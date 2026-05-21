@@ -35,4 +35,4 @@ COPY --from=builder /app/prisma ./prisma
 EXPOSE 3001
 
 # Prisma client requires the schema to be present
-CMD ["sh", "-c", "npx prisma db push && node dist/index.js"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/index.js"]

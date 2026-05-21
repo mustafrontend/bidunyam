@@ -11,6 +11,7 @@ interface CartItem {
   imageUrl: string;
   quantity: number;
   barcode?: string;  // ✅ XML'den gelen barkod
+  category?: string; // ✅ Kategori bazlı sepet önerileri için
   selectedVariant?: Record<string, string>;
   selectedServices?: Array<{ name: string; price: number; description?: string }>;
 }
@@ -35,8 +36,10 @@ export const useCartStore = create<CartState>()(
             headers: { Authorization: `Bearer ${token}` }
           });
           set({ items: res.data.data });
-        } catch (err) {
-          console.error('Failed to fetch cart from Redis', err);
+        } catch (err: any) {
+          if (err.response?.status !== 401) {
+            console.error('Failed to fetch cart from Redis', err);
+          }
         }
       },
       addItem: async (product, token) => {

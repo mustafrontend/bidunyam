@@ -39,6 +39,7 @@ export const Navbar: React.FC = () => {
   const favoriteCount = useFavoriteStore((s) => s.productIds.length);
   const fetchFavorites = useFavoriteStore((s) => s.fetchFavorites);
   const clearFavorites = useFavoriteStore((s) => s.clearFavorites);
+  const isFavoritesLoading = useFavoriteStore((s) => s.isLoading);
   const { isLoginModalOpen, setLoginModalOpen, isBrandMode, setIsBrandMode } = useUiStore();
 
   const [isMounted, setIsMounted] = useState(false);
@@ -60,12 +61,12 @@ export const Navbar: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (token) {
+    if (token && user?.role === 'CUSTOMER') {
       fetchFavorites(token);
     } else {
       clearFavorites();
     }
-  }, [token, fetchFavorites, clearFavorites]);
+  }, [token, user?.role, fetchFavorites, clearFavorites]);
 
   useEffect(() => {
     const delayDebounce = setTimeout(async () => {
@@ -184,7 +185,7 @@ export const Navbar: React.FC = () => {
 
               {/* Favorites Heart Icon */}
               <Link
-                href="/favoriler"
+                href="/favorites"
                 className="relative flex items-center justify-center h-9 w-9 rounded-full hover:bg-slate-100 active:scale-95 transition-all text-slate-800"
               >
                 <Heart size={18} strokeWidth={2.5} className="text-[#001819]" />

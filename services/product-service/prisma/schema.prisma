@@ -1,13 +1,46 @@
+model Category {
+  id          String        @id @default(uuid())
+  name        String       @unique
+  subCategories SubCategory[]
+  products    Product[]    @relation("ProductCategory")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  @@map("categories")
+}
+
+model SubCategory {
+  id          String     @id @default(uuid())
+  name        String
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products    Product[] @relation("ProductSubCategory")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  @@unique([name, categoryId])
+  @@map("sub_categories")
+}
+
+model Brand {
+  id          String     @id @default(uuid())
+  name        String    @unique
+  products    Product[] @relation("ProductBrand")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  @@map("brands")
+}
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 model Product {
   id                   String        @id @default(uuid())
+  userId               String        @default("admin-user-001")
   barcode              String        @unique
   modelCode            String
   sku                  String        @unique
@@ -22,8 +55,15 @@ model Product {
   vatRate              Int           @default(20)
   originalPrice        Float
   discountPercent      Float         @default(0)
-  category             String
-  brand                String
+  categoryId           String?
+  category             Category?   @relation("ProductCategory", fields: [categoryId], references: [id])
+  subCategoryId        String?
+  subCategory          SubCategory? @relation("ProductSubCategory", fields: [subCategoryId], references: [id])
+  brandId              String?
+  brand                Brand?      @relation("ProductBrand", fields: [brandId], references: [id])
+  // Eski string alanlar opsiyonel bırakıldı (migrasyon kolaylığı için)
+  categoryName         String?     @default("")
+  brandName            String?     @default("")
   variants             Json          @default("[]")
   extraServices        Json          @default("[]")
   variantGroupId       String        @default("")
@@ -49,8 +89,8 @@ model Product {
   reviews              Review[]
 
   @@index([name])
-  @@index([category])
-  @@index([brand])
+  @@index([categoryId])
+  @@index([brandId])
   @@map("products")
 }
 
@@ -90,4 +130,65 @@ model Review {
 
   @@index([productId])
   @@map("reviews")
+}
+
+// ─── Shared Database Models to prevent schema dropping ───
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(CUSTOMER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  favorites Favorite[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@map("favorites")
+}
+
+model SellerAccount {
+  id          String      @id @default(uuid())
+  email       String      @unique
+  password    String
+  accountType AccountType @default(BIREYSEL)
+
+  // Bireysel
+  fullName    String?
+
+  // Tüzel
+  companyName String?
+  taxNo       String?
+  taxOffice   String?
+
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([email])
+  @@map("seller_accounts")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+  SELLER
+}
+
+enum AccountType {
+  BIREYSEL
+  TUZEL
 }

@@ -33,6 +33,7 @@ interface Question {
   responseRate?: string;
   answer?: string;
   status: "ANSWERED" | "PENDING";
+  createdAt?: string;
 }
 
 interface Product {
@@ -74,23 +75,23 @@ export default function ProductQuestionsPage() {
   useEffect(() => {
     if (!id) return;
     apiClient
-      .get(`/questions?productId=${id}`)
+      .get(`/products/${id}/questions`)
       .then((res) => setQuestions(res.data.data))
       .catch(() => setQuestions([]));
   }, [id]);
 
   // Sidebar filters
   const categories = [
-    "tümü (20200)",
-    "Kullanım Talimatları (5641)",
-    "Emziren Anneler İçin Uygun Mu? (2019)",
-    "Son Kullanma Tarihi (1384)",
-    "Kullanım Alanları (1307)",
-    "Yaş Uygunluğu (1181)",
-    "Ürün İçeriği (934)",
-    "Cilde Etkisi (738)",
-    "Helal Sertifikası Var Mı? (290)",
-    "Cinsiyet (243)",
+    "tümü",
+    "Kullanım Talimatları",
+    "Emziren Anneler İçin Uygun Mu?",
+    "Son Kullanma Tarihi",
+    "Kullanım Alanları",
+    "Yaş Uygunluğu",
+    "Ürün İçeriği",
+    "Cilde Etkisi",
+    "Helal Sertifikası Var Mı?",
+    "Cinsiyet",
   ];
 
   // Fetch product info
@@ -102,7 +103,7 @@ export default function ProductQuestionsPage() {
       .then((res) => {
         const prod = res.data.data;
         setProduct({
-          _id: prod._id,
+          _id: prod.id || prod._id,
           name: prod.name,
           price: prod.price,
           imageUrl: prod.imageUrl,
@@ -129,45 +130,37 @@ export default function ProductQuestionsPage() {
   }, [id]);
 
   // Handle Dynamic Question Submitting
-  const handleSubmitQuestion = (e: React.FormEvent) => {
+  const handleSubmitQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!questionText.trim() || !acceptTerms) return;
 
-    const newQuestionId = `q-new-${Date.now()}`;
-    const newQuestion: Question = {
-      id: newQuestionId,
-      category: "tümü (20200)",
-      question: questionText,
-      user: allowNameDisplay ? "Mustafa Ö." : "M** Ö**",
-      date: "Bugün",
-      purchased: true,
-      sellerName: "FUAR BOX",
-      status: "PENDING",
-    };
+    try {
+      const res = await apiClient.post(`/products/${id}/questions`, {
+        question: questionText,
+        user: allowNameDisplay ? "Mustafa Ö." : "M** Ö**",
+        purchased: true,
+        sellerName: product?.brand || "FUAR BOX",
+        category: selectedCategory === "tümü" ? "Kullanım Talimatları" : selectedCategory,
+      });
 
-    setQuestions((prev) => [newQuestion, ...prev]);
-    
-    setIsModalOpen(false);
-    setQuestionText("");
-    setAllowNameDisplay(false);
-    setAcceptTerms(false);
+      const savedQuestion = res.data.data;
+      setQuestions((prev) => [savedQuestion, ...prev]);
+      
+      setIsModalOpen(false);
+      setQuestionText("");
+      setAllowNameDisplay(false);
+      setAcceptTerms(false);
 
-    // Simulate realistic seller response after 3 seconds
-    setTimeout(() => {
-      setQuestions((prev) =>
-        prev.map((q) => {
-          if (q.id === newQuestionId) {
-            return {
-              ...q,
-              status: "ANSWERED",
-              responseRate: "1 saniye önce cevaplandı.",
-              answer: "Merhaba, sorunuz için teşekkür ederiz. Ürünümüz %100 orijinal ve T.C. Tarım ve Orman Bakanlığı onaylıdır. Gönül rahatlığıyla kullanabilirsiniz. Başka bir sorunuz olursa yardımcı olmaktan mutluluk duyarız.",
-            };
-          }
-          return q;
-        })
-      );
-    }, 3000);
+      // Simulate realistic seller response update after 4 seconds
+      setTimeout(() => {
+        apiClient
+          .get(`/products/${id}/questions`)
+          .then((res) => setQuestions(res.data.data))
+          .catch(() => {});
+      }, 4000);
+    } catch (err) {
+      console.error("Failed to submit question:", err);
+    }
   };
 
   // Real-time filtering logic
@@ -388,7 +381,7 @@ export default function ProductQuestionsPage() {
                         <div className="flex items-center gap-2.5 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                           <span>{q.user}</span>
                           <span>•</span>
-                          <span>{q.date}</span>
+                          <span>{q.date || (q.createdAt ? new Date(q.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Bugün')}</span>
                           {q.purchased && (
                             <span className="text-emerald-600 font-extrabold flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
                               <CheckCircle2 size={11} strokeWidth={2.5} /> Ürünü satın aldı

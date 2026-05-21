@@ -4,6 +4,7 @@ import { apiClient } from '@/lib/api';
 interface FavoriteState {
   productIds: string[];
   isLoading: boolean;
+  hasFetched: boolean;
   fetchFavorites: (token: string) => Promise<void>;
   toggleFavorite: (productId: string, token: string) => Promise<void>;
   clearFavorites: () => void;
@@ -13,6 +14,7 @@ interface FavoriteState {
 export const useFavoriteStore = create<FavoriteState>((set, get) => ({
   productIds: [],
   isLoading: false,
+  hasFetched: false,
 
   fetchFavorites: async (token) => {
     set({ isLoading: true });
@@ -20,10 +22,12 @@ export const useFavoriteStore = create<FavoriteState>((set, get) => ({
       const res = await apiClient.get('/auth/favorites', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      set({ productIds: res.data?.data?.productIds || [] });
-    } catch (err) {
-      console.error('Failed to fetch favorites', err);
-      set({ productIds: [] });
+      set({ productIds: res.data?.data?.productIds || [], hasFetched: true });
+    } catch (err: any) {
+      if (err.response?.status !== 401) {
+        console.error('Failed to fetch favorites', err);
+      }
+      set({ productIds: [], hasFetched: true });
     } finally {
       set({ isLoading: false });
     }
@@ -43,13 +47,13 @@ export const useFavoriteStore = create<FavoriteState>((set, get) => ({
             { headers: { Authorization: `Bearer ${token}` } }
           );
 
-      set({ productIds: res.data?.data?.productIds || [] });
+      set({ productIds: res.data?.data?.productIds || [], hasFetched: true });
     } catch (err) {
       console.error('Failed to toggle favorite', err);
     }
   },
 
-  clearFavorites: () => set({ productIds: [] }),
+  clearFavorites: () => set({ productIds: [], hasFetched: false }),
 
   isFavorite: (productId) => get().productIds.includes(productId),
 }));

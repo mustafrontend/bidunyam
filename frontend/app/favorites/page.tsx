@@ -17,23 +17,30 @@ interface Product {
 
 export default function FavoritesPage() {
   const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const setLoginModalOpen = useUiStore((s) => s.setLoginModalOpen);
   const productIds = useFavoriteStore((s) => s.productIds);
   const fetchFavorites = useFavoriteStore((s) => s.fetchFavorites);
+  const isFavoritesLoading = useFavoriteStore((s) => s.isLoading);
+  const hasFetched = useFavoriteStore((s) => s.hasFetched);
   const toggleFavorite = useFavoriteStore((s) => s.toggleFavorite);
+
+  const isCustomer = useMemo(() => user?.role === 'CUSTOMER', [user]);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated() || !token) {
+    if (!isAuthenticated() || !token || !isCustomer) {
       setLoading(false);
       return;
     }
-
-    fetchFavorites(token);
-  }, [fetchFavorites, isAuthenticated, token]);
+    // Eğer zaten yükleniyorsa veya zaten fetch edildiyse tekrar fetch etme
+    if (!isFavoritesLoading && !hasFetched) {
+      fetchFavorites(token);
+    }
+  }, [fetchFavorites, isAuthenticated, token, isFavoritesLoading, hasFetched, isCustomer]);
 
   useEffect(() => {
     const run = async () => {
@@ -50,7 +57,14 @@ export default function FavoritesPage() {
         const mapped = responses
           .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
           .map((r) => r.value?.data?.data)
-          .filter(Boolean);
+          .filter(Boolean)
+          .map((item: any) => ({
+            _id: item.id || item._id,
+            name: item.name,
+            price: Number(item.price) || 0,
+            imageUrl: item.imageUrl || '',
+            brand: item.brand || 'biDunyam',
+          }));
 
         setProducts(mapped);
       } finally {
@@ -78,6 +92,24 @@ export default function FavoritesPage() {
           className="mt-6 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-orange"
         >
           Giriş Yap
+        </button>
+      </div>
+    );
+  }
+
+  if (isAuthenticated() && !isCustomer) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-16 md:px-8">
+        <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">Favorilerim</h1>
+        <p className="mt-3 text-slate-500">Yalnızca müşteri hesapları favorileri kullanabilir. Lütfen müşteri hesabınızla giriş yapın.</p>
+        <button
+          onClick={() => {
+            useAuthStore.getState().logout();
+            setLoginModalOpen(true);
+          }}
+          className="mt-6 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-orange"
+        >
+          Farklı Hesapla Giriş Yap
         </button>
       </div>
     );

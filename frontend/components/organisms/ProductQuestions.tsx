@@ -16,6 +16,7 @@ interface Question {
   responseRate?: string;
   answer?: string;
   status?: string;
+  date?: string;
 }
 
 export const ProductQuestions: React.FC = () => {
@@ -42,7 +43,7 @@ export const ProductQuestions: React.FC = () => {
     if (!id) return;
     setLoading(true);
     apiClient
-      .get(`/questions?productId=${id}`)
+      .get(`/products/${id}/questions`)
       .then((res) => setQuestions(res.data.data))
       .catch(() => setError("Sorular yüklenemedi"))
       .finally(() => setLoading(false));
@@ -120,7 +121,7 @@ export const ProductQuestions: React.FC = () => {
 
                 {/* User info and verified purchase indicator */}
                 <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                  <span>{q.user} - {q.date}</span>
+                  <span>{q.user} - {q.date || (q.createdAt ? new Date(q.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Bugün')}</span>
                   {q.purchased && (
                     <span className="text-emerald-600 font-extrabold flex items-center gap-1.5 shrink-0">
                       <CheckCircle2 size={12} strokeWidth={2.5} />

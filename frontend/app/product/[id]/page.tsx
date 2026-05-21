@@ -50,6 +50,7 @@ interface Product {
   bulletPoints?: string[];
   variants?: Variant[];
   extraServices?: ExtraService[];
+  sellerName?: string;
 }
 
 interface DecorativeItem {
@@ -242,6 +243,9 @@ export default function ProductDetail() {
       .get(`/products/${id}`)
       .then((res) => {
         const prod = res.data.data;
+        if (prod) {
+          prod._id = prod.id || prod._id;
+        }
         setProduct(prod);
         
         // Auto-select first variant values by default
@@ -296,7 +300,7 @@ export default function ProductDetail() {
     const parseAndSet = (res: any) => {
       const raw = res.data?.data?.products || res.data?.data?.items || res.data?.data || [];
       const normalized = Array.isArray(raw) ? raw.map((item: any, idx: number) => ({
-        _id: item._id || `sim-${idx}-${Date.now()}`,
+        _id: item.id || item._id || `sim-${idx}-${Date.now()}`,
         name: item.name || "Benzer Ürün",
         description: item.description || "",
         discountPercent: Number(item.discountPercent) || 0,

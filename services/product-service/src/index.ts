@@ -3,13 +3,11 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import mongoose from 'mongoose';
 import { ProductController } from './controllers/product.controller';
-import { ProductService } from './services/product.service';
-import { QuestionController } from './controllers/question.controller';
-import { ReviewController } from './controllers/review.controller';
+import prisma from './repositories/prisma.client';
 import { ZodError } from 'zod';
 import xmlUploadRoutes from './routes/xmlUpload.routes';
+import { authenticate, optionalAuthenticate } from './middlewares/auth.middleware';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3002;
@@ -22,43 +20,51 @@ app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 // ─── Health Check ──────────────────────────────────────────────
-app.get('/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'product-service',
-    dbState: mongoose.connection.readyState,
-    timestamp: new Date().toISOString(),
-  });
+app.get('/health', async (_req, res) => {
+  try {
+    await prisma.$executeRawUnsafe('SELECT 1');
+    res.json({
+      status: 'ok',
+      service: 'product-service',
+      dbState: 'CONNECTED',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      service: 'product-service',
+      dbState: 'DISCONNECTED',
+      error: String(err),
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // ─── Routes ────────────────────────────────────────────────────
 // XML Upload Routes
 app.use('/', xmlUploadRoutes);
 
-// Product CRUD Routes
+// Product meta & admin endpoints
 app.get('/meta/options', ProductController.getCatalogOptions);
 app.post('/meta/brand', ProductController.createBrandOption);
 app.post('/meta/category', ProductController.createCategoryOption);
-app.get('/admin/:id', ProductController.getByIdAny);
-app.get('/', ProductController.getAll);
+app.get('/admin/:id', authenticate, ProductController.getByIdAny);
+
+// Question & Answer endpoints
+app.get('/:id/questions', ProductController.getQuestions);
+app.post('/:id/questions', ProductController.createQuestion);
+app.post('/questions/:questionId/answer', ProductController.answerQuestion);
+
+// Review endpoints
+app.get('/:id/reviews', ProductController.getReviews);
+app.post('/:id/reviews', ProductController.createReview);
+
+// Standard Product CRUD Routes
+app.get('/', optionalAuthenticate, ProductController.getAll);
 app.get('/:id', ProductController.getById);
-app.post('/', ProductController.create);
-app.patch('/:id', ProductController.update);
-app.delete('/:id', ProductController.remove);
-
-// Question CRUD Routes
-app.get('/questions', QuestionController.getAll);
-app.get('/questions/:id', QuestionController.getById);
-app.post('/questions', QuestionController.create);
-app.patch('/questions/:id', QuestionController.update);
-app.delete('/questions/:id', QuestionController.remove);
-
-// Review CRUD Routes
-app.get('/reviews', ReviewController.getAll);
-app.get('/reviews/:id', ReviewController.getById);
-app.post('/reviews', ReviewController.create);
-app.patch('/reviews/:id', ReviewController.update);
-app.delete('/reviews/:id', ReviewController.remove);
+app.post('/', authenticate, ProductController.create);
+app.patch('/:id', authenticate, ProductController.update);
+app.delete('/:id', authenticate, ProductController.remove);
 
 // ─── Error Handler ─────────────────────────────────────────────
 app.use((err: Error & { statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
@@ -72,14 +78,21 @@ app.use((err: Error & { statusCode?: number }, _req: Request, res: Response, _ne
   res.status(err.statusCode ?? 500).json({ success: false, message: err.message });
 });
 
+import { ProductService } from './services/product.service';
+
 // ─── Start ─────────────────────────────────────────────────────
 const start = async (): Promise<void> => {
-  const mongoUri = process.env.MONGO_URI;
-  if (!mongoUri) throw new Error('MONGO_URI is not configured');
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error('DATABASE_URL is not configured');
 
-  await mongoose.connect(mongoUri);
-  console.log('[Product] ✅ MongoDB connected');
+  await prisma.$connect();
+  console.log('[Product] ✅ PostgreSQL connected via Prisma');
 
+  // Seed sample products if database is empty
+  await ProductService.seedProducts();
+
+  // Sync products to Elasticsearch
+  await ProductService.syncAllToSearch();
 
   app.listen(PORT, () => {
     console.log(`📦 Product Service running on http://localhost:${PORT}`);
@@ -87,7 +100,7 @@ const start = async (): Promise<void> => {
 };
 
 process.on('SIGTERM', async () => {
-  await mongoose.disconnect();
+  await prisma.$disconnect();
   process.exit(0);
 });
 

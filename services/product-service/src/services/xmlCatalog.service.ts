@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { syncXmlProductsToSearch } from '../repositories/elasticsearch.client';
 
 export interface XmlCatalogProduct {
   _id: string;
@@ -28,9 +29,9 @@ export interface PublishRequestMeta {
 }
 
 interface PersistedState {
-  activeRequestId?: string;
-  requests: PublishRequestMeta[];
-  productsByRequest: Record<string, XmlCatalogProduct[]>;
+  activeRequestIds: Record<string, string>; // userId -> activeRequestId
+  requestsByUserId: Record<string, PublishRequestMeta[]>; // userId -> requests
+  productsByRequest: Record<string, XmlCatalogProduct[]>; // requestId -> products
 }
 
 interface CatalogQuery {
@@ -47,7 +48,8 @@ const MAX_REQUEST_HISTORY = 3;
 
 class XmlCatalogService {
   private state: PersistedState = {
-    requests: [],
+    activeRequestIds: {},
+    requestsByUserId: {},
     productsByRequest: {},
   };
 
@@ -58,7 +60,7 @@ class XmlCatalogService {
     this.loadState();
   }
 
-  publishProducts(input: { products: any[]; sourceUrl: string; xmlFileName: string }): PublishRequestMeta {
+  publishProducts(input: { products: any[]; sourceUrl: string; xmlFileName: string; userId: string }): PublishRequestMeta {
     const requestId = `xml-req-${Date.now()}`;
     const createdAt = new Date().toISOString();
     const mappedProducts = input.products
@@ -74,29 +76,46 @@ class XmlCatalogService {
       totalProducts: mappedProducts.length,
     };
 
-    this.state.activeRequestId = requestId;
-    this.state.requests.unshift(meta);
+    if (!this.state.activeRequestIds) this.state.activeRequestIds = {};
+    if (!this.state.requestsByUserId) this.state.requestsByUserId = {};
+
+    this.state.activeRequestIds[input.userId] = requestId;
+    
+    if (!this.state.requestsByUserId[input.userId]) {
+      this.state.requestsByUserId[input.userId] = [];
+    }
+    this.state.requestsByUserId[input.userId].unshift(meta);
     this.state.productsByRequest[requestId] = mappedProducts;
-    this.pruneOldRequests();
+    
+    this.pruneOldRequests(input.userId);
     this.saveState();
+
+    // Trigger Elasticsearch sync for XML products asynchronously
+    syncXmlProductsToSearch(mappedProducts, input.userId).catch(err => {
+      console.error(`[XML Catalog] Failed to sync XML products to ES for user ${input.userId}:`, err);
+    });
+
     return meta;
   }
 
-  getActiveRequestMeta(): PublishRequestMeta | null {
-    const requestId = this.state.activeRequestId;
+  getActiveRequestMeta(userId: string): PublishRequestMeta | null {
+    if (!this.state.activeRequestIds) return null;
+    const requestId = this.state.activeRequestIds[userId];
     if (!requestId) {
       return null;
     }
-    return this.state.requests.find((r) => r.requestId === requestId) || null;
+    const userRequests = this.state.requestsByUserId?.[userId] || [];
+    return userRequests.find((r) => r.requestId === requestId) || null;
   }
 
-  getRequests(): PublishRequestMeta[] {
-    return this.state.requests;
+  getRequests(userId: string): PublishRequestMeta[] {
+    if (!this.state.requestsByUserId) return [];
+    return this.state.requestsByUserId[userId] || [];
   }
 
-  getCatalog(query: CatalogQuery) {
-    const activeRequest = this.getActiveRequestMeta();
-    const allProducts = this.getActiveProducts();
+  getCatalog(query: CatalogQuery & { userId?: string }) {
+    const activeRequest = query.userId ? this.getActiveRequestMeta(query.userId) : null;
+    const allProducts = query.userId ? this.getActiveProducts(query.userId) : this.getAllActiveProducts();
 
     let filtered = allProducts;
 
@@ -137,16 +156,29 @@ class XmlCatalogService {
   }
 
   getProductById(id: string): XmlCatalogProduct | null {
-    const products = this.getActiveProducts();
-    return products.find((p) => p._id === id) || null;
+    const allProducts = this.getAllActiveProducts();
+    return allProducts.find((p) => p._id === id) || null;
   }
 
-  private getActiveProducts(): XmlCatalogProduct[] {
-    const requestId = this.state.activeRequestId;
+  public getActiveProducts(userId: string): XmlCatalogProduct[] {
+    if (!this.state.activeRequestIds) return [];
+    const requestId = this.state.activeRequestIds[userId];
     if (!requestId) {
       return [];
     }
     return this.state.productsByRequest[requestId] || [];
+  }
+
+  public getAllActiveProducts(): (XmlCatalogProduct & { userId: string })[] {
+    const all: (XmlCatalogProduct & { userId: string })[] = [];
+    if (!this.state.activeRequestIds) return [];
+    for (const [userId, requestId] of Object.entries(this.state.activeRequestIds)) {
+      const products = this.state.productsByRequest[requestId] || [];
+      for (const p of products) {
+        all.push({ ...p, userId });
+      }
+    }
+    return all;
   }
 
   private toCatalogProduct(raw: any, requestId: string, index: number): XmlCatalogProduct {
@@ -189,12 +221,14 @@ class XmlCatalogService {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  private pruneOldRequests() {
-    if (this.state.requests.length <= MAX_REQUEST_HISTORY) {
+  private pruneOldRequests(userId: string) {
+    if (!this.state.requestsByUserId) return;
+    const userRequests = this.state.requestsByUserId[userId] || [];
+    if (userRequests.length <= MAX_REQUEST_HISTORY) {
       return;
     }
 
-    const removed = this.state.requests.splice(MAX_REQUEST_HISTORY);
+    const removed = userRequests.splice(MAX_REQUEST_HISTORY);
     for (const item of removed) {
       delete this.state.productsByRequest[item.requestId];
     }
@@ -218,10 +252,10 @@ class XmlCatalogService {
 
     try {
       const content = fs.readFileSync(this.storageFilePath, 'utf-8');
-      const parsed = JSON.parse(content) as PersistedState;
+      const parsed = JSON.parse(content);
       this.state = {
-        activeRequestId: parsed.activeRequestId,
-        requests: Array.isArray(parsed.requests) ? parsed.requests : [],
+        activeRequestIds: parsed.activeRequestIds || (parsed.activeRequestId ? { 'admin-user-001': parsed.activeRequestId } : {}),
+        requestsByUserId: parsed.requestsByUserId || (Array.isArray(parsed.requests) ? { 'admin-user-001': parsed.requests } : {}),
         productsByRequest: parsed.productsByRequest || {},
       };
     } catch (error) {

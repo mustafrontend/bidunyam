@@ -255,6 +255,50 @@ export default function UrunlerPage() {
   const [deleting, setDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
+  // XML Catalog states
+  const [activeTab, setActiveTab] = useState<"DB" | "XML">("DB");
+  const [xmlLoading, setXmlLoading] = useState(false);
+  const [xmlData, setXmlData] = useState<{ request: any; products: any[] } | null>(null);
+  const [xmlHistory, setXmlHistory] = useState<any[]>([]);
+  const [xmlSearch, setXmlSearch] = useState("");
+
+  const fetchXmlCatalog = async () => {
+    setXmlLoading(true);
+    try {
+      const [catalogRes, requestsRes] = await Promise.all([
+        apiClient.get("/products/xml/catalog?limit=50000"),
+        apiClient.get("/products/admin/xml/requests")
+      ]);
+      setXmlData({
+        request: catalogRes.data?.data?.request || null,
+        products: catalogRes.data?.data?.products || [],
+      });
+      setXmlHistory(requestsRes.data?.data?.requests || []);
+    } catch (err) {
+      console.error("Failed to fetch XML catalog", err);
+    } finally {
+      setXmlLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "XML") {
+      fetchXmlCatalog();
+    }
+  }, [activeTab]);
+
+  const filteredXmlProducts = useMemo(() => {
+    if (!xmlData?.products) return [];
+    const q = xmlSearch.toLowerCase().trim();
+    if (!q) return xmlData.products;
+    return xmlData.products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.barcode || "").toLowerCase().includes(q) ||
+        (p.brand || "").toLowerCase().includes(q)
+    );
+  }, [xmlData?.products, xmlSearch]);
+
   const fetchProducts = async () => {
     try {
       const res = await apiClient.get("/products?limit=500&includeAll=true");
@@ -413,35 +457,38 @@ export default function UrunlerPage() {
   const addCategoryMain = async () => {
     const value = categoryMainDraft.trim();
     if (!value) {
+      setError("Kategori adı boş olamaz!");
       return;
     }
-
+    console.log("Ana kategori ekle POST:", value);
     try {
       const res = await apiClient.post("/products/meta/category", { mainCategory: value });
       const categories = res.data?.data?.categories as Array<{ name: string; subCategories: string[] }> | undefined;
       if (categories) {
         setCategoryOptions(categories.map((item) => item.name).sort((a, b) => a.localeCompare(b, "tr")));
         setCategoryTree(toCategoryTree(categories));
+        setForm((prev) => ({ ...prev, categoryMain: value, categorySub: "" }));
       }
     } catch (err) {
       console.error(err);
       setError("Kategori kaydedilemedi.");
       return;
     }
-
-    setCategoryOptions((prev) => (prev.includes(value) ? prev : [...prev, value].sort((a, b) => a.localeCompare(b, "tr"))));
-    setForm((prev) => ({ ...prev, categoryMain: value, categorySub: "" }));
-    setCategoryTree((prev) => (prev[value] ? prev : { ...prev, [value]: [] }));
     setCategoryMainDraft("");
   };
 
   const addCategorySub = async () => {
     const main = form.categoryMain.trim();
     const value = categorySubDraft.trim();
-    if (!main || !value) {
+    if (!main) {
+      setError("Önce ana kategori seçin!");
       return;
     }
-
+    if (!value) {
+      setError("Alt kategori adı boş olamaz!");
+      return;
+    }
+    console.log("Alt kategori ekle POST:", main, value);
     try {
       const res = await apiClient.post("/products/meta/category", {
         mainCategory: main,
@@ -451,41 +498,35 @@ export default function UrunlerPage() {
       if (categories) {
         setCategoryOptions(categories.map((item) => item.name).sort((a, b) => a.localeCompare(b, "tr")));
         setCategoryTree(toCategoryTree(categories));
+        setForm((prev) => ({ ...prev, categorySub: value }));
       }
     } catch (err) {
       console.error(err);
       setError("Alt kategori kaydedilemedi.");
       return;
     }
-
-    setCategoryTree((prev) => ({
-      ...prev,
-      [main]: prev[main]?.includes(value) ? prev[main] : [...(prev[main] || []), value].sort((a, b) => a.localeCompare(b, "tr")),
-    }));
-    setForm((prev) => ({ ...prev, categorySub: value }));
     setCategorySubDraft("");
   };
 
   const addBrand = async () => {
     const value = brandDraft.trim();
     if (!value) {
+      setError("Marka adı boş olamaz!");
       return;
     }
-
+    console.log("Marka ekle POST:", value);
     try {
       const res = await apiClient.post("/products/meta/brand", { name: value });
       const brands = res.data?.data?.brands as string[] | undefined;
       if (brands) {
         setBrandOptions([...brands].sort((a, b) => a.localeCompare(b, "tr")));
+        setForm((prev) => ({ ...prev, brand: value }));
       }
     } catch (err) {
       console.error(err);
       setError("Marka kaydedilemedi.");
       return;
     }
-
-    setBrandOptions((prev) => (prev.includes(value) ? prev : [...prev, value].sort((a, b) => a.localeCompare(b, "tr"))));
-    setForm((prev) => ({ ...prev, brand: value }));
     setBrandDraft("");
   };
 
@@ -747,6 +788,30 @@ export default function UrunlerPage() {
         </div>
       </div>
 
+      {/* Modern, Premium Tabs */}
+      <div className="flex border-b border-slate-200 gap-1 mt-4">
+        <button
+          onClick={() => setActiveTab("DB")}
+          className={`pb-3 px-6 text-sm font-black transition-all border-b-2 ${
+            activeTab === "DB"
+              ? "border-[#ff6000] text-[#ff6000]"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          📂 Envanter Ürünleri
+        </button>
+        <button
+          onClick={() => setActiveTab("XML")}
+          className={`pb-3 px-6 text-sm font-black transition-all border-b-2 ${
+            activeTab === "XML"
+              ? "border-[#ff6000] text-[#ff6000]"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          ⚡ XML Kataloğundan Gelenler
+        </button>
+      </div>
+
       {showForm && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="mb-5 text-base font-black text-slate-700">
@@ -772,13 +837,19 @@ export default function UrunlerPage() {
                   <div className="flex gap-2">
                     <select
                       value={form.categoryMain}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          categoryMain: e.target.value,
-                          categorySub: "",
-                        }))
-                      }
+                      onChange={async (e) => {
+                        const value = e.target.value;
+                        setForm((f) => ({ ...f, categoryMain: value, categorySub: "" }));
+                        // Kategori değişince alt kategorileri tekrar fetch et
+                        try {
+                          const metaRes = await apiClient.get("/products/meta/options");
+                          const metaCategories = metaRes.data?.data?.categories as Array<{ name: string; subCategories: string[] }> | undefined;
+                          if (metaCategories) {
+                            setCategoryOptions(metaCategories.map((item) => item.name).sort((a, b) => a.localeCompare(b, "tr")));
+                            setCategoryTree(toCategoryTree(metaCategories));
+                          }
+                        } catch {}
+                      }}
                       className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition-colors focus:border-[#ff6000]"
                     >
                       <option value="" disabled>
@@ -1100,137 +1171,292 @@ export default function UrunlerPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Ürün, marka, barkod veya SKU ara..."
-          className="w-72 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-[#ff6000]"
-        />
-        <select
-          value={categoryFilter}
-          onChange={(e) => {
-            setCategoryFilter(e.target.value);
-            setPage(1);
-          }}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#ff6000]"
-        >
-          {categories.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-      </div>
+      {activeTab === "DB" ? (
+        <>
+          <div className="flex flex-wrap gap-3">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Ürün, marka, barkod veya SKU ara..."
+              className="w-72 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-[#ff6000]"
+            />
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#ff6000]"
+            >
+              {categories.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+          </div>
 
-      {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-14 animate-pulse rounded-xl bg-white" />
-          ))}
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                {[
-                  "Ürün",
-                  "Barkod",
-                  "SKU",
-                  "Marka",
-                  "Kategori",
-                  "Fiyat",
-                  "Stok",
-                  "Durum",
-                  "İşlem",
-                ].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase text-slate-500">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paginated.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-16 text-center font-semibold text-slate-400">
-                    Ürün bulunamadı.
-                  </td>
-                </tr>
-              ) : (
-                paginated.map((p) => (
-                  <tr key={p._id} className="border-b border-slate-50 hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <img src={p.imageUrl} alt={p.name} className="h-10 w-10 rounded-lg bg-slate-100 object-cover" />
-                        <span className="max-w-55 truncate font-semibold text-slate-800">{p.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600">{p.barcode || "-"}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600">{p.sku || "-"}</td>
-                    <td className="px-4 py-3 text-slate-600">{p.brand}</td>
-                    <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{p.category}</span></td>
-                    <td className="px-4 py-3 font-black text-[#ff6000]">{p.price.toLocaleString("tr-TR")} TL</td>
-                    <td className="px-4 py-3"><span className={`font-bold ${p.stock < 10 ? "text-red-500" : "text-slate-700"}`}>{p.stock}</span></td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => handleToggleActive(p)}
-                        disabled={togglingId === p._id}
-                        title={p.isActive ? "Pasife al" : "Aktife al"}
-                        className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-opacity hover:opacity-70 disabled:cursor-wait ${
-                          p.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
-                        }`}
-                      >
-                        {togglingId === p._id ? "..." : p.isActive ? "Aktif" : "Pasif"}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={() => openEditForm(p)}
-                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:border-[#ff6000] hover:text-[#ff6000]"
-                        >
-                          Düzenle
-                        </button>
-                        <button
-                          onClick={() => { setDuplicateTarget(p); setDuplicateCount("1"); setDuplicateError(null); }}
-                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:border-[#ff6000] hover:text-[#ff6000]"
-                        >
-                          Çoğalt
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(p)}
-                          className="rounded-lg border border-red-200 px-3 py-1.5 text-[11px] font-bold text-red-500 hover:bg-red-50"
-                        >
-                          Sil
-                        </button>
-                      </div>
-                    </td>
+          {loading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-14 animate-pulse rounded-xl bg-white" />
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white shadow-sm">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    {[
+                      "Ürün",
+                      "Barkod",
+                      "SKU",
+                      "Marka",
+                      "Kategori",
+                      "Fiyat",
+                      "Stok",
+                      "Durum",
+                      "İşlem",
+                    ].map((h) => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase text-slate-500">{h}</th>
+                    ))}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {paginated.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-16 text-center font-semibold text-slate-400">
+                        Ürün bulunamadı.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginated.map((p) => (
+                      <tr key={p._id} className="border-b border-slate-50 hover:bg-slate-50">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <img src={p.imageUrl} alt={p.name} className="h-10 w-10 rounded-lg bg-slate-100 object-cover" />
+                            <span className="max-w-55 truncate font-semibold text-slate-800">{p.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-600">{p.barcode || "-"}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-600">{p.sku || "-"}</td>
+                        <td className="px-4 py-3 text-slate-600">{p.brand}</td>
+                        <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{p.category}</span></td>
+                        <td className="px-4 py-3 font-black text-[#ff6000]">{p.price.toLocaleString("tr-TR")} TL</td>
+                        <td className="px-4 py-3"><span className={`font-bold ${p.stock < 10 ? "text-red-500" : "text-slate-700"}`}>{p.stock}</span></td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => handleToggleActive(p)}
+                            disabled={togglingId === p._id}
+                            title={p.isActive ? "Pasife al" : "Aktife al"}
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-opacity hover:opacity-70 disabled:cursor-wait ${
+                              p.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                            }`}
+                          >
+                            {togglingId === p._id ? "..." : p.isActive ? "Aktif" : "Pasif"}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => openEditForm(p)}
+                              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:border-[#ff6000] hover:text-[#ff6000]"
+                            >
+                              Düzenle
+                            </button>
+                            <button
+                              onClick={() => { setDuplicateTarget(p); setDuplicateCount("1"); setDuplicateError(null); }}
+                              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:border-[#ff6000] hover:text-[#ff6000]"
+                            >
+                              Çoğalt
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(p)}
+                              className="rounded-lg border border-red-200 px-3 py-1.5 text-[11px] font-bold text-red-500 hover:bg-red-50"
+                            >
+                              Sil
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3">
-              <p className="text-xs text-slate-500">Sayfa {page} / {totalPages}</p>
-              <div className="flex gap-2">
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage(page - 1)}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-                >
-                  Önceki
-                </button>
-                <button
-                  disabled={page === totalPages}
-                  onClick={() => setPage(page + 1)}
-                  className="rounded-lg bg-[#ff6000] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
-                >
-                  Sonraki
-                </button>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3">
+                  <p className="text-xs text-slate-500">Sayfa {page} / {totalPages}</p>
+                  <div className="flex gap-2">
+                    <button
+                      disabled={page === 1}
+                      onClick={() => setPage(page - 1)}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                    >
+                      Önceki
+                    </button>
+                    <button
+                      disabled={page === totalPages}
+                      onClick={() => setPage(page + 1)}
+                      className="rounded-lg bg-[#ff6000] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
+                    >
+                      Sonraki
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="space-y-6">
+          {xmlLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-14 animate-pulse rounded-xl bg-white" />
+              ))}
+            </div>
+          ) : !xmlData?.request ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center">
+              <p className="text-slate-500 font-bold">Henüz içeri aktarılmış bir XML kataloğunuz bulunmamaktadır.</p>
+              <p className="text-xs text-slate-400 mt-1 mb-6">Toplu ürün eklemek ve satışa açmak için bir XML linki veya dosyası yükleyin.</p>
+              <a
+                href="/yonetim/xml-import"
+                className="inline-flex rounded-xl bg-[#ff6000] px-6 py-3 text-sm font-black text-white transition-colors hover:bg-[#d85000]"
+              >
+                🚀 Hemen XML Yükle
+              </a>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Active XML Summary Card */}
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-black text-green-700">
+                        ● Aktif Yayında
+                      </span>
+                      <h3 className="mt-3 text-lg font-black text-slate-800">
+                        📄 {xmlData.request.xmlFileName || "İçeri Aktarılan Dosya"}
+                      </h3>
+                      <p className="mt-1.5 text-xs text-[#ff6000] font-bold break-all">
+                        🔗 <a href={xmlData.request.sourceUrl} target="_blank" rel="noreferrer" className="hover:underline">{xmlData.request.sourceUrl}</a>
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400 font-bold">İthalat Tarihi</p>
+                      <p className="text-sm font-black text-slate-700 mt-1">
+                        {new Date(xmlData.request.createdAt).toLocaleString("tr-TR")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 border-t border-slate-100 pt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-black text-[#ff6000]">
+                        {xmlData.products.length}
+                      </span>
+                      <span className="text-xs text-slate-500 font-bold">Aktif Kataloğa Alınan Ürün</span>
+                    </div>
+                    <a
+                      href="/yonetim/xml-import"
+                      className="text-xs font-black text-slate-600 hover:text-[#ff6000] transition-colors"
+                    >
+                      Yeni Güncelleme Yap ➔
+                    </a>
+                  </div>
+                </div>
+
+                {/* History Card */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">Geçmiş XML Yüklemeleri</h4>
+                    <div className="space-y-3">
+                      {xmlHistory.slice(0, 3).map((hist, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-700 truncate">{hist.xmlFileName}</p>
+                            <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                              {new Date(hist.createdAt).toLocaleDateString("tr-TR")}
+                            </p>
+                          </div>
+                          <span className="font-black text-slate-500 shrink-0 ml-2">
+                            {hist.totalProducts} Ürün
+                          </span>
+                        </div>
+                      ))}
+                      {xmlHistory.length === 0 && (
+                        <p className="text-slate-400 text-xs font-bold py-4 text-center">Yükleme geçmişi bulunmamaktadır.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* XML Search Filter */}
+              <div className="flex flex-wrap gap-3">
+                <input
+                  type="text"
+                  value={xmlSearch}
+                  onChange={(e) => setXmlSearch(e.target.value)}
+                  placeholder="XML ürün veya barkod ara..."
+                  className="w-72 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-[#ff6000]"
+                />
+              </div>
+
+              {/* XML Products Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white shadow-sm">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50">
+                      {["Ürün", "Barkod", "Marka", "Kategori", "Satış Fiyatı", "Stok"].map((h) => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase text-slate-500">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredXmlProducts.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-16 text-center font-semibold text-slate-400">
+                          XML ürünü bulunamadı.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredXmlProducts.map((p: any) => (
+                        <tr key={p._id} className="border-b border-slate-50 hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              {p.imageUrl ? (
+                                <img src={p.imageUrl} alt={p.name} className="h-10 w-10 rounded-lg bg-slate-100 object-cover" />
+                              ) : (
+                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-lg text-slate-400 font-black">📦</div>
+                              )}
+                              <span className="max-w-xs truncate font-semibold text-slate-800">{p.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-slate-600">{p.barcode || "-"}</td>
+                          <td className="px-4 py-3 text-slate-600">{p.brand}</td>
+                          <td className="px-4 py-3">
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                              {p.category}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-black text-[#ff6000]">
+                            {Number(p.price).toLocaleString("tr-TR")} TL
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`font-bold ${p.stock < 10 ? "text-red-500" : "text-slate-700"}`}>
+                              {p.stock}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

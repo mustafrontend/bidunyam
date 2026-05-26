@@ -236,6 +236,7 @@ export default function UrunlerPage() {
             imageSlots={state.imageSlots} setImageSlots={state.setImageSlots}
             variantGroups={state.variantGroups} setVariantGroups={state.setVariantGroups}
             extraServices={state.extraServices} setExtraServices={state.setExtraServices}
+            categoryAttributes={state.categoryAttributes} setCategoryAttributes={state.setCategoryAttributes}
             categoryOptions={state.categoryOptions} setCategoryOptions={state.setCategoryOptions}
             categoryTree={state.categoryTree} setCategoryTree={state.setCategoryTree}
             brandOptions={state.brandOptions} setBrandOptions={state.setBrandOptions}

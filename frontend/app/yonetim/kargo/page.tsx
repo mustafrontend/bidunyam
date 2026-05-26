@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
-import { useAuthStore } from "@/stores/authStore";
+import { useSellerAuthStore } from "@/stores/sellerAuthStore";
 
 interface Order {
   _id: string;
@@ -35,7 +35,7 @@ function trackingCode(orderId: string) {
 }
 
 export default function KargoPage() {
-  const { token } = useAuthStore();
+  const { token } = useSellerAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("Tumu");

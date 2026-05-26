@@ -4,7 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { AuthController } from './controllers/auth.controller';
-import { authenticate, requireCustomer } from './middlewares/auth.middleware';
+import { authenticate, requireCustomer, requireAdmin } from './middlewares/auth.middleware';
 import { errorHandler } from './middlewares/error.middleware';
 import { prisma } from './repositories/prisma.client';
 import { AuthService } from './services/auth.service';
@@ -39,6 +39,11 @@ app.get('/seller/profile', authenticate, AuthController.sellerProfile);
 app.get('/favorites', authenticate, requireCustomer, AuthController.getFavorites);
 app.post('/favorites/:productId', authenticate, requireCustomer, AuthController.addFavorite);
 app.delete('/favorites/:productId', authenticate, requireCustomer, AuthController.removeFavorite);
+
+// Super Admin Rotaları
+app.post('/admin/login', AuthController.adminLogin);
+app.get('/admin/users', authenticate, requireAdmin, AuthController.getAdminUsers);
+app.get('/admin/sellers', authenticate, requireAdmin, AuthController.getAdminSellers);
 
 // ─── Error Handler ─────────────────────────────────────────────
 app.use(errorHandler);

@@ -22,6 +22,17 @@ interface ParsedXMLData {
   urun?: ProductXML | ProductXML[];
 }
 
+export function normalizeKeys(obj: any): any {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(normalizeKeys);
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const normalizedKey = key.toLowerCase().replace(/[-_ ]/g, '');
+    result[normalizedKey] = typeof value === 'object' && value !== null ? normalizeKeys(value) : value;
+  }
+  return result;
+}
+
 export class XMLParserService {
   private parser: XMLParser;
 
@@ -32,45 +43,67 @@ export class XMLParserService {
     return Array.isArray(value) ? value : [value];
   }
 
-  private looksLikeProduct(value: any): value is ProductXML {
+  private looksLikeProduct(value: any): boolean {
     if (!value || typeof value !== 'object') {
       return false;
     }
-
+    const normalized = normalizeKeys(value);
     return Boolean(
-      value.urunKodu ||
-      value.urunAdi ||
-      value.urun_adi ||
-      value.barkodno ||
-      value.fiyat ||
-      value.bayifiyat
+      normalized.urunkodu ||
+      normalized.urunadi ||
+      normalized.barkodno ||
+      normalized.fiyat ||
+      normalized.bayifiyat ||
+      normalized.price ||
+      normalized.stock ||
+      normalized.stok
     );
   }
 
   private extractProducts(parsed: ParsedXMLData): ProductXML[] {
-    // Common structure: <urunler><urun>...</urun></urunler>
-    const nestedUnderUrunler = this.toArray((parsed.urunler as any)?.urun);
-    if (nestedUnderUrunler.length > 0) {
-      return nestedUnderUrunler;
+    if (!parsed || typeof parsed !== 'object') return [];
+
+    // Let's check common root tags
+    const rootCandidates = [
+      parsed,
+      (parsed as any).root,
+      (parsed as any).ROOT,
+      (parsed as any).catalog,
+      (parsed as any).Catalog,
+      (parsed as any).urunler,
+      (parsed as any).products,
+    ].filter(Boolean);
+
+    for (const root of rootCandidates) {
+      // Check urunler.urun / products.product / items.item variations
+      const nestedUrun = this.toArray(root.urunler?.urun || root.urunler?.Urun || root.Urunler?.Urun);
+      if (nestedUrun.length > 0) return nestedUrun;
+
+      const nestedProduct = this.toArray(root.products?.product || root.products?.Product || root.Products?.Product);
+      if (nestedProduct.length > 0) return nestedProduct;
+
+      const nestedItem = this.toArray(root.items?.item || root.items?.Item || root.Items?.Item);
+      if (nestedItem.length > 0) return nestedItem;
+
+      // Flat direct arrays under keys
+      for (const key of Object.keys(root)) {
+        const val = root[key];
+        if (Array.isArray(val) && val.length > 0 && this.looksLikeProduct(val[0])) {
+          return val;
+        }
+        // If it's a direct object list like <urun>...</urun> under root
+        if ((key === 'urun' || key === 'product' || key === 'item') && val) {
+          return this.toArray(val);
+        }
+      }
     }
 
-    // Alternate structure: <root><urunler><urun>...</urun></urunler></root>
-    const nestedUnderRoot = this.toArray(parsed.root?.urunler?.urun);
-    if (nestedUnderRoot.length > 0) {
-      return nestedUnderRoot;
-    }
+    // Direct fallbacks
+    const directUrun = this.toArray(parsed.urun || (parsed as any).Urun);
+    if (directUrun.length > 0) return directUrun;
 
-    // Flat structure: <urunler>...</urunler> where urunler may already be array/object
-    const flatUrunler = this.toArray(parsed.urunler);
-    if (flatUrunler.length > 0 && this.looksLikeProduct(flatUrunler[0])) {
-      return flatUrunler;
-    }
-
-    // Fallback structure: <urun>...</urun>
-    const directUrun = this.toArray(parsed.urun);
-    if (directUrun.length > 0) {
-      return directUrun;
-    }
+    const directProduct = this.toArray((parsed as any).product || (parsed as any).Product);
+    if (directProduct.length > 0) return directProduct;
 
     return [];
   }
@@ -156,35 +189,36 @@ export class XMLParserService {
    */
   validateProduct(product: ProductXML, index: number): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
+    const normalized = normalizeKeys(product);
 
-    // Flexible field mapping - Birden fazla format desteği
-    const urunAdi = product.urunAdi || (product as any).urun_adi;
-    const urunKodu = product.urunKodu || (product as any).barkodno;
-    const fiyatStr = String(product.fiyat || (product as any).bayifiyat || '0');
-    const stokStr = String(product.stok || '0');
+    // Flexible field mapping - Casing and alias normalization
+    const urunAdi = normalized.urunadi || normalized.name || normalized.title || normalized.productname;
+    const urunKodu = normalized.urunkodu || normalized.barkodno || normalized.barcode || normalized.sku || normalized.productcode;
+    const fiyatStr = String(normalized.fiyat || normalized.bayifiyat || normalized.price || normalized.fiyati || '0');
+    const stokStr = String(normalized.stok || normalized.stock || normalized.quantity || normalized.qty || '0');
 
     // Required fields
     if (!urunKodu || String(urunKodu).trim() === '') {
-      errors.push(`Ürün ${index + 1}: urunKodu/barkodno gereklidir`);
+      errors.push(`Ürün ${index + 1}: Ürün kodu (urunKodu/barkodno/barcode) gereklidir`);
     }
     if (!urunAdi || String(urunAdi).trim() === '') {
-      errors.push(`Ürün ${index + 1}: urunAdi gereklidir`);
+      errors.push(`Ürün ${index + 1}: Ürün adı (urunAdi/name) gereklidir`);
     }
 
     // Numeric validations
     const fiyat = parseFloat(fiyatStr);
     if (isNaN(fiyat) || fiyat < 0) {
-      errors.push(`Ürün ${index + 1}: fiyat geçerli bir sayı olmalıdır`);
+      errors.push(`Ürün ${index + 1}: Fiyat geçerli bir sayı olmalıdır`);
     }
 
     const stok = parseInt(stokStr, 10);
     if (isNaN(stok) || stok < 0) {
-      errors.push(`Ürün ${index + 1}: stok geçerli bir sayı olmalıdır`);
+      errors.push(`Ürün ${index + 1}: Stok geçerli bir sayı olmalıdır`);
     }
 
     // Length validations
     if (urunAdi && String(urunAdi).length > 255) {
-      errors.push(`Ürün ${index + 1}: urunAdi en fazla 255 karakter olabilir`);
+      errors.push(`Ürün ${index + 1}: Ürün adı en fazla 255 karakter olabilir`);
     }
 
     return {

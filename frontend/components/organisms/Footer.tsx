@@ -16,7 +16,7 @@ export const Footer: React.FC = () => {
   const pathname = usePathname();
 
   // Admin routes should not display the storefront footer
-  if (pathname?.startsWith("/yonetim")) {
+  if (pathname?.startsWith("/yonetim") || pathname?.startsWith("/admin")) {
     return null;
   }
 

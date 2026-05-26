@@ -48,5 +48,28 @@ export const CartService = {
   async clearCart(userId: string): Promise<void> {
     const redis = getRedisClient();
     await redis.del(`cart:${userId}`);
+  },
+
+  async getAdminCarts() {
+    const redis = getRedisClient();
+    const keys = await redis.keys('cart:*');
+    const carts = [];
+    
+    for (const key of keys) {
+      const cartData = await redis.get(key);
+      if (cartData) {
+        const items = JSON.parse(cartData);
+        if (items.length > 0) {
+          carts.push({
+            userId: key.replace('cart:', ''),
+            items: items,
+            totalItems: items.reduce((acc: number, item: any) => acc + item.quantity, 0),
+            totalPrice: items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0)
+          });
+        }
+      }
+    }
+    
+    return carts;
   }
 };

@@ -14,7 +14,7 @@ interface ProductFeedProps {
 
 function SkeletonGrid() {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4">
       {Array.from({ length: 10 }).map((_, i) => (
         <div key={i} className="overflow-hidden rounded-2xl border-[0.5px] border-slate-200 bg-white">
           <div className="aspect-square animate-pulse bg-slate-100" />
@@ -66,7 +66,7 @@ export function ProductFeed({
         </div>
       ) : (
         <div className="space-y-10">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4">
             {products.map((p) => (
               <ProductCard key={p._id} product={p} />
             ))}

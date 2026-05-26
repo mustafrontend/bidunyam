@@ -154,11 +154,40 @@ export const AuthController = {
         return;
       }
 
-      const { productId } = FavoriteParamsSchema.parse(req.params);
+      const { productId } = req.params;
       const productIds = await AuthService.removeFavorite(userId, productId);
       res.status(200).json({ success: true, message: 'Favorilerden kaldırıldı', data: { productIds } });
     } catch (err) {
       next(err);
     }
   },
+
+  // ─── Super Admin ──────────────────────────────────────────────────
+  async adminLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { phone, password, deviceId } = req.body;
+      const result = await AuthService.adminLogin(phone, password, deviceId);
+      res.status(200).json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getAdminUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const users = await AuthService.getAllUsers();
+      res.status(200).json({ success: true, data: users });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getAdminSellers(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const sellers = await AuthService.getAllSellers();
+      res.status(200).json({ success: true, data: sellers });
+    } catch (err) {
+      next(err);
+    }
+  }
 };

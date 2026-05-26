@@ -8,6 +8,7 @@ volumes:
   pg-data:
   mongo-data:
   redis-data:
+  product-uploads:
 
 services:
   # ─────────────────────────────────────────────────────────────
@@ -136,6 +137,8 @@ services:
         condition: service_healthy
       mongo:
         condition: service_healthy
+    volumes:
+      - product-uploads:/app/uploads
     networks:
       - trendyol-net
 

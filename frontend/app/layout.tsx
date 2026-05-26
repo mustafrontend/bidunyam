@@ -1,6 +1,7 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/organisms/Navbar";
+import { Footer } from "@/components/organisms/Footer";
 
 const inter = Inter({ 
   subsets: ["latin"], 
@@ -22,9 +23,10 @@ export default function RootLayout({
     <html lang="tr" className={inter.variable}>
       <body className="bg-slate-50 min-h-screen text-slate-900 font-sans antialiased selection:bg-brand-orange selection:text-white">
         <Navbar />
-        <main className="min-h-[calc(100-80px)]">
+        <main className="min-h-[calc(100vh-80px)]">
           {children}
         </main>
+        <Footer />
       </body>
     </html>
   );

@@ -52,21 +52,18 @@ export default function FavoritesPage() {
 
       setLoading(true);
       try {
-        const requests = productIds.map((id) => apiClient.get(`/products/${id}`));
-        const responses = await Promise.allSettled(requests);
-        const mapped = responses
-          .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
-          .map((r) => r.value?.data?.data)
-          .filter(Boolean)
-          .map((item: any) => ({
-            _id: item.id || item._id,
-            name: item.name,
-            price: Number(item.price) || 0,
-            imageUrl: item.imageUrl || '',
-            brand: item.brand || 'biDunyam',
-          }));
-
-        setProducts(mapped);
+        // Batch fetch — tek API çağrısı, N+1 sorunu yok
+        const res = await apiClient.get('/products', {
+          params: { ids: productIds.join(','), limit: productIds.length }
+        });
+        const items: Product[] = (res.data?.data?.products || []).map((item: Record<string, unknown>) => ({
+          _id: String(item.id || item._id || ''),
+          name: String(item.name || ''),
+          price: Number(item.price) || 0,
+          imageUrl: String(item.imageUrl || ''),
+          brand: String(item.brand || 'biDunyam'),
+        }));
+        setProducts(items);
       } finally {
         setLoading(false);
       }

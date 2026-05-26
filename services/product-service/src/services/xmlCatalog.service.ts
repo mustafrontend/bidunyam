@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { syncXmlProductsToSearch } from '../repositories/elasticsearch.client';
+import { normalizeKeys } from './xmlParser.service';
 
 export interface XmlCatalogProduct {
   _id: string;
@@ -65,7 +66,7 @@ class XmlCatalogService {
     const createdAt = new Date().toISOString();
     const mappedProducts = input.products
       .map((item: any, index: number) => this.toCatalogProduct(item, requestId, index))
-      .filter((item) => item.stock > 0 && item.price >= 0);
+      .filter((item) => item.stock >= 0 && item.price >= 0);
 
     const meta: PublishRequestMeta = {
       requestId,
@@ -111,6 +112,15 @@ class XmlCatalogService {
   getRequests(userId: string): PublishRequestMeta[] {
     if (!this.state.requestsByUserId) return [];
     return this.state.requestsByUserId[userId] || [];
+  }
+
+  getAllRequests(): PublishRequestMeta[] {
+    if (!this.state.requestsByUserId) return [];
+    let allRequests: PublishRequestMeta[] = [];
+    for (const userId of Object.keys(this.state.requestsByUserId)) {
+      allRequests = allRequests.concat(this.state.requestsByUserId[userId]);
+    }
+    return allRequests;
   }
 
   getCatalog(query: CatalogQuery & { userId?: string }) {
@@ -182,17 +192,19 @@ class XmlCatalogService {
   }
 
   private toCatalogProduct(raw: any, requestId: string, index: number): XmlCatalogProduct {
-    const name = String(raw.urun_adi || raw.urunAdi || raw.name || 'Unknown Product').trim();
-    const barcode = String(raw.barkodno || raw.urunKodu || `XML-${requestId}-${index + 1}`).trim();
-    const fiyat = this.toNumber(raw.fiyat);
-    const bayi = this.toNumber(raw.bayifiyat);
-    const price = fiyat > 0 ? fiyat : bayi;
+    const normalized = normalizeKeys(raw);
+
+    const name = String(normalized.urunadi || normalized.name || normalized.title || normalized.productname || 'Bilinmeyen Ürün').trim();
+    const barcode = String(normalized.urunkodu || normalized.barkodno || normalized.barcode || normalized.sku || normalized.productcode || `XML-${requestId}-${index + 1}`).trim();
+    const fiyat = this.toNumber(normalized.fiyat || normalized.fiyati || normalized.price);
+    const bayi = this.toNumber(normalized.bayifiyat || normalized.bayifiyati);
+    const price = fiyat > 0 ? fiyat : (bayi > 0 ? bayi : 0);
     const originalPrice = fiyat > 0 ? fiyat : price;
     const discountPercent = originalPrice > price ? Math.max(0, Math.round(((originalPrice - price) / originalPrice) * 100)) : 0;
-    const stock = Math.max(0, Math.floor(this.toNumber(raw.stok)));
-    const imageUrl = String(raw.resim || '').trim();
-    const brand = String(raw.marka || 'XML Market').trim() || 'XML Market';
-    const category = String(raw.kategori_adi || raw.kategori || 'XML Katalog').trim() || 'XML Katalog';
+    const stock = Math.max(0, Math.floor(this.toNumber(normalized.stok || normalized.stock || normalized.quantity || normalized.qty)));
+    const imageUrl = String(normalized.resim || normalized.resim1 || normalized.image || normalized.imageurl || normalized.gorsel || '').trim();
+    const brand = String(normalized.marka || normalized.brand || normalized.manufacturer || 'XML Market').trim() || 'XML Market';
+    const category = String(normalized.kategori || normalized.category || normalized.kategoriadi || normalized.kategori_adi || 'XML Katalog').trim() || 'XML Katalog';
 
     return {
       _id: `${requestId}-${index + 1}`,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
-import { useAuthStore } from "@/stores/authStore";
+import { useSellerAuthStore } from "@/stores/sellerAuthStore";
 
 interface Order {
   _id: string;
@@ -28,7 +28,7 @@ function groupByDay(orders: Order[]): DailyStat[] {
 }
 
 export default function RaporlarPage() {
-  const { token } = useAuthStore();
+  const { token } = useSellerAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"gelir" | "siparis" | "urun">("gelir");

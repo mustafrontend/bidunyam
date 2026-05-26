@@ -3,12 +3,13 @@ import { Prisma } from '@prisma/client';
 
 export interface ProductFilters {
   category?: string;
-  brand?: string;
+  brand?: string[];
   minPrice?: number;
   maxPrice?: number;
   search?: string;
   includeAll?: boolean;
   userId?: string;
+  attributes?: Record<string, string[]>;
 }
 
 export interface PaginationOptions {
@@ -35,8 +36,27 @@ export const ProductRepository = {
       where.categoryName = filters.category;
     }
 
-    if (filters.brand) {
-      where.brandName = filters.brand;
+    if (filters.brand && filters.brand.length > 0) {
+      where.brandName = { in: filters.brand };
+    }
+
+    if (filters.attributes && Object.keys(filters.attributes).length > 0) {
+      const andConditions: any[] = [];
+      for (const [key, values] of Object.entries(filters.attributes)) {
+        if (values.length > 0) {
+          andConditions.push({
+            OR: values.map(val => ({
+              categoryAttributes: {
+                path: [key],
+                equals: val
+              }
+            }))
+          });
+        }
+      }
+      if (andConditions.length > 0) {
+        where.AND = andConditions;
+      }
     }
 
     if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
@@ -50,6 +70,9 @@ export const ProductRepository = {
       where.OR = [
         { name: { contains: filters.search, mode: 'insensitive' } },
         { description: { contains: filters.search, mode: 'insensitive' } },
+        { categoryName: { contains: filters.search, mode: 'insensitive' } },
+        { brandName: { contains: filters.search, mode: 'insensitive' } },
+        { categoryPath: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
 
@@ -65,7 +88,38 @@ export const ProductRepository = {
       prisma.product.count({ where }),
     ]);
 
-    return { products, total };
+    // Dinamik Facets Hesaplanması
+    let facets: Array<{ name: string; options: string[] }> = [];
+    try {
+      if (products.length > 0) {
+        const productIds = products.map(p => p.id);
+        const placeholders = productIds.map((_, i) => `$${i + 1}`).join(',');
+        
+        // PostgreSQL jsonb_each_text kullanarak benzersiz key/value değerlerini çeker
+        const facetsQuery = `
+          SELECT 
+            key as name, 
+            json_agg(DISTINCT value) as options
+          FROM 
+            products p,
+            jsonb_each_text(p."categoryAttributes")
+          WHERE 
+            p.id IN (${placeholders})
+          GROUP BY key
+        `;
+        
+        const rawFacets: any[] = await prisma.$queryRawUnsafe(facetsQuery, ...productIds);
+        
+        facets = rawFacets.map(f => ({
+          name: f.name,
+          options: f.options
+        }));
+      }
+    } catch (err) {
+      console.error("Facets extraction error:", err);
+    }
+
+    return { products, total, facets };
   },
 
   async findById(id: string) {

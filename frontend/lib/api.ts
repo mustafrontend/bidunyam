@@ -17,6 +17,8 @@ export const apiClient = axios.create({
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
   },
 });
 
@@ -37,7 +39,28 @@ apiClient.interceptors.request.use(
         // Inject the device fingerprint header
         config.headers['x-device-id'] = deviceId;
 
-        const storage = localStorage.getItem('trendyol-auth-storage');
+        // Determine context for token selection - Pathname-first approach for exact session isolation
+        let storageKey = 'trendyol-auth-storage';
+
+        if (typeof window !== 'undefined') {
+          if (window.location.pathname.startsWith('/yonetim')) {
+            storageKey = 'trendyol-seller-auth-storage';
+          } else if (window.location.pathname.startsWith('/admin')) {
+            storageKey = 'trendyol-auth-storage';
+          } else {
+            storageKey = 'trendyol-auth-storage'; // Customer/Public
+          }
+        } else {
+          // SSR fallback using endpoint patterns
+          const isSellerEndpoint =
+            config.url?.startsWith('/auth/seller') ||
+            config.url?.startsWith('/products/seller');
+          if (isSellerEndpoint) {
+            storageKey = 'trendyol-seller-auth-storage';
+          }
+        }
+
+        const storage = localStorage.getItem(storageKey);
         if (storage) {
           const parsed = JSON.parse(storage);
           const token = parsed?.state?.token;

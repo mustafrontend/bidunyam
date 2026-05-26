@@ -42,5 +42,14 @@ export const CartController = {
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
+  },
+
+  async getAdminCarts(req: Request, res: Response) {
+    try {
+      const carts = await CartService.getAdminCarts();
+      res.json({ success: true, data: carts });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
   }
 };

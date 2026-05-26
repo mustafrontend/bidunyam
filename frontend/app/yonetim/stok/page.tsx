@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
-import { useAuthStore } from "@/stores/authStore";
+import { useSellerAuthStore } from "@/stores/sellerAuthStore";
 
 interface Product {
   _id: string;
@@ -24,7 +24,7 @@ const STOCK_STATUS = (stock: number) => {
 };
 
 export default function StokPage() {
-  const { token } = useAuthStore();
+  const { token } = useSellerAuthStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -33,7 +33,7 @@ export default function StokPage() {
   const [saving, setSaving] = useState<string | null>(null);
 
   useEffect(() => {
-    apiClient.get("/products?limit=200")
+    apiClient.get("/products?limit=200&includeAll=true")
       .then((res) => setProducts(res.data?.data?.products || []))
       .catch(console.error)
       .finally(() => setLoading(false));

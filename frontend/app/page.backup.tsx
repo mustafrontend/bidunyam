@@ -62,7 +62,14 @@ export default function Home() {
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
     e.stopPropagation();
-    addItem(product, token);
+    addItem({
+      _id: product._id,
+      name: product.name,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      brand: product.brand,
+      category: product.category,
+    }, token);
   };
 
   return (

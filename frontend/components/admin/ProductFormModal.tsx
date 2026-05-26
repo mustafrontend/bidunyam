@@ -1,6 +1,6 @@
 "use client";
 
-import { FormState, VariantGroup, ExtraService, CategoryTree, Product, EMPTY_IMAGES } from "@/hooks/useSellerProducts";
+import { FormState, VariantGroup, ExtraService, CategoryTree, Product, EMPTY_IMAGES, CategoryAttribute } from "@/hooks/useSellerProducts";
 import { VariantManager } from "./VariantManager";
 import { apiClient } from "@/lib/api";
 import { Dispatch, SetStateAction } from "react";
@@ -15,6 +15,8 @@ interface ProductFormModalProps {
   setVariantGroups: Dispatch<SetStateAction<VariantGroup[]>>;
   extraServices: ExtraService[];
   setExtraServices: Dispatch<SetStateAction<ExtraService[]>>;
+  categoryAttributes: CategoryAttribute[];
+  setCategoryAttributes: Dispatch<SetStateAction<CategoryAttribute[]>>;
   categoryOptions: string[];
   setCategoryOptions: Dispatch<SetStateAction<string[]>>;
   categoryTree: CategoryTree;
@@ -62,6 +64,7 @@ function SelectField({ label, value, onChange, options }: { label: string; value
 export function ProductFormModal({
   editingProduct, form, setForm, imageSlots, setImageSlots,
   variantGroups, setVariantGroups, extraServices, setExtraServices,
+  categoryAttributes, setCategoryAttributes,
   categoryOptions, setCategoryOptions, categoryTree, setCategoryTree,
   brandOptions, setBrandOptions, categoryMainDraft, setCategoryMainDraft,
   categorySubDraft, setCategorySubDraft, brandDraft, setBrandDraft,
@@ -197,6 +200,66 @@ export function ProductFormModal({
             <InputField type="number" label="Desi" value={form.desi} onChange={(v) => setForm((f) => ({ ...f, desi: v }))} />
             <InputField type="number" label="Hazırlık Süresi (gün)" value={form.preparationDays} onChange={(v) => setForm((f) => ({ ...f, preparationDays: v }))} />
             <SelectField label="Gönderim Tipi" value={form.shippingType} onChange={(v) => setForm((f) => ({ ...f, shippingType: v as FormState["shippingType"] }))} options={["MARKETPLACE_LOGISTICS", "SELF_SHIPPING"]} />
+          </div>
+        </section>
+
+        {/* Kategori Özellikleri (Dinamik Filtreler) */}
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="text-sm font-black uppercase tracking-wide text-slate-700">Kategori Özellikleri (Filtreler)</h4>
+            <button
+              type="button"
+              onClick={() => setCategoryAttributes([...categoryAttributes, { key: "", value: "" }])}
+              className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600 transition-colors hover:bg-slate-200"
+            >
+              + Özellik Ekle
+            </button>
+          </div>
+          <p className="mb-4 text-xs text-slate-500">
+            Kategoriye özgü özellikleri (Örn: RAM, Kumaş Tipi, Ekran Boyutu) buraya ekleyin. Girdiğiniz özellikler arama sayfasında otomatik olarak filtreye dönüşür.
+          </p>
+          <div className="space-y-3">
+            {categoryAttributes.map((attr, idx) => (
+              <div key={idx} className="flex items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="Özellik Adı (Örn: RAM)"
+                  value={attr.key}
+                  onChange={(e) => {
+                    const newAttrs = [...categoryAttributes];
+                    newAttrs[idx].key = e.target.value;
+                    setCategoryAttributes(newAttrs);
+                  }}
+                  className="w-1/2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition-colors focus:border-[#ff6000]"
+                />
+                <input
+                  type="text"
+                  placeholder="Değer (Örn: 16GB)"
+                  value={attr.value}
+                  onChange={(e) => {
+                    const newAttrs = [...categoryAttributes];
+                    newAttrs[idx].value = e.target.value;
+                    setCategoryAttributes(newAttrs);
+                  }}
+                  className="w-1/2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition-colors focus:border-[#ff6000]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setCategoryAttributes(categoryAttributes.filter((_, i) => i !== idx))}
+                  className="shrink-0 rounded-lg bg-red-50 p-2 text-red-500 hover:bg-red-100"
+                  title="Sil"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+            {categoryAttributes.length === 0 && (
+              <div className="rounded-xl border border-dashed border-slate-200 py-6 text-center text-sm font-semibold text-slate-400">
+                Henüz kategori özelliği eklenmedi. Arama filtrelerinde görünmesi için özellik ekleyin.
+              </div>
+            )}
           </div>
         </section>
 

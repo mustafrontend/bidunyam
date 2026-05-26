@@ -3,14 +3,19 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
 import { ProductController } from './controllers/product.controller';
 import prisma from './repositories/prisma.client';
 import { ZodError } from 'zod';
 import xmlUploadRoutes from './routes/xmlUpload.routes';
-import { authenticate, optionalAuthenticate } from './middlewares/auth.middleware';
+import campaignRoutes from './routes/campaign.routes';
+import { authenticate, optionalAuthenticate, requireAdmin } from './middlewares/auth.middleware';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3002;
+
+// ─── Static Files ──────────────────────────────────────────────
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // ─── Middleware ────────────────────────────────────────────────
 app.use(helmet());
@@ -44,11 +49,15 @@ app.get('/health', async (_req, res) => {
 // XML Upload Routes
 app.use('/', xmlUploadRoutes);
 
+// Campaign Routes
+app.use('/campaigns', campaignRoutes);
+
 // Product meta & admin endpoints
 app.get('/meta/options', ProductController.getCatalogOptions);
 app.post('/meta/brand', ProductController.createBrandOption);
 app.post('/meta/category', ProductController.createCategoryOption);
 app.get('/admin/:id', authenticate, ProductController.getByIdAny);
+app.get('/admin/products/all', authenticate, requireAdmin, ProductController.getAdminProducts);
 
 // Question & Answer endpoints
 app.get('/:id/questions', ProductController.getQuestions);
@@ -91,8 +100,8 @@ const start = async (): Promise<void> => {
   // Seed sample products if database is empty
   await ProductService.seedProducts();
 
-  // Sync products to Elasticsearch
-  await ProductService.syncAllToSearch();
+  // Sync products to Elasticsearch (Disabled since ES is not running)
+  // await ProductService.syncAllToSearch();
 
   app.listen(PORT, () => {
     console.log(`📦 Product Service running on http://localhost:${PORT}`);

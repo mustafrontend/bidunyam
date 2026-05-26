@@ -28,9 +28,17 @@ const authenticate = (req: any, res: any, next: any) => {
   }
 };
 
+const requireAdmin = (req: any, res: any, next: any) => {
+  if (req.user?.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Only super admins can access this route' });
+  }
+  next();
+};
+
 // Routes
 app.post('/checkout', authenticate, OrderController.checkout);
 app.get('/history', authenticate, OrderController.list);
+app.get('/admin/all', authenticate, requireAdmin, OrderController.getAdminOrders);
 
 const start = async () => {
   try {

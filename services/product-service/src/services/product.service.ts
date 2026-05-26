@@ -6,10 +6,11 @@ import { xmlCatalogService } from './xmlCatalog.service';
 
 export const ProductService = {
   async getProducts(filters: ProductFilters, page: number, limit: number) {
-    const { products, total } = await ProductRepository.findAll(filters, { page, limit });
+    const { products, total, facets } = await ProductRepository.findAll(filters, { page, limit });
 
     return {
       products,
+      facets,
       pagination: {
         page,
         limit,
@@ -28,6 +29,13 @@ export const ProductService = {
       err.statusCode = 404;
       throw err;
     }
+
+    // Increment views asynchronously
+    prisma.product.update({
+      where: { id },
+      data: { views: { increment: 1 } }
+    }).catch(console.error);
+
     return product;
   },
 
@@ -495,4 +503,23 @@ export const ProductService = {
 
     console.log('[Product Seed] Successfully seeded 6 premium products, reviews, and questions!');
   },
+
+  // ─── Super Admin ──────────────────────────────────────────────────
+  async getAdminAllProducts() {
+    return prisma.product.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        price: true,
+        stock: true,
+        views: true,
+        sales: true,
+        sellerName: true,
+        isActive: true,
+        createdAt: true,
+      }
+    });
+  }
 };

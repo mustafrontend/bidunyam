@@ -34,14 +34,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     e.stopPropagation();
     addToCart(
       {
-        productId: product._id,
+        _id: product._id,
         name: product.name,
         price: product.price,
         imageUrl: product.imageUrl || "",
-        quantity: 1,
-        sellerId: "",
         brand: product.brand || "",
         barcode: product.barcode || "",
+        category: product.category,
       },
       token
     );

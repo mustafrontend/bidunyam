@@ -30,6 +30,7 @@ import { Logo } from "../atoms/Logo";
 import { LoginModal } from "../molecules/LoginModal";
 import { UserMenu } from "../molecules/UserMenu";
 import { SearchResults } from "../molecules/SearchResults";
+import { CategoriesMegaMenu } from "./CategoriesMegaMenu";
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
@@ -46,6 +47,10 @@ export const Navbar: React.FC = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchCategories, setSearchCategories] = useState<string[]>([]);
+  const [searchBrands, setSearchBrands] = useState<string[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [recommended, setRecommended] = useState<Product[]>([]);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -69,22 +74,59 @@ export const Navbar: React.FC = () => {
   }, [token, user?.role, fetchFavorites, clearFavorites]);
 
   useEffect(() => {
+    // If you need more complex hydration logic, do it here
+  }, []);
+
+  if (pathname?.startsWith("/yonetim")) return null;
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
+
+  useEffect(() => {
     const delayDebounce = setTimeout(async () => {
-      if (searchQuery.length >= 2) {
+      if (searchQuery.length >= 0 && showResults) {
         try {
-          const res = await apiClient.get(`/search?q=${searchQuery}`);
-          setSearchResults(res.data.data);
-          setShowResults(true);
+          // If user is logged in, pass userId
+          const userIdParam = user?.id ? `&userId=${user.id}` : "";
+          const res = await apiClient.get(`/search?q=${searchQuery}${userIdParam}`);
+          
+          if (searchQuery.length > 0) {
+            setSearchResults(res.data.data || []);
+            
+            // Fallback for categories and brands if elasticsearch doesn't return them
+            let cats = res.data.categories || [];
+            if (cats.length === 0) {
+               const ALL_CATS = ["Elektronik", "Moda", "Ev & Yaşam", "Anne & Bebek", "Kozmetik", "Spor", "Otomobil"];
+               cats = ALL_CATS.filter(c => c.toLowerCase().includes(searchQuery.toLowerCase())).slice(0,3);
+            }
+            let brnds = res.data.brands || [];
+            if (brnds.length === 0) {
+               const ALL_BRANDS = ["Apple", "Samsung", "Xiaomi", "Nike", "Adidas", "Puma", "Fiat", "Ford"];
+               brnds = ALL_BRANDS.filter(b => b.toLowerCase().includes(searchQuery.toLowerCase())).slice(0,3);
+            }
+            
+            setSearchCategories(cats);
+            setSearchBrands(brnds);
+            setRecentSearches([]);
+            setRecommended([]);
+          } else {
+            setSearchResults([]);
+            setSearchCategories([]);
+            setSearchBrands([]);
+            // Fake recent searches & recommended if backend returns empty (for demo)
+            setRecentSearches(res.data.recentSearches?.length ? res.data.recentSearches : [
+              "cep telefonu", "starbucks", "fiat modifiye", "araç italyan", "vücut geliştirme ekipman"
+            ]);
+            setRecommended(res.data.recommended?.length ? res.data.recommended : []);
+          }
         } catch (err) {
           console.error("Search failed", err);
         }
-      } else {
-        setSearchResults([]);
-        setShowResults(false);
       }
     }, 300);
     return () => clearTimeout(delayDebounce);
-  }, [searchQuery]);
+  }, [searchQuery, showResults, user?.id]);
 
   if (pathname?.startsWith("/yonetim")) return null;
 
@@ -129,11 +171,10 @@ export const Navbar: React.FC = () => {
               </button>
             </div>
 
-            {/* Categories Hamburger Trigger (Turkish) */}
-            <button className="hidden lg:flex items-center gap-1.5 font-black text-xs text-slate-700 hover:bg-slate-50 px-3.5 py-2.5 rounded-full transition-all cursor-pointer active:scale-95 border border-slate-200/60">
-              <Menu size={16} strokeWidth={2.5} className="text-[#001819]" />
-              <span>Kategoriler</span>
-            </button>
+            {/* Categories Mega Menu */}
+            <div className="hidden lg:flex">
+              <CategoriesMegaMenu />
+            </div>
 
             {/* Oversized Pinned Search Bar (Turkish) */}
             <div className="order-3 w-full md:order-none md:flex-1 md:max-w-xl" ref={searchRef}>
@@ -142,17 +183,39 @@ export const Navbar: React.FC = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
+                  onFocus={() => setShowResults(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && searchQuery.trim()) {
+                      setShowResults(false);
+                      router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+                    }
+                  }}
                   placeholder="Milyonlarca ürün arasından ara..."
                   className="w-full rounded-full border-none bg-slate-100 py-2.5 pl-5 pr-14 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:ring-4 focus:ring-slate-200 focus:bg-white"
                 />
-                <button className="absolute right-1 top-1 bottom-1 rounded-full bg-[#001819] px-4 text-white hover:bg-slate-800 transition-colors active:scale-95 flex items-center justify-center cursor-pointer">
+                <button 
+                  onClick={() => {
+                    if (searchQuery.trim()) {
+                      setShowResults(false);
+                      router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+                    }
+                  }}
+                  className="absolute right-1 top-1 bottom-1 rounded-full bg-[#001819] px-4 text-white hover:bg-slate-800 transition-colors active:scale-95 flex items-center justify-center cursor-pointer"
+                >
                   <Search size={14} strokeWidth={2.5} />
                 </button>
 
                 {/* Autocomplete dropdown */}
                 {showResults && (
-                  <SearchResults results={searchResults} onClose={() => setShowResults(false)} />
+                  <SearchResults 
+                    query={searchQuery}
+                    results={searchResults} 
+                    categories={searchCategories}
+                    brands={searchBrands}
+                    recentSearches={recentSearches}
+                    recommended={recommended}
+                    onClose={() => setShowResults(false)} 
+                  />
                 )}
               </div>
             </div>
@@ -165,10 +228,10 @@ export const Navbar: React.FC = () => {
                 <div className="relative">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center gap-1.5 rounded-full px-2.5 py-2 hover:bg-slate-100 active:scale-95 transition-all text-xs font-black cursor-pointer"
+                    className="flex items-center gap-1.5 rounded-full px-3 py-2 bg-[#ff5000] hover:bg-[#e64800] active:scale-95 transition-all text-xs font-black cursor-pointer text-white shadow-sm"
                   >
-                    <User size={18} strokeWidth={2.5} className="text-[#001819]" />
-                    <span className="hidden lg:inline line-clamp-1 max-w-[80px] text-slate-800">{user?.name}</span>
+                    <User size={18} strokeWidth={2.5} className="text-white" />
+                    <span className="hidden lg:inline line-clamp-1 max-w-[100px] text-white tracking-wide">{user?.name}</span>
                   </button>
                   {isUserMenuOpen && (
                     <UserMenu user={user} onClose={() => setIsUserMenuOpen(false)} onLogout={logout} />
@@ -177,9 +240,10 @@ export const Navbar: React.FC = () => {
               ) : (
                 <button
                   onClick={() => setLoginModalOpen(true)}
-                  className="flex items-center gap-1.5 rounded-full px-2.5 py-2 hover:bg-slate-100 active:scale-95 transition-all text-xs font-black cursor-pointer"
+                  className="flex items-center gap-1.5 rounded-full px-3 py-2 hover:bg-slate-100 active:scale-95 transition-all text-xs font-black cursor-pointer group"
                 >
-                  <User size={18} strokeWidth={2.5} className="text-[#001819]" />
+                  <User size={18} strokeWidth={2.5} className="text-[#001819] group-hover:text-[#ff5000] transition-colors" />
+                  <span className="hidden lg:inline text-slate-800 group-hover:text-[#ff5000] transition-colors">Giriş Yap</span>
                 </button>
               )}
 
@@ -209,13 +273,7 @@ export const Navbar: React.FC = () => {
                 )}
               </Link>
 
-              {/* Desktop-only: Sell Item Premium Yellow Button (Turkish) */}
-              <button
-                onClick={() => router.push("/yonetim/urunler")}
-                className="hidden md:block bg-[#fed65b] text-[#745c00] hover:bg-[#fed65b]/90 px-5 py-2.5 rounded-full font-black text-xs uppercase tracking-widest transition-all cursor-pointer active:scale-95 shadow-sm border border-[#e9c349]/20"
-              >
-                Ürün Sat
-              </button>
+              {/* Removed Ürün Sat Button */}
 
               {/* Mobile-only: Mode Switcher segment toggle (Bireysel / Tüzel) */}
               <div className="flex md:hidden bg-slate-100 p-0.5 rounded-full border border-slate-200/60 text-[9px] font-black uppercase tracking-wider select-none shrink-0 gap-0.5">

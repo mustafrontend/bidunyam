@@ -54,9 +54,25 @@ export const SearchController = {
         }
       });
 
-      const products = result.hits.hits.map(hit => hit._source);
-      console.log(`[Search] ✅ Found ${products.length} results for "${q}"`);
-      res.json({ success: true, data: products });
+      const products = result.hits.hits.map(hit => hit._source as any);
+
+      // Arama kelimesine uyan kategori ve markaları ürünlerden çıkar (Küçük harf duyarlı eşleştirme)
+      const qLower = (q as string).toLowerCase();
+      
+      const matchedCategories = Array.from(new Set(
+        products
+          .map(p => p.category)
+          .filter(c => c && c.toLowerCase().includes(qLower))
+      )).slice(0, 3);
+      
+      const matchedBrands = Array.from(new Set(
+        products
+          .map(p => p.brand)
+          .filter(b => b && b.toLowerCase().includes(qLower))
+      )).slice(0, 3);
+
+      console.log(`[Search] ✅ Found ${products.length} results, ${matchedCategories.length} categories, ${matchedBrands.length} brands for "${q}"`);
+      res.json({ success: true, data: products, categories: matchedCategories, brands: matchedBrands });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }

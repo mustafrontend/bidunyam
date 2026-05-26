@@ -79,6 +79,8 @@ model Product {
   stock                Int           @default(0)
   rating               Float         @default(0)
   reviewCount          Int           @default(0)
+  views                Int           @default(0)
+  sales                Int           @default(0)
   isActive             Boolean       @default(true)
   sellerName           String        @default("FUAR BOX")
   sellerRating         Float         @default(9.3)
@@ -87,6 +89,7 @@ model Product {
   
   questions            Question[]
   reviews              Review[]
+  campaigns            CampaignProduct[]
 
   @@index([name])
   @@index([categoryId])
@@ -191,4 +194,43 @@ enum Role {
 enum AccountType {
   BIREYSEL
   TUZEL
+}
+
+// ─── Campaigns ───
+
+model Campaign {
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  imageUrl        String?
+  discountType    String   @default("PERCENTAGE") // PERCENTAGE, FIXED_AMOUNT
+  discountValue   Float    @default(0) // Minimum indirim kuralı veya sabit indirim değeri
+  startDate       DateTime
+  endDate         DateTime
+  status          String   @default("ACTIVE") // ACTIVE, INACTIVE, ENDED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  products        CampaignProduct[]
+
+  @@map("campaigns")
+}
+
+model CampaignProduct {
+  id              String   @id @default(uuid())
+  campaignId      String
+  productId       String
+  sellerId        String
+  campaignPrice   Float    // Kampanyaya katılırkenki indirimli fiyat
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  
+  campaign        Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([campaignId, productId])
+  @@index([campaignId])
+  @@index([sellerId])
+  @@map("campaign_products")
 }

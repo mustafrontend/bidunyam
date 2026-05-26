@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { apiClient } from "@/lib/api";
-import { useAuthStore } from "@/stores/authStore";
+import { useSellerAuthStore } from "@/stores/sellerAuthStore";
 
 export interface Product {
   _id: string;
@@ -37,6 +37,8 @@ export type ExtraService = {
 };
 
 export type CategoryTree = Record<string, string[]>;
+
+export type CategoryAttribute = { key: string; value: string };
 
 export type FormState = {
   barcode: string;
@@ -221,7 +223,7 @@ export async function compressImageToDataUrl(file: File): Promise<string> {
 }
 
 export function useSellerProducts() {
-  const { token } = useAuthStore();
+  const { token } = useSellerAuthStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -237,6 +239,7 @@ export function useSellerProducts() {
   const [imageSlots, setImageSlots] = useState<string[]>(EMPTY_IMAGES);
   const [variantGroups, setVariantGroups] = useState<VariantGroup[]>(DEFAULT_VARIANTS);
   const [extraServices, setExtraServices] = useState<ExtraService[]>(DEFAULT_EXTRA_SERVICES);
+  const [categoryAttributes, setCategoryAttributes] = useState<CategoryAttribute[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -341,6 +344,7 @@ export function useSellerProducts() {
     setImageSlots(EMPTY_IMAGES);
     setVariantGroups(DEFAULT_VARIANTS);
     setExtraServices(DEFAULT_EXTRA_SERVICES);
+    setCategoryAttributes([]);
     setCategoryMainDraft("");
     setCategorySubDraft("");
     setBrandDraft("");
@@ -395,6 +399,11 @@ export function useSellerProducts() {
         Array.isArray(p.extraServices) && (p.extraServices as RawService[]).length > 0
           ? (p.extraServices as RawService[]).map((s) => ({ name: s.name, price: String(s.price), description: s.description }))
           : DEFAULT_EXTRA_SERVICES
+      );
+      setCategoryAttributes(
+        p.categoryAttributes && typeof p.categoryAttributes === 'object'
+          ? Object.entries(p.categoryAttributes).map(([k, v]) => ({ key: k, value: String(v) }))
+          : []
       );
       setEditingProduct(product);
       setShowForm(true);
@@ -546,6 +555,9 @@ export function useSellerProducts() {
     const imageUrls = imageSlots.filter(Boolean).slice(0, 5);
     const variants = parseVariants(variantGroups);
     const services = parseExtraServices(extraServices);
+    const attributesObj = Object.fromEntries(
+      categoryAttributes.filter((a) => a.key.trim() && a.value.trim()).map((a) => [a.key.trim(), a.value.trim()])
+    );
     if (imageUrls.length === 0) { setError("En az 1 fotoğraf yükleyin."); return; }
     if (imageUrls.reduce((sum, item) => sum + item.length, 0) > MAX_IMAGE_PAYLOAD_CHARS) {
       setError("Fotoğraf boyutu cok buyuk. Daha dusuk cozunurlukte gorsel yukleyin."); return;
@@ -575,6 +587,7 @@ export function useSellerProducts() {
         desi: Number(form.desi), preparationDays: Number(form.preparationDays),
         shippingType: form.shippingType, saleStatus: form.saleStatus,
         approvalStatus: form.approvalStatus, variants, extraServices: services,
+        categoryAttributes: attributesObj,
       };
       if (editingProduct) {
         await apiClient.patch(`/products/${editingProduct._id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
@@ -590,7 +603,7 @@ export function useSellerProducts() {
     } finally {
       setSaving(false);
     }
-  }, [form, imageSlots, variantGroups, extraServices, editingProduct, token, resetForm, fetchProducts]);
+  }, [form, imageSlots, variantGroups, extraServices, categoryAttributes, editingProduct, token, resetForm, fetchProducts]);
 
   return {
     // State
@@ -599,7 +612,7 @@ export function useSellerProducts() {
     categoryTree, setCategoryTree, brandOptions, setBrandOptions,
     categoryMainDraft, setCategoryMainDraft, categorySubDraft, setCategorySubDraft,
     brandDraft, setBrandDraft, imageSlots, setImageSlots, variantGroups, setVariantGroups,
-    extraServices, setExtraServices, saving, error, setError, page, setPage,
+    extraServices, setExtraServices, categoryAttributes, setCategoryAttributes, saving, error, setError, page, setPage,
     PAGE_SIZE, duplicateTarget, setDuplicateTarget, duplicateCount, setDuplicateCount,
     duplicating, duplicateError, setDuplicateError, editingProduct, setEditingProduct,
     deleteTarget, setDeleteTarget, deleting, togglingId, activeTab, setActiveTab,

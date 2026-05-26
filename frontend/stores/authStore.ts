@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-interface User {
+export type UserRole = 'CUSTOMER' | 'ADMIN' | 'SELLER';
+
+export interface User {
   id: string;
   email: string;
   name: string;
-  role: string;
+  role: UserRole;
 }
 
 interface AuthState {
@@ -22,11 +24,15 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       setAuth: (user, token) => set({ user, token }),
-      logout: () => set({ user: null, token: null }),
+      logout: () => {
+        set({ user: null, token: null });
+        // Clear cart on logout to prevent data leakage between users
+        import('@/stores/cartStore').then(({ useCartStore }) => {
+          useCartStore.getState().clearCart();
+        });
+      },
       isAuthenticated: () => !!get().token,
     }),
-    {
-      name: 'trendyol-auth-storage',
-    }
+    { name: 'trendyol-auth-storage' }
   )
 );

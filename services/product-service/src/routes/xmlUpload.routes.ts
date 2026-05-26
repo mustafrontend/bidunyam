@@ -6,7 +6,7 @@ import http from 'http';
 import https from 'https';
 import { xmlParserService } from '../services/xmlParser.service';
 import { xmlCatalogService } from '../services/xmlCatalog.service';
-import { authenticate, optionalAuthenticate, AuthenticatedRequest } from '../middlewares/auth.middleware';
+import { authenticate, optionalAuthenticate, AuthenticatedRequest, requireAdmin } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -249,12 +249,19 @@ router.get('/admin/xml/sample', (req: Request, res: Response) => {
 router.get('/xml/catalog', optionalAuthenticate, (req: AuthenticatedRequest, res: Response) => {
   try {
     const query = parseCatalogQuery(req);
-    const userId = req.user?.id;
+    const wantsMyProducts = req.query.includeAll === 'true' || req.query.myProducts === 'true';
+    const userId = (req.user?.id && wantsMyProducts) ? req.user.id : undefined;
     const data = xmlCatalogService.getCatalog({ ...query, userId });
+
+    // Prevent browser/proxy caching so stale empty responses never block fresh data
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
 
     res.status(200).json({
       success: true,
-      source: 'xml-request',
+      source: 'xml-catalog',
       data,
     });
   } catch (error: any) {
@@ -306,6 +313,28 @@ router.get('/admin/xml/requests', authenticate, (req: AuthenticatedRequest, res:
       requests,
     },
   });
+});
+
+/**
+ * GET /admin/xml/all-requests
+ * Super admin request list for all published XML catalogs across the system
+ */
+router.get('/admin/xml/all-requests', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const allRequests = xmlCatalogService.getAllRequests();
+    res.status(200).json({
+      success: true,
+      data: {
+        requests: allRequests,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Tüm XML istekleri okunamadı',
+      error: error.message,
+    });
+  }
 });
 
 /**

@@ -45,6 +45,7 @@ interface Product {
   category: string;
   rating: number;
   reviewCount: number;
+  sellerName?: string;
 }
 
 export default function ProductQuestionsPage() {
@@ -139,7 +140,7 @@ export default function ProductQuestionsPage() {
         question: questionText,
         user: allowNameDisplay ? "Mustafa Ö." : "M** Ö**",
         purchased: true,
-        sellerName: product?.brand || "FUAR BOX",
+        sellerName: product?.sellerName || product?.brand || "Satıcı Bilinmiyor",
         category: selectedCategory === "tümü" ? "Kullanım Talimatları" : selectedCategory,
       });
 
@@ -174,7 +175,7 @@ export default function ProductQuestionsPage() {
                              q.category.toLowerCase().includes(normalizedCat) ||
                              normalizedCat.includes(q.category.toLowerCase());
 
-      const matchesSeller = !showOnlySelectedSeller || q.sellerName === "FUAR BOX";
+      const matchesSeller = !showOnlySelectedSeller || q.sellerName === (product?.sellerName || "Satıcı Bilinmiyor");
 
       return matchesSearch && matchesCategory && matchesSeller;
     });
@@ -238,7 +239,14 @@ export default function ProductQuestionsPage() {
                 
                 <div className="flex items-center gap-2">
                   <button 
-                    onClick={() => addItem(product, token)}
+                    onClick={() => product && addItem({
+                      _id: product._id,
+                      name: product.name,
+                      price: product.price,
+                      imageUrl: product.imageUrl,
+                      brand: product.brand,
+                      category: product.category,
+                    }, token)}
                     className="bg-[#ff5000] hover:bg-[#ff5000]/90 text-white font-black text-xs px-5 py-2.5 rounded-full flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer uppercase tracking-wider"
                   >
                     <ShoppingCart size={13} strokeWidth={2.5} /> Sepete Ekle
@@ -260,11 +268,11 @@ export default function ProductQuestionsPage() {
             <div className="bg-white border-[0.5px] border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-black text-slate-600 text-xs shadow-inner">
-                    FB
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-black text-slate-600 text-xs shadow-inner uppercase">
+                    {product.sellerName ? product.sellerName.substring(0, 2) : "SB"}
                   </div>
                   <div>
-                    <span className="text-xs font-black text-slate-800 block">FUAR BOX</span>
+                    <span className="text-xs font-black text-slate-800 block">{product.sellerName || "Satıcı Bilinmiyor"}</span>
                     <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded mt-0.5">
                       9.3
                     </span>
@@ -458,7 +466,7 @@ export default function ProductQuestionsPage() {
             <form onSubmit={handleSubmitQuestion} className="p-6 space-y-6">
               {/* Seller details badge */}
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-4 py-3 rounded-2xl">
-                <span className="text-xs font-black text-[#0060df] uppercase tracking-wider">FUAR BOX</span>
+                <span className="text-xs font-black text-[#0060df] uppercase tracking-wider">{product.sellerName || "Satıcı Bilinmiyor"}</span>
                 <span className="bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded">9.3</span>
               </div>
               {/* Informational notice */}

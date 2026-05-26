@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api";
-import { useAuthStore } from "@/stores/authStore";
+import { useSellerAuthStore } from "@/stores/sellerAuthStore";
 import { useCartStore } from "@/stores/cartStore";
 
 type Tab = "giris" | "kayit";
 
 export default function YonetimGirisPage() {
   const router = useRouter();
-  const { setAuth, isAuthenticated } = useAuthStore();
+  const { setAuth, isAuthenticated } = useSellerAuthStore();
   const [tab, setTab] = useState<Tab>("giris");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -16,5 +16,9 @@ export const OrderService = {
 
   async getOrderById(orderId: string): Promise<IOrder | null> {
     return await Order.findById(orderId);
+  },
+
+  async getAdminOrders(): Promise<IOrder[]> {
+    return await Order.find().sort({ createdAt: -1 });
   }
 };

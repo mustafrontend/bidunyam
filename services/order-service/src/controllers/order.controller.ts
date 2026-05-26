@@ -27,5 +27,14 @@ export const OrderController = {
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
+  },
+
+  async getAdminOrders(req: Request, res: Response) {
+    try {
+      const orders = await OrderService.getAdminOrders();
+      res.json({ success: true, data: orders });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
   }
 };

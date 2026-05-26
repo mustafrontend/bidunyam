@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
-import { useAuthStore } from "@/stores/authStore";
+import { useSellerAuthStore } from "@/stores/sellerAuthStore";
 import Link from "next/link";
 
 interface Stats {
@@ -44,7 +44,7 @@ const STATUS_TR: Record<string, string> = {
 };
 
 export default function AdminDashboard() {
-  const { token } = useAuthStore();
+  const { token } = useSellerAuthStore();
   const [stats, setStats] = useState<Stats>({
     totalOrders: 0, pendingOrders: 0, paidOrders: 0, shippedOrders: 0,
     deliveredOrders: 0, cancelledOrders: 0, totalProducts: 0, lowStockProducts: 0,
@@ -59,7 +59,7 @@ export default function AdminDashboard() {
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const [ordersRes, productsRes] = await Promise.allSettled([
           apiClient.get("/orders", { headers }),
-          apiClient.get("/products?limit=100"),
+          apiClient.get("/products?limit=100&includeAll=true"),
         ]);
 
         const orders: RecentOrder[] =

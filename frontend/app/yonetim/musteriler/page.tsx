@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
-import { useAuthStore } from "@/stores/authStore";
+import { useSellerAuthStore } from "@/stores/sellerAuthStore";
 
 interface Order {
   _id: string;
@@ -28,7 +28,7 @@ const STATUS_TR: Record<string, string> = {
 };
 
 export default function MusterilerPage() {
-  const { token } = useAuthStore();
+  const { token } = useSellerAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");

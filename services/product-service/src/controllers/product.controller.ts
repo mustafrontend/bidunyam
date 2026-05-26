@@ -7,11 +7,12 @@ const QuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(1000).default(12),
   category: z.string().optional(),
-  brand: z.string().optional(),
+  brand: z.union([z.string(), z.array(z.string())]).optional().transform(val => val === undefined ? [] : (Array.isArray(val) ? val : [val])),
   minPrice: z.coerce.number().optional(),
   maxPrice: z.coerce.number().optional(),
   search: z.string().optional(),
   includeAll: z.coerce.boolean().default(false),
+  myProducts: z.coerce.boolean().default(false),
 });
 
 const ProductInputSchema = z.object({
@@ -107,8 +108,21 @@ export const ProductController = {
       const query = QuerySchema.parse(req.query);
       const { page, limit, ...filters } = query;
 
-      const filtersWithUser: any = { ...filters };
-      if (req.user?.id) {
+      // Extract dynamic attr_ fields from req.query
+      const attributes: Record<string, string[]> = {};
+      for (const key in req.query) {
+        if (key.startsWith('attr_')) {
+          const rawVal = req.query[key];
+          const attrName = key.replace('attr_', '');
+          attributes[attrName] = Array.isArray(rawVal) 
+            ? (rawVal as string[]) 
+            : [String(rawVal)];
+        }
+      }
+
+      const filtersWithUser: any = { ...filters, attributes };
+      const wantsMyProducts = query.includeAll || query.myProducts;
+      if (req.user?.id && (req.user.role === 'SELLER' || req.user.role === 'ADMIN') && wantsMyProducts) {
         filtersWithUser.userId = req.user.id;
       }
 
@@ -134,6 +148,9 @@ export const ProductController = {
     try {
       const body = ProductInputSchema.parse(req.body);
       const userId = req.user?.id;
+      if (req.user?.name) {
+        body.sellerName = req.user.name;
+      }
       const product = await ProductService.createProduct(body, userId);
       res.status(201).json({ success: true, data: product });
     } catch (err) {
@@ -236,4 +253,14 @@ export const ProductController = {
       next(err);
     }
   },
+
+  // ─── Super Admin ──────────────────────────────────────────────────
+  async getAdminProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const products = await ProductService.getAdminAllProducts();
+      res.status(200).json({ success: true, data: products });
+    } catch (err) {
+      next(err);
+    }
+  }
 };

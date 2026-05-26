@@ -1,0 +1,7 @@
+INSERT INTO campaigns (id, title, description, "imageUrl", "discountType", "discountValue", "startDate", "endDate", status, "createdAt", "updatedAt") 
+VALUES 
+(gen_random_uuid(), 'GALAXY S25 ULTRA SERİSİ', '%0 FAİZLİ 3 TAKSİT FIRSATI', 'https://images.unsplash.com/photo-1588854337236-6889d631faa8?q=80&w=800&auto=format&fit=crop', 'PERCENTAGE', 0, NOW(), NOW() + interval '30 days', 'ACTIVE', NOW(), NOW()),
+(gen_random_uuid(), 'ELEKTRONİK FIRSATLAR', 'HER GÜN YENİLENEN İNDİRİMLER', 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=800&auto=format&fit=crop', 'PERCENTAGE', 15, NOW(), NOW() + interval '15 days', 'ACTIVE', NOW(), NOW()),
+(gen_random_uuid(), 'KİŞİSEL BAKIM ÜRÜNLERİ', 'YAZA HAZIRLIK FIRSATLARI', 'https://images.unsplash.com/photo-1522850959074-b7c11f71f5c1?q=80&w=800&auto=format&fit=crop', 'PERCENTAGE', 25, NOW(), NOW() + interval '45 days', 'ACTIVE', NOW(), NOW()),
+(gen_random_uuid(), 'MODADA YENİ SEZON', 'YAZ KOLEKSİYONUNDA KAÇIRILMAYACAK FIRSATLAR', 'https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=800&auto=format&fit=crop', 'PERCENTAGE', 40, NOW(), NOW() + interval '20 days', 'ACTIVE', NOW(), NOW()),
+(gen_random_uuid(), 'EV GEREÇLERİ ŞENLİĞİ', 'MUTFAK VE DEKORASYON ÜRÜNLERİ', 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?q=80&w=800&auto=format&fit=crop', 'FIXED_AMOUNT', 500, NOW(), NOW() + interval '10 days', 'ACTIVE', NOW(), NOW());

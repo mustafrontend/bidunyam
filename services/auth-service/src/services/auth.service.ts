@@ -29,7 +29,7 @@ export interface AuthResponse {
   };
 }
 
-const signToken = (payload: { id: string; email: string; role: string; deviceId?: string }): string => {
+const signToken = (payload: { id: string; email: string; name: string; role: string; deviceId?: string }): string => {
   const secret = process.env.JWT_SECRET;
   const expiresIn = process.env.JWT_EXPIRES_IN ?? '7d';
 
@@ -81,7 +81,7 @@ export const AuthService = {
       registeredAt: new Date().toISOString(),
     });
 
-    const token = signToken({ id: user.id, email: user.email, role: user.role, deviceId });
+    const token = signToken({ id: user.id, email: user.email, name: user.name, role: user.role, deviceId });
     
     // Store in Redis (Whitelist)
     const redis = getRedisClient();
@@ -109,7 +109,7 @@ export const AuthService = {
       throw err;
     }
 
-    const token = signToken({ id: user.id, email: user.email, role: user.role, deviceId });
+    const token = signToken({ id: user.id, email: user.email, name: user.name, role: user.role, deviceId });
 
     // 🚀 Store session in Redis
     const redis = getRedisClient();
@@ -163,7 +163,7 @@ export const AuthService = {
     });
 
     const displayName = accountType === 'TUZEL' ? seller.companyName! : seller.fullName!;
-    const token = signToken({ id: seller.id, email: seller.email, role: 'SELLER', deviceId });
+    const token = signToken({ id: seller.id, email: seller.email, name: displayName, role: 'SELLER', deviceId });
 
     const redis = getRedisClient();
     await redis.set(`auth:token:${token}`, seller.id, 'EX', 7 * 24 * 60 * 60);
@@ -191,7 +191,7 @@ export const AuthService = {
     }
 
     const displayName = seller.accountType === 'TUZEL' ? seller.companyName! : seller.fullName!;
-    const token = signToken({ id: seller.id, email: seller.email, role: 'SELLER', deviceId });
+    const token = signToken({ id: seller.id, email: seller.email, name: displayName, role: 'SELLER', deviceId });
 
     const redis = getRedisClient();
     await redis.set(`auth:token:${token}`, seller.id, 'EX', 7 * 24 * 60 * 60);
@@ -244,4 +244,55 @@ export const AuthService = {
 
     return this.getFavorites(userId);
   },
+
+  // ─── Super Admin ──────────────────────────────────────────────
+  async adminLogin(phone: string, password: string, deviceId?: string) {
+    // Hardcoded credentials as per plan
+    if (phone === '05555555555' && password === 'admin123') {
+      const token = signToken({ id: 'super-admin-id', email: 'admin@system.local', name: 'Super Admin', role: 'ADMIN', deviceId });
+      
+      const redis = getRedisClient();
+      await redis.set(`auth:token:${token}`, 'super-admin-id', 'EX', 7 * 24 * 60 * 60);
+
+      return {
+        token,
+        user: { id: 'super-admin-id', email: 'admin@system.local', name: 'Super Admin', role: 'ADMIN' },
+      };
+    }
+
+    const err = new Error('Geçersiz admin bilgileri') as Error & { statusCode: number };
+    err.statusCode = 401;
+    throw err;
+  },
+
+  async getAllUsers() {
+    return prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      }
+    });
+  },
+
+  async getAllSellers() {
+    return prisma.sellerAccount.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        accountType: true,
+        fullName: true,
+        companyName: true,
+        taxNo: true,
+        taxOffice: true,
+        isActive: true,
+        createdAt: true,
+      }
+    });
+  }
 };

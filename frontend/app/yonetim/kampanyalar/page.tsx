@@ -1,222 +1,249 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { apiClient } from "@/lib/api";
+import { Megaphone, Plus, Tag, CheckSquare, Square } from "lucide-react";
+import Image from "next/image";
 
-interface Product {
+type Campaign = {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string | null;
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountValue: number;
+  startDate: string;
+  endDate: string;
+  status: string;
+};
+
+type Product = {
   _id: string;
   name: string;
-  brand: string;
-  category: string;
   price: number;
+  imageUrl: string;
+  barcode: string;
+  brand: string;
   originalPrice: number;
   discountPercent: number;
-  stock: number;
-  imageUrl: string;
-}
+};
 
-interface Campaign {
-  id: string;
-  product: Product;
-  type: "indirim" | "free-shipping" | "bundle";
-  label: string;
-  active: boolean;
-  createdAt: string;
-}
-
-const CAMPAIGN_TYPES = [
-  { value: "indirim", label: "Indirim Kampanyasi" },
-  { value: "free-shipping", label: "Ucretsiz Kargo" },
-  { value: "bundle", label: "Paket Kampanyasi" },
-];
-
-export default function KampanyalarPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+export default function SellerCampaignsPage() {
+  const [activeCampaigns, setActiveCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [formProduct, setFormProduct] = useState("");
-  const [formType, setFormType] = useState("indirim");
-  const [formLabel, setFormLabel] = useState("");
+  const [showJoinModal, setShowJoinModal] = useState<Campaign | null>(null);
+  
+  // Join Modal State
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+  const [campaignPrices, setCampaignPrices] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchCampaigns = async () => {
+    try {
+      const res = await apiClient.get("/products/campaigns/active");
+      setActiveCampaigns(res.data?.data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    apiClient.get("/products?limit=100")
-      .then((res) => {
-        const prods: Product[] = res.data?.data?.products || [];
-        setProducts(prods);
-        // Auto-generate campaigns from discounted products
-        const auto: Campaign[] = prods
-          .filter((p) => p.discountPercent > 0)
-          .slice(0, 6)
-          .map((p) => ({
-            id: p._id,
-            product: p,
-            type: "indirim",
-            label: `%${p.discountPercent} Indirim`,
-            active: true,
-            createdAt: new Date().toISOString(),
-          }));
-        setCampaigns(auto);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    fetchCampaigns();
   }, []);
 
-  const handleCreate = () => {
-    const product = products.find((p) => p._id === formProduct);
-    if (!product || !formLabel) return;
-    const newCampaign: Campaign = {
-      id: `manual-${Date.now()}`,
-      product,
-      type: formType as Campaign["type"],
-      label: formLabel,
-      active: true,
-      createdAt: new Date().toISOString(),
-    };
-    setCampaigns((prev) => [newCampaign, ...prev]);
-    setShowForm(false);
-    setFormProduct("");
-    setFormLabel("");
+  const openJoinModal = async (campaign: Campaign) => {
+    setShowJoinModal(campaign);
+    setLoadingProducts(true);
+    try {
+      const res = await apiClient.get("/products?limit=500&includeAll=true");
+      setProducts(res.data?.data?.products || []);
+      setSelectedProductIds(new Set());
+      setCampaignPrices({});
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingProducts(false);
+    }
   };
 
-  const toggleCampaign = (id: string) => {
-    setCampaigns((prev) => prev.map((c) => c.id === id ? { ...c, active: !c.active } : c));
+  const toggleProduct = (productId: string) => {
+    const newSet = new Set(selectedProductIds);
+    if (newSet.has(productId)) {
+      newSet.delete(productId);
+    } else {
+      newSet.add(productId);
+    }
+    setSelectedProductIds(newSet);
   };
 
-  const deleteCampaign = (id: string) => {
-    setCampaigns((prev) => prev.filter((c) => c.id !== id));
-  };
+  const submitJoin = async () => {
+    if (selectedProductIds.size === 0) return;
+    setSubmitting(true);
+    
+    const payloadProducts = Array.from(selectedProductIds).map(pid => ({
+      productId: pid,
+      campaignPrice: parseFloat(campaignPrices[pid] || "0")
+    }));
 
-  const activeCampaigns = campaigns.filter((c) => c.active);
-  const inactiveCampaigns = campaigns.filter((c) => !c.active);
+    try {
+      await apiClient.post(`/products/campaigns/${showJoinModal!.id}/join`, {
+        products: payloadProducts
+      });
+      alert("Katılım talebiniz başarıyla alındı!");
+      setShowJoinModal(null);
+    } catch (err) {
+      console.error(err);
+      alert("Katılım sırasında bir hata oluştu. Lütfen kampanya indirim kurallarına uyduğunuzdan emin olun.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Kampanya Yonetimi</h2>
-          <p className="text-sm text-slate-500 mt-1">{activeCampaigns.length} aktif kampanya</p>
+      <div className="border-b-[0.5px] border-slate-200 pb-4">
+        <h1 className="text-xl font-black tracking-tight text-slate-800">Kampanyalar</h1>
+        <p className="text-xs font-semibold text-slate-500 mt-1">Trendyol partner kampanyalarına katılarak satışlarınızı artırın.</p>
+      </div>
+
+      {loading ? (
+        <div className="animate-pulse space-y-4">
+          <div className="h-40 bg-white rounded-xl border border-slate-200" />
+          <div className="h-40 bg-white rounded-xl border border-slate-200" />
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="rounded-xl bg-[#ff6000] px-5 py-2.5 text-sm font-black text-white hover:bg-[#d85000] transition-colors"
-        >
-          + Yeni Kampanya
-        </button>
-      </div>
+      ) : activeCampaigns.length === 0 ? (
+        <div className="py-12 bg-white rounded-xl border border-slate-200 text-center space-y-3">
+          <div className="mx-auto w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+            <Megaphone size={24} />
+          </div>
+          <p className="text-sm font-bold text-slate-600">Şu anda katılabileceğiniz aktif kampanya bulunmuyor.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {activeCampaigns.map((camp) => (
+            <div key={camp.id} className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm flex flex-col sm:flex-row hover:shadow-md transition-all">
+              <div className="w-full sm:w-48 h-48 sm:h-auto bg-slate-100 relative shrink-0">
+                {camp.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`http://localhost:3002${camp.imageUrl}`} alt={camp.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-300">
+                    <Tag size={40} />
+                  </div>
+                )}
+                <div className="absolute top-2 left-2 bg-[#ff6000] text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">
+                  Aktif
+                </div>
+              </div>
+              <div className="p-5 flex flex-col flex-1">
+                <h3 className="font-black text-slate-800 text-lg">{camp.title}</h3>
+                <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">{camp.description}</p>
+                
+                <div className="mt-4 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Kampanya Kuralı</p>
+                  <p className="text-sm font-black text-slate-700">
+                    {camp.discountType === "PERCENTAGE" 
+                      ? `Minimum %${camp.discountValue} İndirim` 
+                      : `Minimum ${camp.discountValue} TL İndirim`}
+                  </p>
+                </div>
 
-      {/* Summary */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {[
-          { label: "Aktif Kampanya", value: activeCampaigns.length, color: "border-l-green-500" },
-          { label: "Indirimli Urun", value: products.filter((p) => p.discountPercent > 0).length, color: "border-l-[#ff6000]" },
-          { label: "Ort. Indirim", value: `%${Math.round(products.filter((p) => p.discountPercent > 0).reduce((s, p) => s + p.discountPercent, 0) / Math.max(1, products.filter((p) => p.discountPercent > 0).length))}`, color: "border-l-purple-500" },
-        ].map((c) => (
-          <div key={c.label} className={`rounded-xl border-l-4 bg-white p-5 shadow-sm ${c.color}`}>
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{c.label}</p>
-            <p className="mt-2 text-3xl font-black text-slate-800">{c.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* New Campaign Form */}
-      {showForm && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-5 text-base font-black text-slate-700">Yeni Kampanya Olustur</h3>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Urun Sec</label>
-              <select
-                value={formProduct}
-                onChange={(e) => setFormProduct(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#ff6000]"
-              >
-                <option value="">-- Urun --</option>
-                {products.map((p) => (
-                  <option key={p._id} value={p._id}>{p.name} ({p.brand})</option>
-                ))}
-              </select>
+                <div className="mt-auto pt-4 flex justify-end">
+                  <button 
+                    onClick={() => openJoinModal(camp)}
+                    className="px-5 py-2 bg-[#ff6000] text-white font-bold text-xs rounded-lg hover:bg-[#e65a00] transition-colors flex items-center gap-2"
+                  >
+                    <Plus size={14} strokeWidth={3} />
+                    Kampanyaya Katıl
+                  </button>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Kampanya Turu</label>
-              <select
-                value={formType}
-                onChange={(e) => setFormType(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#ff6000]"
-              >
-                {CAMPAIGN_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Etiket / Aciklama</label>
-              <input
-                type="text"
-                value={formLabel}
-                onChange={(e) => setFormLabel(e.target.value)}
-                placeholder="%20 Super Indirim!"
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#ff6000]"
-              />
-            </div>
-          </div>
-          <div className="mt-5 flex gap-3">
-            <button onClick={handleCreate} className="rounded-lg bg-[#ff6000] px-5 py-2 text-sm font-black text-white">Olustur</button>
-            <button onClick={() => setShowForm(false)} className="rounded-lg border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Vazgec</button>
-          </div>
+          ))}
         </div>
       )}
 
-      {/* Active Campaigns */}
-      <div>
-        <h3 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-600">Aktif Kampanyalar</h3>
-        {loading ? (
-          <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-white" />)}</div>
-        ) : activeCampaigns.length === 0 ? (
-          <div className="rounded-xl bg-white p-12 text-center text-slate-400 font-semibold shadow-sm border border-slate-100">Aktif kampanya yok.</div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {activeCampaigns.map((c) => (
-              <div key={c.id} className="rounded-xl border border-green-100 bg-white p-5 shadow-sm relative">
-                <div className="absolute top-3 right-3 flex gap-2">
-                  <button onClick={() => toggleCampaign(c.id)} className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 hover:bg-amber-200">Pasif Yap</button>
-                  <button onClick={() => deleteCampaign(c.id)} className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 hover:bg-red-200">Sil</button>
-                </div>
-                <div className="flex items-center gap-3 mb-3">
-                  <img src={c.product.imageUrl} alt={c.product.name} className="h-12 w-12 rounded-lg object-cover bg-slate-100" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-800 truncate">{c.product.name}</p>
-                    <p className="text-xs text-slate-500">{c.product.brand}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-full bg-[#ff6000]/10 px-3 py-1 text-xs font-black text-[#ff6000]">{c.label}</span>
-                  <span className="text-xs text-slate-400">{CAMPAIGN_TYPES.find((t) => t.value === c.type)?.label}</span>
-                </div>
-                {c.product.discountPercent > 0 && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className="text-lg font-black text-[#ff6000]">{c.product.price.toLocaleString("tr-TR")} TL</span>
-                    <span className="text-sm text-slate-400 line-through">{c.product.originalPrice.toLocaleString("tr-TR")} TL</span>
-                  </div>
-                )}
+      {/* Join Campaign Modal */}
+      {showJoinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-black text-slate-800">{showJoinModal.title} - Katılım</h2>
+                <p className="text-[10px] font-bold text-slate-500 uppercase mt-1">Ürünlerinizi seçin ve kampanya fiyatlarını belirleyin</p>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <button onClick={() => setShowJoinModal(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
 
-      {/* Inactive Campaigns */}
-      {inactiveCampaigns.length > 0 && (
-        <div>
-          <h3 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-400">Pasif Kampanyalar ({inactiveCampaigns.length})</h3>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {inactiveCampaigns.map((c) => (
-              <div key={c.id} className="rounded-xl border border-slate-100 bg-slate-50 p-4 opacity-60">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-600 truncate max-w-[60%]">{c.product.name}</p>
-                  <button onClick={() => toggleCampaign(c.id)} className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700 hover:bg-green-200">Aktif Yap</button>
+            <div className="flex-1 overflow-y-auto p-5 bg-slate-50">
+              {loadingProducts ? (
+                <div className="flex items-center justify-center h-32 text-slate-400 text-sm font-bold">
+                  Ürünleriniz yükleniyor...
                 </div>
-                <p className="text-xs text-slate-400 mt-1">{c.label}</p>
+              ) : products.length === 0 ? (
+                <div className="flex items-center justify-center h-32 text-slate-500 text-sm font-medium">
+                  Bu kampanyaya eklenebilecek ürününüz bulunmuyor.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {products.map((product) => {
+                    const isSelected = selectedProductIds.has(product._id);
+                    return (
+                      <div key={product._id} className={`flex items-center gap-4 p-3 rounded-xl border transition-all ${isSelected ? 'bg-[#ff6000]/5 border-[#ff6000]/30' : 'bg-white border-slate-200'}`}>
+                        <button onClick={() => toggleProduct(product._id)} className="shrink-0 text-slate-400 hover:text-[#ff6000] focus:outline-none">
+                          {isSelected ? <CheckSquare size={20} className="text-[#ff6000]" /> : <Square size={20} />}
+                        </button>
+                        <div className="w-12 h-12 rounded-lg bg-slate-100 overflow-hidden shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={product.imageUrl || "/placeholder.png"} alt={product.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-slate-800 truncate">{product.name}</p>
+                          <p className="text-[10px] font-bold text-slate-400 mt-0.5">Barkod: {product.barcode}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Mevcut Fiyat</p>
+                          <p className="text-sm font-black text-slate-700">{product.price} TL</p>
+                        </div>
+                        <div className="w-32 shrink-0">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Kampanya Fiyatı</label>
+                          <input 
+                            type="number" 
+                            disabled={!isSelected}
+                            value={campaignPrices[product._id] || ""}
+                            onChange={(e) => setCampaignPrices({ ...campaignPrices, [product._id]: e.target.value })}
+                            className="w-full px-2 py-1.5 text-sm font-black rounded-lg border border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 focus:outline-none focus:border-[#ff6000]"
+                            placeholder="Örn: 99.90"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-white flex justify-between items-center rounded-b-2xl">
+              <p className="text-xs font-bold text-slate-500">
+                Seçilen Ürün: <span className="text-slate-800 font-black">{selectedProductIds.size}</span>
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowJoinModal(null)} className="px-5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                  İptal
+                </button>
+                <button 
+                  onClick={submitJoin}
+                  disabled={selectedProductIds.size === 0 || submitting}
+                  className="px-6 py-2 bg-[#ff6000] text-white font-bold text-xs rounded-lg hover:bg-[#e65a00] disabled:opacity-50 transition-colors"
+                >
+                  {submitting ? "Gönderiliyor..." : "Seçilenleri Gönder"}
+                </button>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       )}

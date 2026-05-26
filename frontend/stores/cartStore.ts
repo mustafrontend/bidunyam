@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { apiClient } from '@/lib/api';
 
-interface CartItem {
+export interface CartItem {
   _id: string;
   cartKey?: string;
   name: string;
@@ -10,15 +10,18 @@ interface CartItem {
   brand: string;
   imageUrl: string;
   quantity: number;
-  barcode?: string;  // ✅ XML'den gelen barkod
-  category?: string; // ✅ Kategori bazlı sepet önerileri için
+  barcode?: string;
+  category?: string;
   selectedVariant?: Record<string, string>;
   selectedServices?: Array<{ name: string; price: number; description?: string }>;
 }
 
+// Input type for addItem — all CartItem fields except quantity which is managed internally
+export type CartItemInput = Omit<CartItem, 'quantity'>;
+
 interface CartState {
   items: CartItem[];
-  addItem: (product: any, token?: string | null) => Promise<void>;
+  addItem: (product: CartItemInput, token?: string | null) => Promise<void>;
   removeItem: (productId: string, token?: string | null) => Promise<void>;
   fetchCart: (token: string) => Promise<void>;
   clearCart: () => void;
@@ -35,9 +38,13 @@ export const useCartStore = create<CartState>()(
           const res = await apiClient.get('/cart', {
             headers: { Authorization: `Bearer ${token}` }
           });
-          set({ items: res.data.data });
-        } catch (err: any) {
-          if (err.response?.status !== 401) {
+          const rawItems = res.data?.data;
+          if (Array.isArray(rawItems)) {
+            set({ items: rawItems as CartItem[] });
+          }
+        } catch (err: unknown) {
+          const axiosErr = err as { response?: { status: number } };
+          if (axiosErr.response?.status !== 401) {
             console.error('Failed to fetch cart from Redis', err);
           }
         }
@@ -46,8 +53,8 @@ export const useCartStore = create<CartState>()(
         const items = get().items;
         const cartKey = product.cartKey || product._id;
         const existingItem = items.find((item) => (item.cartKey || item._id) === cartKey);
-        
-        let newItems;
+
+        let newItems: CartItem[];
         if (existingItem) {
           newItems = items.map((item) =>
             (item.cartKey || item._id) === cartKey
@@ -55,9 +62,22 @@ export const useCartStore = create<CartState>()(
               : item
           );
         } else {
-          newItems = [...items, { ...product, cartKey, quantity: 1 }];
+          const newItem: CartItem = {
+            _id: product._id,
+            cartKey,
+            name: product.name,
+            price: product.price,
+            brand: product.brand,
+            imageUrl: product.imageUrl,
+            quantity: 1,
+            barcode: product.barcode,
+            category: product.category,
+            selectedVariant: product.selectedVariant,
+            selectedServices: product.selectedServices,
+          };
+          newItems = [...items, newItem];
         }
-        
+
         set({ items: newItems });
 
         // Sync with Redis if logged in
@@ -66,7 +86,7 @@ export const useCartStore = create<CartState>()(
             await apiClient.post('/cart/add', product, {
               headers: { Authorization: `Bearer ${token}` }
             });
-          } catch (err) {
+          } catch (err: unknown) {
             console.error('Failed to sync cart item add', err);
           }
         }
@@ -75,7 +95,7 @@ export const useCartStore = create<CartState>()(
         const items = get().items;
         const existingItem = items.find((item) => (item.cartKey || item._id) === productId);
 
-        let newItems;
+        let newItems: CartItem[];
         if (existingItem && existingItem.quantity > 1) {
           newItems = items.map((item) =>
             (item.cartKey || item._id) === productId
@@ -94,7 +114,7 @@ export const useCartStore = create<CartState>()(
             await apiClient.delete(`/cart/${productId}`, {
               headers: { Authorization: `Bearer ${token}` }
             });
-          } catch (err) {
+          } catch (err: unknown) {
             console.error('Failed to sync cart item remove', err);
           }
         }

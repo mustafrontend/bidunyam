@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
-import { useAuthStore } from "@/stores/authStore";
+import { useSellerAuthStore } from "@/stores/sellerAuthStore";
 
 interface Ticket {
   id: string;
@@ -83,7 +83,7 @@ function generateTicketsFromOrders(orders: Order[]): Ticket[] {
 }
 
 export default function DestekPage() {
-  const { token } = useAuthStore();
+  const { token } = useSellerAuthStore();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("Tumu");

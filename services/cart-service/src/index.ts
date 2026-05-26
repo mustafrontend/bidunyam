@@ -27,6 +27,13 @@ const authenticate = (req: any, res: any, next: any) => {
   }
 };
 
+const requireAdmin = (req: any, res: any, next: any) => {
+  if (req.user?.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Only super admins can access this route' });
+  }
+  next();
+};
+
 app.get('/health', (req, res) => res.json({ status: 'OK' }));
 
 // Cart Routes
@@ -34,6 +41,9 @@ app.get('/', authenticate, CartController.getCart);
 app.post('/add', authenticate, CartController.addToCart);
 app.delete('/:productId', authenticate, CartController.removeFromCart);
 app.delete('/', authenticate, CartController.clearCart);
+
+// Admin Routes
+app.get('/admin/all', authenticate, requireAdmin, CartController.getAdminCarts);
 
 const start = async () => {
   try {

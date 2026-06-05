@@ -21,7 +21,7 @@ const CATEGORIES = [
   "Tümü", "Elektronik", "Moda", "Ev & Yaşam", "Anne & Bebek",
   "Kozmetik", "Spor & Outdoor", "Kitap & Kırtasiye", "Oyuncak", "Süpermarket",
 ];
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 24;
 
 function normalizeProducts(data: unknown[]): Product[] {
   if (!Array.isArray(data)) return [];

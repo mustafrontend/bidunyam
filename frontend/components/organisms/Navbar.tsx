@@ -5,13 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
   User, 
-  HelpCircle, 
-  Globe, 
   ShoppingCart, 
   Search, 
-  ChevronDown, 
   Heart, 
-  Menu, 
   Zap, 
   CheckCircle2, 
   Shirt, 
@@ -32,6 +28,14 @@ import { UserMenu } from "../molecules/UserMenu";
 import { SearchResults } from "../molecules/SearchResults";
 import { CategoriesMegaMenu } from "./CategoriesMegaMenu";
 
+interface Product {
+  id: string;
+  _id: string;
+  name: string;
+  price: number;
+  imageUrl: string;
+}
+
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();
@@ -40,8 +44,7 @@ export const Navbar: React.FC = () => {
   const favoriteCount = useFavoriteStore((s) => s.productIds.length);
   const fetchFavorites = useFavoriteStore((s) => s.fetchFavorites);
   const clearFavorites = useFavoriteStore((s) => s.clearFavorites);
-  const isFavoritesLoading = useFavoriteStore((s) => s.isLoading);
-  const { isLoginModalOpen, setLoginModalOpen, isBrandMode, setIsBrandMode } = useUiStore();
+  const { isLoginModalOpen, setLoginModalOpen } = useUiStore();
 
   const [isMounted, setIsMounted] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -74,27 +77,14 @@ export const Navbar: React.FC = () => {
   }, [token, user?.role, fetchFavorites, clearFavorites]);
 
   useEffect(() => {
-    // If you need more complex hydration logic, do it here
-  }, []);
-
-  if (pathname?.startsWith("/yonetim")) return null;
-
-  if (pathname.startsWith("/admin")) {
-    return null;
-  }
-
-  useEffect(() => {
     const delayDebounce = setTimeout(async () => {
       if (searchQuery.length >= 0 && showResults) {
         try {
-          // If user is logged in, pass userId
           const userIdParam = user?.id ? `&userId=${user.id}` : "";
           const res = await apiClient.get(`/search?q=${searchQuery}${userIdParam}`);
           
           if (searchQuery.length > 0) {
             setSearchResults(res.data.data || []);
-            
-            // Fallback for categories and brands if elasticsearch doesn't return them
             let cats = res.data.categories || [];
             if (cats.length === 0) {
                const ALL_CATS = ["Elektronik", "Moda", "Ev & Yaşam", "Anne & Bebek", "Kozmetik", "Spor", "Otomobil"];
@@ -114,7 +104,6 @@ export const Navbar: React.FC = () => {
             setSearchResults([]);
             setSearchCategories([]);
             setSearchBrands([]);
-            // Fake recent searches & recommended if backend returns empty (for demo)
             setRecentSearches(res.data.recentSearches?.length ? res.data.recentSearches : [
               "cep telefonu", "starbucks", "fiat modifiye", "araç italyan", "vücut geliştirme ekipman"
             ]);
@@ -128,57 +117,39 @@ export const Navbar: React.FC = () => {
     return () => clearTimeout(delayDebounce);
   }, [searchQuery, showResults, user?.id]);
 
-  if (pathname?.startsWith("/yonetim")) return null;
+  if (pathname?.startsWith("/yonetim") || pathname?.startsWith("/admin")) return null;
 
   return (
     <>
-      {/* 1. Slim Top Promo Banner (Turkish) */}
-      <div className="w-full bg-[#001819] text-white py-2 text-center text-[10px] font-black uppercase tracking-widest select-none">
-        Milyonlarca Ürün, Güvenli Teslimat, 24/7 Destek. Alışverişe Başla
+      {/* 1. Top Bar Notification (Can Alıcı Mikro Kampanya Alanı) */}
+      <div className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-slate-400 py-2 text-center text-[11px] font-medium tracking-wide select-none border-b border-slate-900">
+        Milyonlarca Ürün, Güvenli Teslimat, 24/7 Destek.{" "}
+        <span className="text-white font-semibold underline underline-offset-4 ml-1 cursor-pointer hover:text-[#ff5000] transition-colors duration-200">
+          Alışverişe Başla
+        </span>
       </div>
 
-      {/* 2. Main Premium Header Wrapper */}
-      <header className="sticky top-0 z-50 w-full bg-white text-slate-800 shadow-sm border-b-[0.5px] border-slate-200">
-        <div className="mx-auto w-full max-w-7xl px-4 py-3 md:px-8">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* 2. Main Premium Wide Sticky Header */}
+      <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl text-slate-900 border-b border-slate-100 transition-all duration-300">
+        <div className="w-full max-w-full px-4 md:px-12 2xl:px-16 py-3.5 mx-auto">
+          <div className="flex items-center justify-between gap-8 lg:gap-16">
             
-            {/* Brand Logo */}
-            <Link href="/" className="shrink-0">
-              <Logo light={false} />
-            </Link>
-
-            {/* Mode Switcher pill capsule (Turkish) */}
-            <div className="hidden md:flex bg-slate-100 p-0.5 rounded-full border border-slate-200/60 text-[10px] font-black uppercase tracking-wider select-none shrink-0">
-              <button 
-                onClick={() => setIsBrandMode(false)}
-                className={`px-4 py-1.5 rounded-full transition-all cursor-pointer ${
-                  !isBrandMode 
-                    ? "bg-white text-slate-800 font-black shadow-sm" 
-                    : "text-slate-400 hover:text-slate-700"
-                }`}
-              >
-                Bireysel
-              </button>
-              <button 
-                onClick={() => setIsBrandMode(true)}
-                className={`px-4 py-1.5 rounded-full transition-all cursor-pointer ${
-                  isBrandMode 
-                    ? "bg-white text-slate-800 font-black shadow-sm" 
-                    : "text-slate-400 hover:text-slate-700"
-                }`}
-              >
-                Tüzel
-              </button>
+            {/* Left Section: Branding & Catalog Directory */}
+            <div className="flex items-center gap-8 shrink-0">
+              <Link href="/" className="transition-transform duration-300 hover:scale-[1.01] active:scale-[0.98]">
+                <Logo light={false} />
+              </Link>
+              <div className="hidden lg:block border-l border-slate-200 pl-6 transition-colors duration-300 hover:border-[#ff5000]/30">
+                <CategoriesMegaMenu />
+              </div>
             </div>
 
-            {/* Categories Mega Menu */}
-            <div className="hidden lg:flex">
-              <CategoriesMegaMenu />
-            </div>
-
-            {/* Oversized Pinned Search Bar (Turkish) */}
-            <div className="order-3 w-full md:order-none md:flex-1 md:max-w-xl" ref={searchRef}>
-              <div className="relative w-full">
+            {/* Middle Section: Fluid Ultra-Wide Search Bar */}
+            <div className="flex-1 hidden md:block" ref={searchRef}>
+              <div className="relative w-full group">
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#ff5000] transition-colors duration-300">
+                  <Search size={15} strokeWidth={2.2} />
+                </div>
                 <input
                   type="text"
                   value={searchQuery}
@@ -190,144 +161,151 @@ export const Navbar: React.FC = () => {
                       router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
                     }
                   }}
-                  placeholder="Milyonlarca ürün arasından ara..."
-                  className="w-full rounded-full border-none bg-slate-100 py-2.5 pl-5 pr-14 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:ring-4 focus:ring-slate-200 focus:bg-white"
+                  placeholder="Aradığınız her şeyi tek adımda bulun..."
+                  className="w-full rounded-2xl border border-slate-100 bg-slate-50/70 py-2.5 pl-11 pr-5 text-xs font-medium text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-[#ff5000]/30 focus:bg-white focus:ring-4 focus:ring-[#ff5000]/5"
                 />
-                <button 
-                  onClick={() => {
-                    if (searchQuery.trim()) {
-                      setShowResults(false);
-                      router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
-                    }
-                  }}
-                  className="absolute right-1 top-1 bottom-1 rounded-full bg-[#001819] px-4 text-white hover:bg-slate-800 transition-colors active:scale-95 flex items-center justify-center cursor-pointer"
-                >
-                  <Search size={14} strokeWidth={2.5} />
-                </button>
 
-                {/* Autocomplete dropdown */}
+                {/* Search Engine Dropdown Node */}
                 {showResults && (
-                  <SearchResults 
-                    query={searchQuery}
-                    results={searchResults} 
-                    categories={searchCategories}
-                    brands={searchBrands}
-                    recentSearches={recentSearches}
-                    recommended={recommended}
-                    onClose={() => setShowResults(false)} 
-                  />
+                  <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-2xl border border-slate-100/80 overflow-hidden z-50">
+                    <SearchResults 
+                      query={searchQuery}
+                      results={searchResults} 
+                      categories={searchCategories}
+                      brands={searchBrands}
+                      recentSearches={recentSearches}
+                      recommended={recommended}
+                      onClose={() => setShowResults(false)} 
+                    />
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Header Action Controls */}
-            <nav className="flex items-center gap-3.5 md:gap-5 text-slate-700">
+            {/* Right Section: Core Interactive Profile & Cart Engine */}
+            <nav className="flex items-center gap-3.5 md:gap-5 shrink-0">
               
-              {/* Account Dropdown */}
+              {/* Identity Handler Module */}
               {isMounted && !!token ? (
                 <div className="relative">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center gap-1.5 rounded-full px-3 py-2 bg-[#ff5000] hover:bg-[#e64800] active:scale-95 transition-all text-xs font-black cursor-pointer text-white shadow-sm"
+                    className="flex items-center gap-2 rounded-xl px-4 py-2 bg-slate-950 hover:bg-[#ff5000] active:scale-[0.97] transition-all duration-300 text-xs font-medium cursor-pointer text-white shadow-md shadow-slate-950/10"
                   >
-                    <User size={18} strokeWidth={2.5} className="text-white" />
-                    <span className="hidden lg:inline line-clamp-1 max-w-[100px] text-white tracking-wide">{user?.name}</span>
+                    <User size={15} strokeWidth={2} />
+                    <span className="hidden lg:inline max-w-[90px] truncate tracking-wide">{user?.name}</span>
                   </button>
                   {isUserMenuOpen && (
-                    <UserMenu user={user} onClose={() => setIsUserMenuOpen(false)} onLogout={logout} />
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100/80 z-50">
+                      <UserMenu user={user} onClose={() => setIsUserMenuOpen(false)} onLogout={logout} />
+                    </div>
                   )}
                 </div>
               ) : (
                 <button
                   onClick={() => setLoginModalOpen(true)}
-                  className="flex items-center gap-1.5 rounded-full px-3 py-2 hover:bg-slate-100 active:scale-95 transition-all text-xs font-black cursor-pointer group"
+                  className="flex items-center gap-2 rounded-xl px-4 py-2 border border-slate-200 hover:border-[#ff5000]/40 hover:bg-[#ff5000]/5 active:scale-[0.97] transition-all duration-300 text-xs font-medium cursor-pointer text-slate-700 group"
                 >
-                  <User size={18} strokeWidth={2.5} className="text-[#001819] group-hover:text-[#ff5000] transition-colors" />
-                  <span className="hidden lg:inline text-slate-800 group-hover:text-[#ff5000] transition-colors">Giriş Yap</span>
+                  <User size={15} strokeWidth={2} className="text-slate-400 group-hover:text-[#ff5000] transition-colors duration-300" />
+                  <span className="hidden lg:inline group-hover:text-slate-900 transition-colors duration-300">Giriş Yap</span>
                 </button>
               )}
 
-              {/* Favorites Heart Icon */}
+              {/* Wishlist Icon Button */}
               <Link
                 href="/favorites"
-                className="relative flex items-center justify-center h-9 w-9 rounded-full hover:bg-slate-100 active:scale-95 transition-all text-slate-800"
+                className="relative flex items-center justify-center h-10 w-10 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100/70 active:scale-[0.96] transition-all duration-300 group"
               >
-                <Heart size={18} strokeWidth={2.5} className="text-[#001819]" />
+                <Heart size={18} strokeWidth={2} className="text-slate-600 group-hover:text-red-500 group-hover:fill-red-500 transition-all duration-300" />
                 {isMounted && favoriteCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-black text-white border border-white leading-none">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-slate-950 px-1 text-[9px] font-bold text-white border-2 border-white leading-none">
                     {favoriteCount}
                   </span>
                 )}
               </Link>
 
-              {/* Cart */}
+              {/* Dynamic Basket Controller */}
               <Link
                 href="/cart"
-                className="relative flex items-center justify-center h-9 w-9 rounded-full hover:bg-slate-100 active:scale-95 transition-all text-slate-800"
+                className="relative flex items-center justify-center h-10 w-10 rounded-xl bg-slate-50 hover:bg-[#ff5000]/5 active:scale-[0.96] transition-all duration-300 group border border-slate-100/40 hover:border-[#ff5000]/20"
               >
-                <ShoppingCart size={18} strokeWidth={2.5} className="text-[#001819]" />
+                <ShoppingCart size={17} strokeWidth={2} className="text-slate-700 group-hover:text-[#ff5000] transition-colors duration-300" />
                 {isMounted && totalItems > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-black text-white border border-white leading-none animate-bounce">
+                  <span className="absolute -top-1 -right-1 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-[#ff5000] px-1 text-[9px] font-bold text-white border-2 border-white leading-none shadow-sm shadow-[#ff5000]/20">
                     {totalItems}
                   </span>
                 )}
               </Link>
 
-              {/* Removed Ürün Sat Button */}
-
-              {/* Mobile-only: Mode Switcher segment toggle (Bireysel / Tüzel) */}
-              <div className="flex md:hidden bg-slate-100 p-0.5 rounded-full border border-slate-200/60 text-[9px] font-black uppercase tracking-wider select-none shrink-0 gap-0.5">
-                <button 
-                  onClick={() => setIsBrandMode(false)}
-                  className={`px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                    !isBrandMode 
-                      ? "bg-white text-slate-800 font-black shadow-sm" 
-                      : "text-slate-400 hover:text-slate-700"
-                  }`}
-                >
-                  Bireysel
-                </button>
-                <button 
-                  onClick={() => setIsBrandMode(true)}
-                  className={`px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                    isBrandMode 
-                      ? "bg-white text-slate-800 font-black shadow-sm" 
-                      : "text-slate-400 hover:text-slate-700"
-                  }`}
-                >
-                  Tüzel
-                </button>
-              </div>
-
             </nav>
           </div>
 
-          {/* Sub-navigation bar inside header (Turkish) */}
-          <nav className="mt-3.5 flex items-center gap-6 overflow-x-auto no-scrollbar border-t border-slate-100 pt-2.5 text-xs font-black text-slate-500 select-none">
-            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap text-slate-900 font-extrabold border-b-2 border-[#001819]">
-              <Zap size={14} className="text-amber-500 fill-amber-500 shrink-0 animate-bounce" /> Flaş Fırsatlar
+          {/* Mobile Search Viewport Node */}
+          <div className="mt-3 block md:hidden" ref={searchRef}>
+            <div className="relative w-full">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setShowResults(true)}
+                placeholder="Ürün, marka veya kategori ara..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-4 pr-10 text-xs font-medium text-slate-800 outline-none"
+              />
+              <button className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <Search size={15} />
+              </button>
+            </div>
+          </div>
+
+          {/* 3. Fluid Sub-Navigation Layer (Yarı Opak Filtreli Premium Alan) */}
+          <nav className="mt-3.5 flex items-center gap-2 overflow-x-auto no-scrollbar border-t border-slate-100 pt-3 text-xs font-medium text-slate-500 select-none scroll-smooth snap-x group/nav">
+            
+            {/* Flaş Fırsatlar: Turuncu & Siyah Lüks Kapsül */}
+            <Link href="/" className="snap-start group relative flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-950 text-white font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0 shadow-sm hover:bg-[#ff5000] group-hover/nav:opacity-100">
+              <div className="relative flex h-2 w-2 items-center justify-center">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400"></span>
+              </div>
+              <Zap size={14} className="text-amber-400 fill-amber-400 group-hover:text-white group-hover:fill-white transition-colors duration-300 shrink-0" /> 
+              <span>Flaş Fırsatlar</span>
             </Link>
-            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
-              <CheckCircle2 size={14} className="text-emerald-500 shrink-0" /> Sadece Onaylılar
+
+            {/* Diğer Fluid Linkler: Hover anında diğerlerini %60 opaklığa düşürür */}
+            <Link href="/" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
+              <CheckCircle2 size={14} className="text-slate-400 group-hover:text-emerald-500 transition-colors duration-300 shrink-0" /> 
+              <span>Sadece Onaylılar</span>
             </Link>
-            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
-              <Shirt size={14} className="text-blue-500 shrink-0" /> Giyim
+
+            <Link href="/" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
+              <Shirt size={14} className="text-slate-400 group-hover:text-[#ff5000] transition-colors duration-300 shrink-0" /> 
+              <span>Giyim</span>
             </Link>
-            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
-              <HomeIcon size={14} className="text-orange-500 shrink-0" /> Ev & Yaşam
+
+            <Link href="/" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
+              <HomeIcon size={14} className="text-slate-400 group-hover:text-orange-500 transition-colors duration-300 shrink-0" /> 
+              <span>Ev & Yaşam</span>
             </Link>
-            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
-              <Laptop size={14} className="text-indigo-500 shrink-0" /> Elektronik
+
+            <Link href="/" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
+              <Laptop size={14} className="text-slate-400 group-hover:text-indigo-500 transition-colors duration-300 shrink-0" /> 
+              <span>Elektronik</span>
             </Link>
-            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
-              <Smile size={14} className="text-purple-500 shrink-0" /> Bebek & Çocuk
+
+            <Link href="/" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
+              <Smile size={14} className="text-slate-400 group-hover:text-purple-500 transition-colors duration-300 shrink-0" /> 
+              <span>Bebek & Çocuk</span>
             </Link>
-            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
-              <Sparkles size={14} className="text-pink-500 shrink-0" /> Kozmetik
+
+            <Link href="/" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
+              <Sparkles size={14} className="text-slate-400 group-hover:text-pink-500 transition-colors duration-300 shrink-0" /> 
+              <span>Kozmetik</span>
             </Link>
-            <Link href="/" className="hover:text-slate-900 pb-1 flex items-center gap-1.5 whitespace-nowrap">
-              <Activity size={14} className="text-red-500 shrink-0" /> Spor & Outdoor
+
+            <Link href="/" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
+              <Activity size={14} className="text-slate-400 group-hover:text-rose-500 transition-colors duration-300 shrink-0" /> 
+              <span>Spor & Outdoor</span>
             </Link>
+
           </nav>
 
         </div>

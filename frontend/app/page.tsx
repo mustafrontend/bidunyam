@@ -192,7 +192,7 @@ function HomeContent() {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-slate-50">
-        <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 space-y-8">
+        <div className="w-full max-w-full px-4 sm:px-6 md:px-10 xl:px-14 py-6 space-y-8 mx-auto">
 
 
           {/* 2. Hero Banner (Campaigns Grid) */}

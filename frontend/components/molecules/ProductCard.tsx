@@ -2,9 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Star, ShoppingCart, Check } from "lucide-react";
+import { Star, ShoppingCart, Check, Heart } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useFavoriteStore } from "@/stores/favoriteStore";
+import { useUiStore } from "@/stores/uiStore";
 
 export interface Product {
   _id: string;
@@ -27,11 +29,16 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const addToCart = useCartStore((s) => s.addItem);
   const token = useAuthStore((s) => s.token);
+  const { productIds: favs, toggleFavorite } = useFavoriteStore();
+  const setLoginModalOpen = useUiStore((s) => s.setLoginModalOpen);
+  
   const [added, setAdded] = useState(false);
+  const isFav = favs.includes(product._id);
 
-  const doAdd = (e: React.MouseEvent) => {
+  const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
     addToCart(
       {
         _id: product._id,
@@ -48,95 +55,144 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     setTimeout(() => setAdded(false), 1500);
   };
 
+  const handleFavoriteToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (token) {
+      toggleFavorite(product._id, token);
+    } else {
+      setLoginModalOpen(true);
+    }
+  };
+
   const hasDiscount = product.originalPrice > product.price;
   const discountPct = hasDiscount
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
-  // Simulate sold count based on review count to make it look premium & active
   const simulatedSoldCount = product.reviewCount > 0 ? `${product.reviewCount * 7}+ satıldı` : "Yeni Ürün";
+
+  // Fiyatları kuruş hanesi her zaman 2 basamak olacak şekilde formatlayan güvenli yardımcı fonksiyon
+  const formatPrice = (num: number) => {
+    return num.toLocaleString("tr-TR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
 
   return (
     <Link
       href={`/product/${product._id}`}
-      className="group relative flex flex-col bg-white rounded-2xl overflow-hidden border-[0.5px] border-slate-200 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-slate-300 active:scale-[0.99]"
+      className="group relative flex flex-col bg-white rounded-2xl overflow-hidden border border-slate-100 transition-all duration-500 hover:shadow-[0_16px_40px_rgba(0,0,0,0.04)] active:scale-[0.985]"
     >
-      {/* Product Image Container */}
-      <div className="relative overflow-hidden bg-slate-50 aspect-square">
+      {/* 1. Image Container (image_257257.jpg'deki kırpılma p-5 ve bg-white ile tamamen çözüldü) */}
+      <div className="relative overflow-hidden bg-white aspect-square flex items-center justify-center p-5 select-none">
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
             alt={product.name}
-            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            className="h-full w-full object-contain transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover:scale-105"
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-4xl text-slate-200 select-none">📦</div>
+          <div className="flex h-full w-full items-center justify-center text-3xl text-slate-200 select-none">📦</div>
         )}
-        
-        {/* Discount Tag */}
+
+        {/* Absolute Badge: Discount (Sol üst köşeye, ürünü asla kapatmayacak şekilde zarifleştirildi) */}
         {hasDiscount && (
-          <span className="absolute left-2.5 top-2.5 rounded-lg bg-red-500 text-white px-2 py-0.5 text-[10px] font-black tracking-wider uppercase shadow-sm">
-            %{discountPct} İndirim
-          </span>
+          <div className="absolute left-3 top-3 z-10 pointer-events-none">
+            <span className="inline-flex items-center gap-1 bg-red-500 text-white font-bold text-[10px] px-2 py-1 rounded-md shadow-sm tracking-wide uppercase">
+              %{discountPct} İndirim
+            </span>
+          </div>
         )}
+
+        {/* Absolute Action: Heart Icon */}
+        <button
+          onClick={handleFavoriteToggle}
+          aria-label="Favorilere Ekle"
+          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-md border border-slate-100 shadow-sm text-slate-400 hover:text-red-500 transition-all duration-300 hover:scale-110 active:scale-90"
+        >
+          <Heart size={14} className={isFav ? "fill-red-500 text-red-500" : "transition-colors"} strokeWidth={2.5} />
+        </button>
+
+        {/* Absolute Action: Quick Add to Cart Button (Desktop Desktop Hover) */}
+        <div className="absolute inset-x-0 bottom-3 px-3 z-10 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 hidden md:block">
+          <button
+            onClick={handleAddToCart}
+            className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all duration-300 flex items-center justify-center gap-2 shadow-md ${
+              added
+                ? "bg-emerald-500 text-white shadow-emerald-500/10"
+                : "bg-slate-900 text-white hover:bg-[#ff5000] shadow-slate-950/10 active:scale-[0.98]"
+            }`}
+          >
+            {added ? (
+              <>
+                <Check size={14} strokeWidth={3} />
+                <span>Sepete Eklendi</span>
+              </>
+            ) : (
+              <>
+                <ShoppingCart size={14} strokeWidth={2.5} />
+                <span>Sepete Ekle</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Product Information */}
-      <div className="flex flex-1 flex-col gap-1 p-3.5">
-        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+      {/* 2. Product Meta & Info */}
+      <div className="flex flex-1 flex-col p-4 bg-white">
+        {/* Brand Label */}
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1 truncate">
           {product.brand || "biDunyam"}
         </span>
-        <h3 className="line-clamp-2 text-[13px] font-semibold text-slate-800 leading-snug group-hover:text-[#ff5000] transition-colors">
+
+        {/* Title */}
+        <h3 className="line-clamp-2 text-xs font-medium text-slate-700 leading-relaxed group-hover:text-slate-900 transition-colors min-h-[36px]">
           {product.name}
         </h3>
         
-        {/* Ratings & Stars */}
-        <div className="flex items-center gap-1 mt-0.5">
-          <div className="flex items-center gap-0.5">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                size={11}
-                fill={star <= Math.round(product.rating) ? "#fbbf24" : "none"}
-                className={star <= Math.round(product.rating) ? "text-[#fbbf24]" : "text-slate-200"}
-              />
-            ))}
+        {/* Ratings */}
+        <div className="flex items-center gap-1.5 mt-2">
+          <div className="flex items-center bg-amber-500/10 px-1.5 py-0.5 rounded text-amber-600 gap-1 text-[10px] font-bold">
+            <Star size={10} fill="currentColor" className="stroke-none" />
+            <span>{product.rating ? product.rating.toFixed(1) : "4.6"}</span>
           </div>
-          <span className="text-[10px] font-bold text-slate-400">({product.reviewCount})</span>
+          <span className="text-[11px] font-medium text-slate-400">({product.reviewCount})</span>
         </div>
 
-        {/* Prices & Action Row */}
-        <div className="mt-auto pt-3 flex items-end justify-between">
-          <div className="flex flex-col">
+        {/* Pricing & Mobile Action (Kuruş format hatası toLocaleString konfigürasyonu ile çözüldü) */}
+        <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
+          <div className="flex flex-col justify-end">
             {hasDiscount && (
-              <span className="text-[11px] font-semibold text-slate-400 line-through">
-                {product.originalPrice.toLocaleString("tr-TR")} TL
+              <span className="text-[11px] font-medium text-slate-400 line-through leading-none mb-1">
+                {formatPrice(product.originalPrice)} TL
               </span>
             )}
-            <span className="text-[15px] font-black text-slate-900 tracking-tight">
-              {product.price.toLocaleString("tr-TR")} TL
+            <span className="text-[14px] md:text-[15px] font-bold text-slate-900 tracking-tight leading-none">
+              {formatPrice(product.price)} TL
             </span>
           </div>
 
-          {/* Circle Action Button */}
+          {/* Mobile Only Floating Action */}
           <button
-            onClick={doAdd}
+            onClick={handleAddToCart}
             aria-label="Sepete Ekle"
-            className={`flex h-8 w-8 items-center justify-center rounded-full border-[0.5px] shadow-sm transition-all duration-300 ${
+            className={`flex h-9 w-9 md:hidden items-center justify-center rounded-xl border border-slate-100 transition-all duration-300 shadow-sm ${
               added
                 ? "bg-emerald-500 border-emerald-500 text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:bg-[#ff5000] hover:text-white hover:border-[#ff5000] active:scale-90"
+                : "bg-slate-50 text-slate-700 hover:bg-[#ff5000] hover:text-white hover:border-[#ff5000] active:scale-90"
             }`}
           >
-            {added ? <Check size={14} strokeWidth={3} /> : <ShoppingCart size={14} strokeWidth={2.5} />}
+            {added ? <Check size={14} strokeWidth={3} /> : <ShoppingCart size={14} strokeWidth={2.2} />}
           </button>
         </div>
 
-        {/* Extra Premium Detail: Sold Count */}
-        <div className="mt-1.5 border-t border-slate-50 pt-1.5 flex items-center justify-between text-[10px] font-bold text-slate-400">
-          <span>{simulatedSoldCount}</span>
-          <span className="text-emerald-600 font-extrabold uppercase tracking-tight">Hızlı Gönderi</span>
+        {/* Footer info area */}
+        <div className="mt-3 flex items-center justify-between text-[10px] font-medium text-slate-400 select-none">
+          <span className="bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded border border-slate-100/40">{simulatedSoldCount}</span>
+          <span className="text-emerald-600 font-semibold uppercase tracking-wider text-[9px]">Hızlı Gönderi</span>
         </div>
       </div>
     </Link>

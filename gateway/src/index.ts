@@ -52,6 +52,8 @@ const buildProxy = (target: string, pathRewrite: Record<string, string>): Option
   target,
   changeOrigin: true,
   pathRewrite,
+  proxyTimeout: 120000,
+  timeout: 120000,
   on: {
     error: (err: Error, _req, res) => {
       console.error(`[Gateway] Proxy error: ${err.message}`);

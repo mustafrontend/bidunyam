@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { apiClient } from "@/lib/api";
 import { useSellerAuthStore } from "@/stores/sellerAuthStore";
 import { useCartStore } from "@/stores/cartStore";
@@ -96,6 +97,13 @@ export default function YonetimGirisPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 antialiased font-sans">
       <div className="w-full max-w-[420px] space-y-6">
+        <div className="flex justify-center pb-2">
+          <Link href="/" className="text-[11px] font-black uppercase tracking-wider text-slate-400 hover:text-[#ff6000] transition-all flex items-center gap-1.5 hover:-translate-x-1 duration-300">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Pazaryerine Git
+          </Link>
+        </div>
+
         {/* Title / Logo Header */}
         <div className="text-center space-y-1">
           <div className="inline-flex items-center space-x-1.5 leading-none">

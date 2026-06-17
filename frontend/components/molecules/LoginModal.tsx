@@ -33,25 +33,34 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (mode === 'kayit') {
-      setError('Kayıt işlemi şu an yapım aşamasındadır.');
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
-      const res = await apiClient.post('/auth/login', { email, password });
-      setAuth(res.data.data.user, res.data.data.token);
-      
-      // 🛒 Sync cart from Redis & fetch wishlists
-      await useCartStore.getState().fetchCart(res.data.data.token);
-      await fetchFavorites(res.data.data.token);
-      
-      onClose();
+      if (mode === 'kayit') {
+        // Kayıt işlemini gerçekleştir
+        await apiClient.post('/auth/register', { name, email, password });
+        // Kayıt başarılıysa otomatik giriş yap
+        const loginRes = await apiClient.post('/auth/login', { email, password });
+        setAuth(loginRes.data.data.user, loginRes.data.data.token);
+        
+        await useCartStore.getState().fetchCart(loginRes.data.data.token);
+        await fetchFavorites(loginRes.data.data.token);
+        
+        onClose();
+      } else {
+        // Normal giriş işlemi
+        const res = await apiClient.post('/auth/login', { email, password });
+        setAuth(res.data.data.user, res.data.data.token);
+        
+        // 🛒 Sync cart from Redis & fetch wishlists
+        await useCartStore.getState().fetchCart(res.data.data.token);
+        await fetchFavorites(res.data.data.token);
+        
+        onClose();
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Giriş yapılamadı. Bilgilerinizi kontrol edin.');
+      setError(err.response?.data?.message || 'İşlem başarısız. Bilgilerinizi kontrol edin.');
     } finally {
       setLoading(false);
     }

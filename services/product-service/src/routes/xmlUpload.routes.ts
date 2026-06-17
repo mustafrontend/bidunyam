@@ -42,8 +42,8 @@ const upload = multer({
   },
 });
 
-const MAX_REMOTE_XML_SIZE = 10 * 1024 * 1024;
-const REMOTE_FETCH_TIMEOUT_MS = 20000;
+const MAX_REMOTE_XML_SIZE = 500 * 1024 * 1024; // 500MB
+const REMOTE_FETCH_TIMEOUT_MS = 120000;
 const REMOTE_FETCH_ATTEMPTS = 3;
 
 function isRetryableNetworkError(error: any): boolean {
@@ -120,57 +120,13 @@ function normalizeRemoteXmlUrl(value: unknown): string {
 }
 
 async function fetchRemoteXmlContent(xmlUrl: string): Promise<string> {
-  let lastError: any;
-
-  for (let attempt = 1; attempt <= REMOTE_FETCH_ATTEMPTS; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REMOTE_FETCH_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(xmlUrl, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          Accept: 'application/xml,text/xml,text/plain,*/*',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`XML linki okunamadı (${response.status})`);
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      const body = await response.text();
-
-      if (body.length > MAX_REMOTE_XML_SIZE) {
-        throw new Error('XML içeriği 10MB sınırını aşıyor');
-      }
-
-      if (!contentType.includes('xml') && !body.trim().startsWith('<')) {
-        throw new Error('Link XML içeriği döndürmüyor');
-      }
-
-      return body;
-    } catch (error: any) {
-      lastError = error;
-      if (!isRetryableNetworkError(error) || attempt === REMOTE_FETCH_ATTEMPTS) {
-        break;
-      }
-      console.warn(`[XML Fetch] fetch denemesi başarısız (${attempt}/${REMOTE_FETCH_ATTEMPTS}), tekrar denenecek...`);
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
-
-  console.warn('[XML Fetch] fetch başarısız, native fallback devrede:', lastError?.message || lastError);
-
   const parsedUrl = new URL(xmlUrl);
   const client = parsedUrl.protocol === 'https:' ? https : http;
 
-  let fallbackError: any;
+  let lastError: any;
   for (let attempt = 1; attempt <= REMOTE_FETCH_ATTEMPTS; attempt++) {
     try {
-      const fallbackResult = await new Promise<{ statusCode: number; contentType: string; body: string }>((resolve, reject) => {
+      const result = await new Promise<{ statusCode: number; contentType: string; body: string }>((resolve, reject) => {
         const req = client.get(
           xmlUrl,
           {
@@ -178,6 +134,7 @@ async function fetchRemoteXmlContent(xmlUrl: string): Promise<string> {
             family: 4,
             headers: {
               Accept: 'application/xml,text/xml,text/plain,*/*',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36'
             },
           },
           (resp) => {
@@ -189,7 +146,7 @@ async function fetchRemoteXmlContent(xmlUrl: string): Promise<string> {
             resp.on('data', (chunk) => {
               body += chunk;
               if (body.length > MAX_REMOTE_XML_SIZE) {
-                req.destroy(new Error('XML içeriği 10MB sınırını aşıyor'));
+                req.destroy(new Error('XML içeriği 500MB sınırını aşıyor'));
               }
             });
             resp.on('end', () => resolve({ statusCode, contentType, body }));
@@ -201,25 +158,25 @@ async function fetchRemoteXmlContent(xmlUrl: string): Promise<string> {
         req.on('error', reject);
       });
 
-      if (fallbackResult.statusCode < 200 || fallbackResult.statusCode >= 300) {
-        throw new Error(`XML linki okunamadı (${fallbackResult.statusCode})`);
+      if (result.statusCode < 200 || result.statusCode >= 300) {
+        throw new Error(`XML linki okunamadı (${result.statusCode})`);
       }
 
-      if (!fallbackResult.contentType.includes('xml') && !fallbackResult.body.trim().startsWith('<')) {
+      if (!result.contentType.includes('xml') && !result.body.trim().startsWith('<')) {
         throw new Error('Link XML içeriği döndürmüyor');
       }
 
-      return fallbackResult.body;
+      return result.body;
     } catch (error: any) {
-      fallbackError = error;
+      lastError = error;
       if (!isRetryableNetworkError(error) || attempt === REMOTE_FETCH_ATTEMPTS) {
         break;
       }
-      console.warn(`[XML Fetch] native fallback denemesi başarısız (${attempt}/${REMOTE_FETCH_ATTEMPTS}), tekrar denenecek...`);
+      console.warn(`[XML Fetch] deneme başarısız (${attempt}/${REMOTE_FETCH_ATTEMPTS}), tekrar denenecek...`);
     }
   }
 
-  throw fallbackError || lastError || new Error('XML içeriği alınamadı');
+  throw lastError || new Error('XML içeriği alınamadı');
 }
 
 /**

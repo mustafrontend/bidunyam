@@ -67,7 +67,7 @@ function DeleteModal({ target, deleting, onConfirm, onCancel }: {
 }
 
 function XmlTab({ state }: { state: ReturnType<typeof useSellerProducts> }) {
-  const { xmlLoading, xmlData, xmlHistory, xmlSearch, setXmlSearch, filteredXmlProducts } = state;
+  const { xmlLoading, xmlData, xmlHistory, xmlFeeds, deleteXmlFeed, xmlSearch, setXmlSearch, filteredXmlProducts } = state;
 
   if (xmlLoading) {
     return (
@@ -79,7 +79,7 @@ function XmlTab({ state }: { state: ReturnType<typeof useSellerProducts> }) {
     );
   }
 
-  if (!xmlData?.request) {
+  if (!xmlData?.request && xmlFeeds.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center">
         <p className="text-slate-500 font-bold">Henüz içeri aktarılmış bir XML kataloğunuz bulunmamaktadır.</p>
@@ -93,46 +93,78 @@ function XmlTab({ state }: { state: ReturnType<typeof useSellerProducts> }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-black text-green-700">● Aktif Yayında</span>
-              <h3 className="mt-3 text-lg font-black text-slate-800">📄 {xmlData.request.xmlFileName || "İçeri Aktarılan Dosya"}</h3>
-              <p className="mt-1.5 text-xs text-[#ff6000] font-bold break-all">
-                🔗 <a href={xmlData.request.sourceUrl} target="_blank" rel="noreferrer" className="hover:underline">{xmlData.request.sourceUrl}</a>
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-slate-400 font-bold">İthalat Tarihi</p>
-              <p className="text-sm font-black text-slate-700 mt-1">{new Date(xmlData.request.createdAt).toLocaleString("tr-TR")}</p>
-            </div>
-          </div>
-          <div className="mt-6 border-t border-slate-100 pt-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-black text-[#ff6000]">{xmlData.products.length}</span>
-              <span className="text-xs text-slate-500 font-bold">Aktif Kataloğa Alınan Ürün</span>
-            </div>
-            <a href="/yonetim/xml-import" className="text-xs font-black text-slate-600 hover:text-[#ff6000] transition-colors">Yeni Güncelleme Yap ➔</a>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">Geçmiş XML Yüklemeleri</h4>
-          <div className="space-y-3">
-            {xmlHistory.slice(0, 3).map((hist, idx) => (
-              <div key={idx} className="flex items-center justify-between text-xs border-b border-slate-50 pb-2 last:border-0 last:pb-0">
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-700 truncate">{hist.xmlFileName}</p>
-                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">{new Date(hist.createdAt).toLocaleDateString("tr-TR")}</p>
+      {xmlFeeds.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm mb-6">
+          <h3 className="text-lg font-black text-slate-800 mb-4">⚙️ Aktif XML Entegrasyonları (Otomatik Güncellenenler)</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {xmlFeeds.map((feed) => (
+              <div key={feed.id} className="rounded-xl border border-slate-100 p-4 bg-slate-50 flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-800 uppercase">Her {feed.syncInterval} Dk</span>
+                    <h4 className="font-bold text-slate-800">{feed.name}</h4>
+                  </div>
+                  <a href={feed.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline break-all block mb-2">{feed.url}</a>
+                  <p className="text-[10px] text-slate-500">Son Senkronizasyon: {feed.lastSyncAt ? new Date(feed.lastSyncAt).toLocaleString('tr-TR') : 'Henüz çalışmadı'}</p>
                 </div>
-                <span className="font-black text-slate-500 shrink-0 ml-2">{hist.totalProducts} Ürün</span>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`${feed.name} entegrasyonunu silmek istediğinize emin misiniz?`)) {
+                      deleteXmlFeed(feed.id);
+                    }
+                  }}
+                  className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-200 transition-colors ml-4 shrink-0"
+                >
+                  Sil
+                </button>
               </div>
             ))}
-            {xmlHistory.length === 0 && <p className="text-slate-400 text-xs font-bold py-4 text-center">Yükleme geçmişi bulunmamaktadır.</p>}
           </div>
         </div>
-      </div>
+      )}
+
+      {xmlData?.request && (
+        <div className="grid gap-6 md:grid-cols-3">
+          <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-black text-green-700">● Aktif Yayında</span>
+                <h3 className="mt-3 text-lg font-black text-slate-800">📄 {xmlData.request.xmlFileName || "İçeri Aktarılan Dosya"}</h3>
+                <p className="mt-1.5 text-xs text-[#ff6000] font-bold break-all">
+                  🔗 <a href={xmlData.request.sourceUrl} target="_blank" rel="noreferrer" className="hover:underline">{xmlData.request.sourceUrl}</a>
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-400 font-bold">İthalat Tarihi</p>
+                <p className="text-sm font-black text-slate-700 mt-1">{new Date(xmlData.request.createdAt).toLocaleString("tr-TR")}</p>
+              </div>
+            </div>
+            <div className="mt-6 border-t border-slate-100 pt-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-black text-[#ff6000]">{xmlData.products.length}</span>
+                <span className="text-xs text-slate-500 font-bold">Aktif Kataloğa Alınan Ürün</span>
+              </div>
+              <a href="/yonetim/xml-import" className="text-xs font-black text-slate-600 hover:text-[#ff6000] transition-colors">Yeni Güncelleme Yap ➔</a>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">Geçmiş XML Yüklemeleri</h4>
+            <div className="space-y-3">
+              {xmlHistory.slice(0, 3).map((hist, idx) => (
+                <div key={idx} className="flex items-center justify-between text-xs border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-700 truncate">{hist.xmlFileName}</p>
+                    <p className="text-[10px] text-slate-400 font-bold mt-0.5">{new Date(hist.createdAt).toLocaleDateString("tr-TR")}</p>
+                  </div>
+                  <span className="font-black text-slate-500 shrink-0 ml-2">{hist.totalProducts} Ürün</span>
+                </div>
+              ))}
+              {xmlHistory.length === 0 && <p className="text-slate-400 text-xs font-bold py-4 text-center">Yükleme geçmişi bulunmamaktadır.</p>}
+            </div>
+          </div>
+        </div>
+      )}
 
       <input type="text" value={xmlSearch} onChange={(e) => setXmlSearch(e.target.value)} placeholder="XML ürün veya barkod ara..."
         className="w-72 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-[#ff6000]" />

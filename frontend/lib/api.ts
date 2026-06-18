@@ -2,7 +2,10 @@ import axios from 'axios';
 
 function getApiUrl() {
   if (typeof window !== 'undefined') {
-    return '/api';
+    if (window.location.hostname === 'localhost') {
+      return 'http://localhost:8080';
+    }
+    return process.env.NEXT_PUBLIC_API_URL || '/api';
   }
 
   if (process.env.NEXT_PUBLIC_API_URL) {

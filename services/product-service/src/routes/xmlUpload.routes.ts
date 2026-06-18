@@ -4,9 +4,11 @@ import path from 'path';
 import fs from 'fs';
 import http from 'http';
 import https from 'https';
+import { Readable } from 'stream';
 import { xmlParserService } from '../services/xmlParser.service';
 import { xmlCatalogService } from '../services/xmlCatalog.service';
 import { authenticate, optionalAuthenticate, AuthenticatedRequest, requireAdmin } from '../middlewares/auth.middleware';
+import prisma from '../repositories/prisma.client';
 
 const router = Router();
 
@@ -119,14 +121,14 @@ function normalizeRemoteXmlUrl(value: unknown): string {
   return parsedUrl.toString();
 }
 
-async function fetchRemoteXmlContent(xmlUrl: string): Promise<string> {
+async function fetchRemoteXmlContent(xmlUrl: string): Promise<Readable> {
   const parsedUrl = new URL(xmlUrl);
   const client = parsedUrl.protocol === 'https:' ? https : http;
 
   let lastError: any;
   for (let attempt = 1; attempt <= REMOTE_FETCH_ATTEMPTS; attempt++) {
     try {
-      const result = await new Promise<{ statusCode: number; contentType: string; body: string }>((resolve, reject) => {
+      const resp = await new Promise<http.IncomingMessage>((resolve, reject) => {
         const req = client.get(
           xmlUrl,
           {
@@ -137,20 +139,13 @@ async function fetchRemoteXmlContent(xmlUrl: string): Promise<string> {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36'
             },
           },
-          (resp) => {
-            const statusCode = resp.statusCode || 0;
-            const contentType = String(resp.headers['content-type'] || '');
-            let body = '';
-
-            resp.setEncoding('utf8');
-            resp.on('data', (chunk) => {
-              body += chunk;
-              if (body.length > MAX_REMOTE_XML_SIZE) {
-                req.destroy(new Error('XML içeriği 500MB sınırını aşıyor'));
-              }
-            });
-            resp.on('end', () => resolve({ statusCode, contentType, body }));
-            resp.on('error', reject);
+          (res) => {
+            const statusCode = res.statusCode || 0;
+            if (statusCode < 200 || statusCode >= 300) {
+              res.resume();
+              return reject(new Error(`XML linki okunamadı (${statusCode})`));
+            }
+            resolve(res);
           }
         );
 
@@ -158,15 +153,7 @@ async function fetchRemoteXmlContent(xmlUrl: string): Promise<string> {
         req.on('error', reject);
       });
 
-      if (result.statusCode < 200 || result.statusCode >= 300) {
-        throw new Error(`XML linki okunamadı (${result.statusCode})`);
-      }
-
-      if (!result.contentType.includes('xml') && !result.body.trim().startsWith('<')) {
-        throw new Error('Link XML içeriği döndürmüyor');
-      }
-
-      return result.body;
+      return resp;
     } catch (error: any) {
       lastError = error;
       if (!isRetryableNetworkError(error) || attempt === REMOTE_FETCH_ATTEMPTS) {
@@ -301,8 +288,8 @@ router.get('/admin/xml/all-requests', authenticate, requireAdmin, (req: Authenti
 router.post('/admin/xml/preview-url', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const xmlUrl = normalizeRemoteXmlUrl(req.body?.url);
-    const xmlContent = await fetchRemoteXmlContent(xmlUrl);
-    const products = xmlParserService.parseXMLString(xmlContent);
+    const xmlStream = await fetchRemoteXmlContent(xmlUrl);
+    const products = await xmlParserService.parseXMLStream(xmlStream);
     const validation = xmlParserService.validateProducts(products);
 
     res.status(200).json({
@@ -312,6 +299,7 @@ router.post('/admin/xml/preview-url', authenticate, async (req: AuthenticatedReq
       validProducts: products.length - Object.keys(validation.errors).length,
       invalidProducts: Object.keys(validation.errors).length,
       errors: validation.errors,
+      rawProduct: products.length > 0 ? (products[0] as any)._rawProduct || {} : {},
       preview: products.slice(0, 10).map((p: any) => {
         const priceStr = String(p.fiyat || p.bayifiyat || '0');
         const price = parseFloat(priceStr.replace(/[^0-9.]/g, '')) || 0;
@@ -347,8 +335,8 @@ router.post('/admin/xml/preview-url', authenticate, async (req: AuthenticatedReq
 router.post('/admin/xml/import-url', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const xmlUrl = normalizeRemoteXmlUrl(req.body?.url);
-    const xmlContent = await fetchRemoteXmlContent(xmlUrl);
-    const products = xmlParserService.parseXMLString(xmlContent);
+    const xmlStream = await fetchRemoteXmlContent(xmlUrl);
+    const products = await xmlParserService.parseXMLStream(xmlStream);
     const validation = xmlParserService.validateProducts(products);
 
     if (!validation.isValid) {
@@ -616,6 +604,67 @@ router.post('/admin/xml/preview', authenticate, upload.single('file'), async (re
       message: 'Preview oluşturulamadı',
       error: error.message,
     });
+  }
+});
+
+// --- XML FEED CRUD (Saatlik Otomatik Güncelleme için) ---
+
+import { xmlCronService } from '../services/xmlCron.service';
+
+router.get('/admin/xml/feeds', authenticate, async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const feeds = await prisma.xmlFeed.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, feeds });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.post('/admin/xml/feeds', authenticate, async (req, res) => {
+  try {
+    const { name, url, syncInterval, fieldMapping } = req.body;
+    const userId = (req as any).user.id;
+    
+    const newFeed = await prisma.xmlFeed.create({
+      data: {
+        userId,
+        name,
+        url,
+        syncInterval: syncInterval || 60,
+        fieldMapping: fieldMapping || {},
+        isActive: true
+      }
+    });
+
+    // Otomatik olarak ilk senkronizasyonu arka planda başlat
+    xmlCronService.syncFeed(newFeed.id).catch(err => console.error('Initial sync failed', err));
+
+    res.json({ success: true, feed: newFeed });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.delete('/admin/xml/feeds/:id', authenticate, async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    // Check ownership first (or let prisma throw an error if not found, but it's safer to find first)
+    const feed = await prisma.xmlFeed.findUnique({ where: { id: req.params.id } });
+    if (!feed) {
+      return res.status(404).json({ success: false, message: 'Feed bulunamadı' });
+    }
+    if (feed.userId !== userId) {
+      return res.status(403).json({ success: false, message: 'Yetkisiz işlem' });
+    }
+    
+    await prisma.xmlFeed.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

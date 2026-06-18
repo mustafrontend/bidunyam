@@ -256,6 +256,7 @@ export function useSellerProducts() {
   const [xmlLoading, setXmlLoading] = useState(false);
   const [xmlData, setXmlData] = useState<XmlCatalogData | null>(null);
   const [xmlHistory, setXmlHistory] = useState<XmlHistoryItem[]>([]);
+  const [xmlFeeds, setXmlFeeds] = useState<any[]>([]);
   const [xmlSearch, setXmlSearch] = useState("");
 
   const fetchProducts = useCallback(async () => {
@@ -286,15 +287,17 @@ export function useSellerProducts() {
   const fetchXmlCatalog = useCallback(async () => {
     setXmlLoading(true);
     try {
-      const [catalogRes, requestsRes] = await Promise.all([
+      const [catalogRes, requestsRes, feedsRes] = await Promise.all([
         apiClient.get("/products/xml/catalog?limit=50000"),
         apiClient.get("/products/admin/xml/requests"),
+        apiClient.get("/products/admin/xml/feeds").catch(() => ({ data: { feeds: [] } }))
       ]);
       setXmlData({
         request: catalogRes.data?.data?.request || null,
         products: catalogRes.data?.data?.products || [],
       });
       setXmlHistory(requestsRes.data?.data?.requests || []);
+      setXmlFeeds(feedsRes.data?.feeds || []);
     } catch (err: unknown) {
       console.error("Failed to fetch XML catalog", err);
     } finally {
@@ -605,6 +608,16 @@ export function useSellerProducts() {
     }
   }, [form, imageSlots, variantGroups, extraServices, categoryAttributes, editingProduct, token, resetForm, fetchProducts]);
 
+  const deleteXmlFeed = async (id: string) => {
+    try {
+      await apiClient.delete(`/products/admin/xml/feeds/${id}`);
+      setXmlFeeds((prev) => prev.filter((f) => f.id !== id));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
+      setError(`Feed silinemedi: ${msg}`);
+    }
+  };
+
   return {
     // State
     products, loading, search, setSearch, categoryFilter, setCategoryFilter,
@@ -616,12 +629,12 @@ export function useSellerProducts() {
     PAGE_SIZE, duplicateTarget, setDuplicateTarget, duplicateCount, setDuplicateCount,
     duplicating, duplicateError, setDuplicateError, editingProduct, setEditingProduct,
     deleteTarget, setDeleteTarget, deleting, togglingId, activeTab, setActiveTab,
-    xmlLoading, xmlData, xmlHistory, xmlSearch, setXmlSearch,
+    xmlLoading, xmlData, xmlHistory, xmlFeeds, xmlSearch, setXmlSearch,
     // Computed
     categories, filtered, paginated, totalPages, activeSubCategories, filteredXmlProducts,
     // Actions
     fetchProducts, fetchXmlCatalog, resetForm, openEditForm, handleDelete,
     handleToggleActive, addCategoryMain, addCategorySub, addBrand,
-    handleImageChange, handleDuplicate, handleSave,
+    handleImageChange, handleDuplicate, handleSave, handleDelete, deleteXmlFeed
   };
 }

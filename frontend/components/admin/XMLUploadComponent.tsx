@@ -8,6 +8,7 @@ interface PreviewData {
   validProducts: number;
   invalidProducts: number;
   errors: Record<string, string[]>;
+  rawProduct?: Record<string, string>;
   preview: any[];
 }
 
@@ -39,6 +40,21 @@ export const XMLUploadComponent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<ImportResponse | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Yeni eklentiler: Dinamik Mapping ve Cron Görevi
+  const [feedName, setFeedName] = useState("");
+  const [fieldMapping, setFieldMapping] = useState({
+    urunKodu: "",
+    urunAdi: "",
+    kategori: "",
+    fiyat: "",
+    stok: "",
+    aciklama: "",
+    resim: "",
+    marka: "",
+    tax: "",
+    desi: "",
+  });
 
   // Örnek XML dosyası indir
   const handleDownloadSample = async () => {
@@ -103,15 +119,15 @@ export const XMLUploadComponent: React.FC = () => {
     }
   };
 
-  // Upload yapılması
-  const handleUpload = async () => {
-    if (!preview) {
-      setError("Lütfen önce preview yapınız");
+
+
+  const handleCreateFeed = async () => {
+    if (!validateXmlUrl(xmlUrl)) {
+      setError("Lütfen geçerli bir XML linki giriniz");
       return;
     }
-
-    if (!validateXmlUrl(xmlUrl)) {
-      setError("Lütfen geçerli ve herkese açık bir XML linki giriniz (localhost/private link olmaz)");
+    if (!feedName.trim()) {
+      setError("Lütfen bir entegrasyon adı belirleyin (Örn: Tedarikçi X)");
       return;
     }
 
@@ -119,30 +135,79 @@ export const XMLUploadComponent: React.FC = () => {
     setError(null);
     setSuccess(null);
 
+    // Boş olan eşleştirmeleri temizle
+    const cleanedMapping: Record<string, string> = {};
+    Object.entries(fieldMapping).forEach(([k, v]) => {
+      if (v.trim()) cleanedMapping[k] = v.trim();
+    });
+
     try {
-      const response = await apiClient.post("/products/admin/xml/import-url", {
+      const response = await apiClient.post("/products/admin/xml/feeds", {
+        name: feedName,
         url: xmlUrl.trim(),
+        syncInterval: 60,
+        fieldMapping: cleanedMapping,
       });
 
       const data = response.data;
 
       if (!data.success) {
-        setError(data.message || "Upload başarısız");
+        setError(data.message || "Feed oluşturulamadı");
         return;
       }
 
-      setSuccess(data as ImportResponse);
+      setSuccess({
+        success: true,
+        message: "Entegrasyon başarıyla kaydedildi! İlk senkronizasyon arka planda başlatıldı. Birazdan ürünler kataloğa eklenecektir.",
+        xmlFileName: feedName,
+        importedAt: new Date().toISOString(),
+      } as any);
       setXmlUrl("");
       setPreview(null);
+      setFeedName("");
       if (inputRef.current) {
         inputRef.current.value = "";
       }
     } catch (err: any) {
       const backendError = err?.response?.data?.error || err?.response?.data?.message;
-      setError("Upload sırasında hata oluştu: " + (backendError || err.message));
+      setError("Görev oluşturulamadı: " + (backendError || err.message));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAutoMatch = () => {
+    if (!preview || !preview.rawProduct) return;
+
+    const keywords: Record<string, string[]> = {
+      urunKodu: ['barcode', 'barkod', 'productcode', 'urun_kodu', 'item_code', 'sku', 'id'],
+      urunAdi: ['name', 'title', 'urunadi', 'urun_adi', 'productname', 'baslik'],
+      kategori: ['category', 'kategori', 'maincategory', 'kategori_adi', 'cat'],
+      fiyat: ['price', 'fiyat', 'satis_fiyati', 'listprice', 'amount', 'peşin_fiyat'],
+      stok: ['stock', 'stok', 'quantity', 'miktar', 'adet'],
+      aciklama: ['description', 'aciklama', 'detail', 'detay', 'icerik', 'info'],
+      resim: ['image', 'resim', 'picture', 'photo', 'img', 'gorsel', 'link', 'resim_1'],
+      marka: ['brand', 'marka', 'brandname', 'manufacturer'],
+      tax: ['tax', 'kdv', 'vergi', 'taxrate'],
+      desi: ['desi', 'weight', 'agirlik', 'hacim']
+    };
+
+    const rawKeys = Object.keys(preview.rawProduct);
+    const newMapping = { ...fieldMapping };
+
+    Object.keys(keywords).forEach((targetField) => {
+      const syns = keywords[targetField];
+      // Try to find a matching raw key
+      const match = rawKeys.find(rk => {
+        const lowerKey = rk.toLowerCase();
+        return syns.some(syn => lowerKey.includes(syn));
+      });
+      if (match) {
+        (newMapping as any)[targetField] = match;
+      }
+    });
+
+    setFieldMapping(newMapping);
   };
 
   return (
@@ -255,6 +320,68 @@ export const XMLUploadComponent: React.FC = () => {
         </div>
       )}
 
+      {/* Dynamic Mapping Section */}
+      {preview && (
+        <div className="rounded-lg border border-slate-200 p-6 space-y-4">
+          <h3 className="font-semibold text-slate-900">⚙️ XML Alan Eşleştirme & Otomatik Güncelleme (Opsiyonel)</h3>
+          <p className="text-xs text-slate-500">
+            Eğer XML dosyanız varsayılan alan adlarını kullanmıyorsa, aşağıdaki alanlara XML etiketlerinizi yazarak eşleştirebilirsiniz. Saatlik otomatik senkronizasyon başlatmak için entegrasyon adı belirleyip "Otomatik Görev Oluştur" butonuna basınız.
+          </p>
+
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-slate-700">Entegrasyon Adı (Örn: Tedarikçi A)</label>
+              <input type="text" value={feedName} onChange={(e) => setFeedName(e.target.value)} className="mt-1 w-1/2 rounded border px-2 py-1 text-sm outline-none" />
+            </div>
+            {preview.rawProduct && Object.keys(preview.rawProduct).length > 0 && (
+              <button
+                onClick={handleAutoMatch}
+                className="ml-4 inline-flex items-center gap-2 rounded-lg bg-[#ff6000] px-4 py-2 text-sm font-semibold text-white hover:bg-[#e05500] transition-colors"
+              >
+                ✨ Akıllı Eşleştir
+              </button>
+            )}
+          </div>
+
+          {preview.rawProduct && Object.keys(preview.rawProduct).length > 0 && (
+            <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg mt-4">
+              <p className="text-xs font-semibold text-blue-900 mb-2">📋 XML Dosyasında Bulunan Örnek Ürün Verisi (Kopyalayabilirsiniz):</p>
+              <div className="max-h-64 overflow-y-auto bg-white rounded border border-blue-200 p-3 shadow-inner text-xs font-mono space-y-1">
+                {Object.entries(preview.rawProduct).map(([k, v]) => (
+                  <div key={k} className="flex border-b border-slate-100 pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
+                    <span className="w-1/3 text-blue-800 font-semibold select-all break-all pr-2">{k}</span>
+                    <span className="w-2/3 text-slate-600 truncate" title={String(v)}>{String(v)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 bg-slate-50 p-4 rounded-lg">
+            {Object.keys(fieldMapping).map((key) => (
+              <div key={key}>
+                <label className="block text-xs font-semibold text-slate-700 capitalize">{key}</label>
+                <input
+                  type="text"
+                  placeholder="XML etiketi (örn: price)"
+                  value={(fieldMapping as any)[key]}
+                  onChange={(e) => setFieldMapping({ ...fieldMapping, [key]: e.target.value })}
+                  className="mt-1 w-full rounded border px-2 py-1 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+            ))}
+          </div>
+          
+          <button
+            onClick={handleCreateFeed}
+            disabled={loading || !feedName.trim()}
+            className="w-full rounded-lg bg-[#ff6000] px-6 py-3 text-sm font-black text-white hover:bg-[#e05500] disabled:opacity-50 transition-colors"
+          >
+            {loading ? "⏳ İşleniyor..." : "🚀 Kaydet & Otomatik Güncellemeyi Başlat"}
+          </button>
+        </div>
+      )}
+
       {/* Error Message */}
       {error && (
         <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
@@ -277,80 +404,6 @@ export const XMLUploadComponent: React.FC = () => {
               </p>
             )}
           </div>
-
-          {/* Mock Database Orders */}
-          {success.data?.mockDatabase && (
-            <div className="space-y-3">
-              <div className="text-sm font-semibold text-green-900">
-                🔄 Veritabanına Yazılan {success.data.mockDatabase.ordersCreated} Sipariş:
-              </div>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {success.data.mockDatabase.orders.map((order, idx) => (
-                  <div key={idx} className="bg-white p-4 rounded-lg border border-green-100">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="text-xs font-bold text-slate-600">Sipariş ID</p>
-                        <p className="text-sm font-mono text-green-700">{order._id}</p>
-                      </div>
-                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">
-                        {order.status}
-                      </span>
-                    </div>
-
-                    {/* Order Items with Barcode */}
-                    <div className="text-xs text-slate-600 mb-2">
-                      <p className="font-semibold text-slate-900 mb-1">Ürünler ({order.items.length}):</p>
-                      <div className="space-y-1 ml-2">
-                        {order.items.map((item: any, i: number) => (
-                          <div key={i} className="bg-slate-50 p-2 rounded">
-                            <p className="font-semibold text-slate-900">{item.name}</p>
-                            <div className="flex items-center gap-4 mt-1">
-                              <span className="text-slate-600">
-                                📦 Barkod: <strong>{item.barcode || 'N/A'}</strong>
-                              </span>
-                              <span className="text-slate-600">
-                                💰 Fiyat: <strong>{item.price} TL</strong>
-                              </span>
-                              <span className="text-slate-600">
-                                🔢 Miktar: <strong>{item.quantity}</strong>
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Order Summary */}
-                    <div className="border-t border-green-100 pt-2 flex items-center justify-between">
-                      <span className="text-xs text-slate-600">
-                        Toplam Tutar: <strong className="text-green-700">{order.totalAmount} TL</strong>
-                      </span>
-                      <span className="text-xs text-slate-600">
-                        XML Adı: <strong>{order.xmlFileName}</strong>
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Product Details */}
-          {success.data?.productDetails && (
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-green-900">📦 Ürün Detayları (İlk 5):</p>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {success.data.productDetails.map((p: any, idx: number) => (
-                  <div key={idx} className="text-xs bg-white p-2 rounded border border-green-100">
-                    <p className="font-semibold text-slate-900">{p.urunAdi}</p>
-                    <div className="text-slate-600 mt-1">
-                      📦 {p.barkodno} • 💰 {p.fiyat} TL • 🏷️ {p.marka}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -359,16 +412,9 @@ export const XMLUploadComponent: React.FC = () => {
         <button
           onClick={handlePreview}
           disabled={!validateXmlUrl(xmlUrl) || loading}
-          className="flex-1 rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+          className="flex-1 rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-black text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
         >
-          {loading ? "⏳ Yükleniyor..." : "👁️ Önizle"}
-        </button>
-        <button
-          onClick={handleUpload}
-          disabled={!preview || loading}
-          className="flex-1 rounded-lg bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50 transition-colors"
-        >
-          {loading ? "⏳ Yükleniyor..." : "🚀 Yükle"}
+          {loading ? "⏳ Yükleniyor..." : "👁️ XML Bağlantısını Önizle"}
         </button>
       </div>
 

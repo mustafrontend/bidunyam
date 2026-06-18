@@ -8,6 +8,7 @@ import { ProductController } from './controllers/product.controller';
 import prisma from './repositories/prisma.client';
 import { ZodError } from 'zod';
 import xmlUploadRoutes from './routes/xmlUpload.routes';
+import { xmlCronService } from './services/xmlCron.service';
 import campaignRoutes from './routes/campaign.routes';
 import { authenticate, optionalAuthenticate, requireAdmin } from './middlewares/auth.middleware';
 
@@ -102,6 +103,9 @@ const start = async (): Promise<void> => {
 
   // Sync products to Elasticsearch (Disabled since ES is not running)
   // await ProductService.syncAllToSearch();
+  
+  // Start XML Cron Service
+  xmlCronService.start();
 
   app.listen(PORT, () => {
     console.log(`📦 Product Service running on http://localhost:${PORT}`);

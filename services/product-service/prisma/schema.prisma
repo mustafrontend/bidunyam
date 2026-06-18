@@ -234,3 +234,20 @@ model CampaignProduct {
   @@index([sellerId])
   @@map("campaign_products")
 }
+
+
+model XmlFeed {
+  id              String   @id @default(uuid())
+  userId          String   @default("admin-user-001")
+  name            String
+  url             String
+  isActive        Boolean  @default(true)
+  syncInterval    Int      @default(60)
+  lastSyncAt      DateTime?
+  lastSyncStatus  String?
+  fieldMapping    Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("xml_feeds")
+}

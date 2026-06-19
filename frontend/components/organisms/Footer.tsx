@@ -78,12 +78,12 @@ export const Footer: React.FC = () => {
         <div className="flex flex-col gap-3.5">
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Sözleşmeler & Yasal</h3>
           <div className="flex flex-col gap-2.5 text-xs font-medium text-slate-500">
-            <Link href="#" className="hover:text-slate-900 transition-colors">Gizlilik Politikası</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Kullanım Koşulları</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">KVKK Aydınlatma Metni</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Çerez (Cookie) Politikası</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Mesafeli Satış Sözleşmesi</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Ön Bilgilendirme Formu</Link>
+            <Link href="/sozlesmeler/gizlilik-politikasi" className="hover:text-slate-900 transition-colors">Gizlilik Politikası</Link>
+            <Link href="/sozlesmeler/kullanim-kosullari" className="hover:text-slate-900 transition-colors">Kullanım Koşulları</Link>
+            <Link href="/sozlesmeler/gizlilik-politikasi" className="hover:text-slate-900 transition-colors">KVKK Aydınlatma Metni</Link>
+            <Link href="/sozlesmeler/gizlilik-politikasi" className="hover:text-slate-900 transition-colors">Çerez (Cookie) Politikası</Link>
+            <Link href="/sozlesmeler/mesafeli-satis-sozlesmesi" className="hover:text-slate-900 transition-colors">Mesafeli Satış Sözleşmesi</Link>
+            <Link href="/sozlesmeler/mesafeli-satis-sozlesmesi" className="hover:text-slate-900 transition-colors">Ön Bilgilendirme Formu</Link>
           </div>
         </div>
 
@@ -92,22 +92,23 @@ export const Footer: React.FC = () => {
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Müşteri İlişkileri</h3>
           <div className="flex flex-col gap-2.5 text-xs font-medium text-slate-500">
             <Link href="#" className="hover:text-slate-900 transition-colors">Sıkça Sorulan Sorular</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Güvenlik Merkezi</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">İptal & İade Şartları</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Kargo ve Teslimat Süreçleri</Link>
+            <Link href="/sozlesmeler/gizlilik-politikasi" className="hover:text-slate-900 transition-colors">Güvenlik Merkezi</Link>
+            <Link href="/sozlesmeler/iptal-iade-kosullari" className="hover:text-slate-900 transition-colors">İptal & İade Şartları</Link>
+            <Link href="/sozlesmeler/teslimat-sartlari" className="hover:text-slate-900 transition-colors">Kargo ve Teslimat Süreçleri</Link>
             <Link href="#" className="hover:text-slate-900 transition-colors">Site Haritası</Link>
           </div>
         </div>
 
-        {/* Kolon 4: Popüler Kategoriler (SEO Açısından Faydalı) */}
+        {/* Kolon 4: İletişim ve Firma Bilgileri */}
         <div className="flex flex-col gap-3.5">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Popüler Reyonlar</h3>
-          <div className="flex flex-col gap-2.5 text-xs font-medium text-slate-500">
-            <Link href="#" className="hover:text-slate-900 transition-colors">Flaş Fırsat Ürünleri</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Trend Giyim Kombinleri</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Akıllı Telefon & Elektronik</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Ev & Dekorasyon Tasarımları</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Kozmetik & Kişisel Bakım</Link>
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">İletişim & Firma</h3>
+          <div className="flex flex-col gap-2.5 text-xs font-medium text-slate-500 leading-relaxed">
+            <p className="font-semibold text-slate-700">ART RUE</p>
+            <p><strong>Vergi Dairesi:</strong> BAKIRKÖY</p>
+            <p><strong>Vergi No:</strong> 4910110358</p>
+            <p className="mt-1 border-t border-slate-100 pt-2">
+              Yeşilköy Mah. Atatürk Cad.<br/>Egs Business Park B2 Blok<br/>Bakırköy, İstanbul / Türkiye
+            </p>
           </div>
         </div>
 
@@ -116,7 +117,7 @@ export const Footer: React.FC = () => {
       {/* 3. Telif Hakları & Arka Plan Dev Logo Alanı (Brand Footprint) */}
       <div className="w-full max-w-full px-4 sm:px-6 md:px-10 xl:px-14 mx-auto pt-8 border-t border-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4 select-none">
         <p className="text-xs font-medium text-slate-400 opacity-80 text-center sm:text-left leading-relaxed">
-          © {new Date().getFullYear()} biDunyam Marketplace. Tüm hakları saklıdır.
+          © {new Date().getFullYear()} ART RUE kuruluşudur. Tüm hakları saklıdır.
         </p>
 
         {/* Güven Veren Ödeme Çözümleri Maskot Alanı */}

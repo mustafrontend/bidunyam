@@ -59,11 +59,23 @@ export const SearchController = {
       // Arama kelimesine uyan kategori ve markaları ürünlerden çıkar (Küçük harf duyarlı eşleştirme)
       const qLower = (q as string).toLowerCase();
       
-      const matchedCategories = Array.from(new Set(
-        products
-          .map(p => p.category)
-          .filter(c => c && c.toLowerCase().includes(qLower))
-      )).slice(0, 3);
+      const allCategoryPaths = products.map(p => p.category).filter(Boolean);
+      const allMainCategories = new Set<string>();
+      const allSubCategories = new Set<string>();
+
+      allCategoryPaths.forEach(pathStr => {
+        const parts = pathStr.split('>').map((p: string) => p.trim());
+        if (parts[0]) allMainCategories.add(parts[0]);
+        if (parts[1]) allSubCategories.add(parts[1]);
+      });
+
+      const matchedCategories = Array.from(allMainCategories)
+        .filter(c => c.toLowerCase().includes(qLower))
+        .slice(0, 3);
+        
+      const matchedSubCategories = Array.from(allSubCategories)
+        .filter(c => c.toLowerCase().includes(qLower))
+        .slice(0, 3);
       
       const matchedBrands = Array.from(new Set(
         products
@@ -71,8 +83,14 @@ export const SearchController = {
           .filter(b => b && b.toLowerCase().includes(qLower))
       )).slice(0, 3);
 
-      console.log(`[Search] ✅ Found ${products.length} results, ${matchedCategories.length} categories, ${matchedBrands.length} brands for "${q}"`);
-      res.json({ success: true, data: products, categories: matchedCategories, brands: matchedBrands });
+      console.log(`[Search] ✅ Found ${products.length} results, ${matchedCategories.length} categories, ${matchedSubCategories.length} subcategories for "${q}"`);
+      res.json({ 
+        success: true, 
+        data: products, 
+        categories: matchedCategories, 
+        subCategories: matchedSubCategories,
+        brands: matchedBrands 
+      });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }

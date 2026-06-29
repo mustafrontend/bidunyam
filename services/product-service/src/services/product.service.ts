@@ -153,6 +153,59 @@ export const ProductService = {
     return CatalogRepository.getOptions();
   },
 
+  async getCategoryFilters(category: string) {
+    // 1. Check if there's a predefined filter template for this category
+    const template = await prisma.categoryFilterTemplate.findUnique({
+      where: { categoryName: category },
+    }).catch(() => null);
+
+    if (template && Array.isArray(template.filters) && (template.filters as any[]).length > 0) {
+      return {
+        category,
+        attributes: template.filters,
+        source: 'template',
+      };
+    }
+
+    // 2. Auto-extract from products' categoryAttributes JSON field
+    const products = await prisma.product.findMany({
+      where: {
+        OR: [
+          { categoryName: category },
+          { categoryPath: { contains: category, mode: 'insensitive' } },
+        ],
+        isActive: true,
+      },
+      select: { categoryAttributes: true },
+      take: 500,
+    });
+
+    const facetMap = new Map<string, Set<string>>();
+    for (const p of products) {
+      const attrs = p.categoryAttributes as Record<string, string> | null;
+      if (!attrs || typeof attrs !== 'object') continue;
+      for (const [key, value] of Object.entries(attrs)) {
+        if (!key || !value || typeof value !== 'string') continue;
+        if (!facetMap.has(key)) facetMap.set(key, new Set());
+        facetMap.get(key)!.add(value);
+      }
+    }
+
+    const attributes = Array.from(facetMap.entries())
+      .map(([name, optionsSet]) => ({
+        name,
+        options: Array.from(optionsSet).sort((a, b) => a.localeCompare(b, 'tr')),
+      }))
+      .filter(attr => attr.options.length > 1)
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+
+    return {
+      category,
+      attributes,
+      source: 'auto',
+    };
+  },
+
   // ─── Question & Answer Methods ──────────────────────────────
   async getQuestionsByProductId(productId: string) {
     return prisma.question.findMany({
@@ -521,5 +574,72 @@ export const ProductService = {
         createdAt: true,
       }
     });
-  }
+  },
+
+  // ─── Bulk Operations ──────────────────────────────────────────
+  async bulkUpdatePrice(
+    productIds: string[],
+    operation: 'PERCENTAGE_DISCOUNT' | 'FIXED_DISCOUNT' | 'PERCENTAGE_INCREASE' | 'FIXED_INCREASE',
+    value: number,
+    userId?: string
+  ) {
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds }, ...(userId ? { userId } : {}) },
+    });
+
+    const updates = products.map((p) => {
+      let newPrice = p.price;
+      const newOriginalPrice = p.originalPrice;
+
+      switch (operation) {
+        case 'PERCENTAGE_DISCOUNT':
+          newPrice = Math.round(p.price * (1 - value / 100) * 100) / 100;
+          break;
+        case 'FIXED_DISCOUNT':
+          newPrice = Math.max(0, p.price - value);
+          break;
+        case 'PERCENTAGE_INCREASE':
+          newPrice = Math.round(p.price * (1 + value / 100) * 100) / 100;
+          break;
+        case 'FIXED_INCREASE':
+          newPrice = p.price + value;
+          break;
+      }
+
+      const discountPercent = newOriginalPrice > 0
+        ? Math.max(0, Math.round(((newOriginalPrice - newPrice) / newOriginalPrice) * 100))
+        : 0;
+
+      return prisma.product.update({
+        where: { id: p.id },
+        data: { price: newPrice, discountPercent },
+      });
+    });
+
+    const results = await Promise.all(updates);
+    return { updated: results.length };
+  },
+
+  async bulkUpdateStatus(productIds: string[], isActive: boolean, userId?: string) {
+    const result = await prisma.product.updateMany({
+      where: { id: { in: productIds }, ...(userId ? { userId } : {}) },
+      data: { isActive },
+    });
+    return { updated: result.count };
+  },
+
+  async bulkUpdateCategory(productIds: string[], categoryName: string, userId?: string) {
+    const result = await prisma.product.updateMany({
+      where: { id: { in: productIds }, ...(userId ? { userId } : {}) },
+      data: { categoryName },
+    });
+    return { updated: result.count };
+  },
+
+  async bulkDelete(productIds: string[], userId?: string) {
+    const result = await prisma.product.deleteMany({
+      where: { id: { in: productIds }, ...(userId ? { userId } : {}) },
+    });
+    return { deleted: result.count };
+  },
 };

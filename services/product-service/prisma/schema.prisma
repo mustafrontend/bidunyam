@@ -251,3 +251,13 @@ model XmlFeed {
 
   @@map("xml_feeds")
 }
+
+model CategoryFilterTemplate {
+  id           String   @id @default(uuid())
+  categoryName String   @unique
+  filters      Json     @default("[]")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("category_filter_templates")
+}

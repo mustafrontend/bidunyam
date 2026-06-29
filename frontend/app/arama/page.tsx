@@ -55,6 +55,24 @@ const SearchPageContent = () => {
   }, []);
 
   useEffect(() => {
+    // Kategori değiştiğinde o kategoriye ait dinamik filtreleri çek
+    const fetchFacets = async () => {
+      const cat = currentFilters.altkategori || currentFilters.kategori;
+      if (!cat) {
+        setDynamicFacets([]);
+        return;
+      }
+      try {
+        const res = await apiClient.get(`/products/meta/filters?category=${encodeURIComponent(cat)}`);
+        setDynamicFacets(res.data?.data?.attributes || []);
+      } catch (err) {
+        console.error("Facets fetch error", err);
+      }
+    };
+    fetchFacets();
+  }, [currentFilters.kategori, currentFilters.altkategori]);
+
+  useEffect(() => {
     // Filtreler değiştiğinde ürünleri çek
     const fetchProducts = async () => {
       setLoading(true);
@@ -73,7 +91,9 @@ const SearchPageContent = () => {
         const res = await apiClient.get(`/products?${params.toString()}`);
         setProducts(res.data?.data?.products || []);
         setTotal(res.data?.data?.pagination?.total || 0);
-        setDynamicFacets(res.data?.data?.facets || []);
+        if (res.data?.data?.facets && res.data.data.facets.length > 0) {
+          setDynamicFacets(res.data.data.facets);
+        }
       } catch (err) {
         console.error("Products fetch error", err);
       } finally {

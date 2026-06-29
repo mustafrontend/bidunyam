@@ -209,8 +209,94 @@ function XmlTab({ state }: { state: ReturnType<typeof useSellerProducts> }) {
   );
 }
 
+function BulkPriceModal({
+  isOpen, onClose, onConfirm, updating
+}: {
+  isOpen: boolean; onClose: () => void; onConfirm: (operation: string, value: number) => void; updating: boolean;
+}) {
+  const [operation, setOperation] = useState("PERCENTAGE_DISCOUNT");
+  const [value, setValue] = useState("10");
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <h3 className="mb-4 text-base font-black text-slate-800">💰 Toplu Fiyat Güncelleme</h3>
+        <div className="space-y-3 mb-4">
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input type="radio" checked={operation === "PERCENTAGE_DISCOUNT"} onChange={() => setOperation("PERCENTAGE_DISCOUNT")} className="accent-[#ff6000]" /> % İndirim Yap
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input type="radio" checked={operation === "FIXED_DISCOUNT"} onChange={() => setOperation("FIXED_DISCOUNT")} className="accent-[#ff6000]" /> Sabit Tutar İndir (TL)
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input type="radio" checked={operation === "PERCENTAGE_INCREASE"} onChange={() => setOperation("PERCENTAGE_INCREASE")} className="accent-[#ff6000]" /> % Zam Yap
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input type="radio" checked={operation === "FIXED_INCREASE"} onChange={() => setOperation("FIXED_INCREASE")} className="accent-[#ff6000]" /> Sabit Tutar Artır (TL)
+          </label>
+        </div>
+        <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Değer</label>
+        <input type="number" min={1} value={value} onChange={(e) => setValue(e.target.value)}
+          className="mb-4 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#ff6000]" autoFocus />
+        <div className="flex gap-3">
+          <button onClick={() => onConfirm(operation, Number(value))} disabled={updating || !value} className="flex-1 rounded-lg bg-[#ff6000] py-2 text-sm font-black text-white disabled:opacity-60">
+            {updating ? "Güncelleniyor..." : "Uygula"}
+          </button>
+          <button onClick={onClose} disabled={updating} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+            İptal
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function UrunlerPage() {
   const state = useSellerProducts();
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+
+  const handleBulkPrice = async (operation: string, value: number) => {
+    setBulkUpdating(true);
+    try {
+      await import("@/lib/api").then(m => m.apiClient.patch('/products/admin/products/bulk/price', {
+        productIds: Array.from(state.selectedIds), operation, value
+      }));
+      state.setBulkPriceModal(false);
+      state.setSelectedIds(new Set());
+      state.fetchProducts();
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  const handleBulkStatus = async (isActive: boolean) => {
+    setBulkUpdating(true);
+    try {
+      await import("@/lib/api").then(m => m.apiClient.patch('/products/admin/products/bulk/status', {
+        productIds: Array.from(state.selectedIds), isActive
+      }));
+      state.setSelectedIds(new Set());
+      state.fetchProducts();
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`${state.selectedIds.size} ürünü silmek istediğinize emin misiniz?`)) return;
+    setBulkUpdating(true);
+    try {
+      await import("@/lib/api").then(m => m.apiClient.delete('/products/admin/products/bulk', {
+        data: { productIds: Array.from(state.selectedIds) }
+      }));
+      state.setSelectedIds(new Set());
+      state.fetchProducts();
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
 
   return (
     <ErrorBoundary>
@@ -230,6 +316,12 @@ export default function UrunlerPage() {
           deleting={state.deleting}
           onConfirm={state.handleDelete}
           onCancel={() => state.setDeleteTarget(null)}
+        />
+        <BulkPriceModal
+          isOpen={state.bulkPriceModal}
+          onClose={() => state.setBulkPriceModal(false)}
+          onConfirm={handleBulkPrice}
+          updating={bulkUpdating}
         />
 
         {/* Header */}
@@ -297,12 +389,36 @@ export default function UrunlerPage() {
                 {state.categories.map((c) => <option key={c}>{c}</option>)}
               </select>
             </div>
+
+            {state.selectedIds.size > 0 && (
+              <div className="flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl">
+                <span className="text-sm font-black text-[#ff5000]">{state.selectedIds.size} ürün seçildi</span>
+                <button onClick={() => state.setBulkPriceModal(true)} disabled={bulkUpdating} className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:border-[#ff5000] transition-colors disabled:opacity-50">💰 Fiyat Güncelle</button>
+                <button onClick={() => handleBulkStatus(true)} disabled={bulkUpdating} className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-emerald-600 hover:border-emerald-400 transition-colors disabled:opacity-50">✅ Aktif Yap</button>
+                <button onClick={() => handleBulkStatus(false)} disabled={bulkUpdating} className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-amber-600 hover:border-amber-400 transition-colors disabled:opacity-50">⏸️ Pasif Yap</button>
+                <button onClick={handleBulkDelete} disabled={bulkUpdating} className="px-3 py-1.5 bg-white border border-red-200 rounded-lg text-xs font-bold text-red-600 hover:border-red-400 transition-colors disabled:opacity-50">🗑️ Toplu Sil</button>
+                <button onClick={() => state.setSelectedIds(new Set())} disabled={bulkUpdating} className="ml-auto text-xs font-bold text-slate-500 hover:text-slate-700 disabled:opacity-50">Seçimi Kaldır</button>
+              </div>
+            )}
+
             <InventoryTable
               products={state.paginated}
               loading={state.loading}
               togglingId={state.togglingId}
               page={state.page}
               totalPages={state.totalPages}
+              selectedIds={state.selectedIds}
+              onToggleSelect={(id) => {
+                state.setSelectedIds((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(id)) next.delete(id); else next.add(id);
+                  return next;
+                });
+              }}
+              onToggleSelectAll={() => {
+                if (state.selectedIds.size === state.paginated.length) state.setSelectedIds(new Set());
+                else state.setSelectedIds(new Set(state.paginated.map((p) => p._id)));
+              }}
               onEdit={state.openEditForm}
               onDuplicate={(p) => { state.setDuplicateTarget(p); state.setDuplicateCount("1"); state.setDuplicateError(null); }}
               onDelete={state.setDeleteTarget}

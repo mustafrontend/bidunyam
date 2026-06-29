@@ -22,10 +22,16 @@ export const CategoriesMegaMenu: React.FC = () => {
       try {
         const res = await apiClient.get("/products/meta/options");
         const fetchedCats: CategoryData[] = res.data?.data?.categories || [];
-        // Filter out categories without subcategories if needed, but we keep all for now
-        setCategories(fetchedCats.slice(0, 15)); // Limit to first 15 main categories for UI
+        
+        if (fetchedCats.length > 0) {
+          setCategories(fetchedCats);
+        } else {
+          // Eğer kategoriler boşsa, fallback gösterme
+          setCategories([]);
+        }
       } catch (error) {
         console.error("Failed to fetch categories for mega menu", error);
+        setCategories([]);
       }
     };
     fetchCategories();
@@ -62,7 +68,7 @@ export const CategoriesMegaMenu: React.FC = () => {
 
       {/* Mega Menü Dropdown */}
       <AnimatePresence>
-        {isOpen && categories.length > 0 && (
+        {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -71,55 +77,65 @@ export const CategoriesMegaMenu: React.FC = () => {
             className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border-[0.5px] border-slate-200 overflow-hidden flex"
             style={{ width: "900px", minHeight: "450px" }}
           >
-            {/* Sol Taraf (Ana Kategoriler) */}
-            <div className="w-1/3 bg-slate-50 border-r border-slate-100 py-4 flex flex-col h-[500px] overflow-y-auto custom-scrollbar">
-              {categories.map((cat) => (
-                <div
-                  key={cat.name}
-                  onMouseEnter={() => setActiveCategory(cat.name)}
-                  className={`flex items-center justify-between px-6 py-3 cursor-pointer transition-colors ${
-                    (activeCategory || categories[0]?.name) === cat.name
-                      ? "bg-white text-orange-500 font-bold border-l-4 border-orange-500 shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 font-medium border-l-4 border-transparent"
-                  }`}
-                >
-                  <span className="text-sm truncate pr-2">{cat.name}</span>
-                  <ChevronRight className={`w-4 h-4 ${
-                    (activeCategory || categories[0]?.name) === cat.name ? "opacity-100" : "opacity-0"
-                  } transition-opacity`} />
-                </div>
-              ))}
-            </div>
-
-            {/* Sağ Taraf (Alt Kategoriler) */}
-            <div className="w-2/3 p-8 bg-white h-[500px] overflow-y-auto custom-scrollbar">
-              <h3 className="text-xl font-black text-slate-800 mb-6 tracking-tight">
-                {activeCategoryData?.name}
-              </h3>
-              
-              <div className="columns-2 gap-8 space-y-4">
-                {activeCategoryData?.subCategories.slice(0, 20).map((sub) => (
-                  <Link 
-                    href={`/arama?kategori=${encodeURIComponent(activeCategoryData.name)}&altkategori=${encodeURIComponent(sub)}`} 
-                    key={sub} 
-                    className="block text-sm text-slate-600 hover:text-orange-500 hover:underline transition-colors break-inside-avoid py-1"
-                  >
-                    {sub}
-                  </Link>
-                ))}
+            {categories.length === 0 ? (
+              <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2 py-32">
+                <Menu className="w-12 h-12 opacity-30 mb-2" />
+                <p className="text-lg font-bold text-slate-500">Henüz Kategori Bulunamadı</p>
+                <p className="text-sm text-slate-400">Ürünler (XML) sisteme yüklendiğinde otomatik oluşacaktır.</p>
               </div>
-
-              {(activeCategoryData?.subCategories?.length || 0) > 20 && (
-                <div className="mt-8 pt-4 border-t border-slate-100">
-                  <Link 
-                    href={`/kategoriler/${encodeURIComponent(activeCategoryData?.name || '')}`}
-                    className="inline-flex items-center text-sm font-bold text-orange-500 hover:text-orange-600 transition-colors"
-                  >
-                    Tümünü Gör <ChevronRight className="w-4 h-4 ml-1" />
-                  </Link>
+            ) : (
+              <>
+                {/* Sol Taraf (Ana Kategoriler) */}
+                <div className="w-1/3 bg-slate-50 border-r border-slate-100 py-4 flex flex-col h-[500px] overflow-y-auto custom-scrollbar">
+                  {categories.map((cat) => (
+                    <div
+                      key={cat.name}
+                      onMouseEnter={() => setActiveCategory(cat.name)}
+                      className={`flex items-center justify-between px-6 py-3 cursor-pointer transition-colors ${
+                        (activeCategory || categories[0]?.name) === cat.name
+                          ? "bg-white text-orange-500 font-bold border-l-4 border-orange-500 shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100 font-medium border-l-4 border-transparent"
+                      }`}
+                    >
+                      <span className="text-sm truncate pr-2">{cat.name}</span>
+                      <ChevronRight className={`w-4 h-4 ${
+                        (activeCategory || categories[0]?.name) === cat.name ? "opacity-100" : "opacity-0"
+                      } transition-opacity`} />
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
+
+                {/* Sağ Taraf (Alt Kategoriler) */}
+                <div className="w-2/3 p-8 bg-white h-[500px] overflow-y-auto custom-scrollbar">
+                  <h3 className="text-xl font-black text-slate-800 mb-6 tracking-tight">
+                    {activeCategoryData?.name}
+                  </h3>
+                  
+                  <div className="columns-2 gap-8 space-y-4">
+                    {activeCategoryData?.subCategories.slice(0, 20).map((sub) => (
+                      <Link 
+                        href={`/arama?kategori=${encodeURIComponent(activeCategoryData.name)}&altkategori=${encodeURIComponent(sub)}`} 
+                        key={sub} 
+                        className="block text-sm text-slate-600 hover:text-orange-500 hover:underline transition-colors break-inside-avoid py-1"
+                      >
+                        {sub}
+                      </Link>
+                    ))}
+                  </div>
+
+                  {(activeCategoryData?.subCategories?.length || 0) > 20 && (
+                    <div className="mt-8 pt-4 border-t border-slate-100">
+                      <Link 
+                        href={`/arama?kategori=${encodeURIComponent(activeCategoryData?.name || '')}`}
+                        className="inline-flex items-center text-sm font-bold text-orange-500 hover:text-orange-600 transition-colors"
+                      >
+                        Tümünü Gör <ChevronRight className="w-4 h-4 ml-1" />
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

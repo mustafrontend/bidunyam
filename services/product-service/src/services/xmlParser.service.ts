@@ -14,6 +14,7 @@ export interface ProductXML {
   marka?: string;
   tax?: string | number;
   desi?: string | number;
+  categoryAttributes?: Record<string, string>;
 }
 
 export function normalizeKeys(obj: any): any {
@@ -129,21 +130,45 @@ export class XMLParserService {
     return firstUrl || undefined;
   }
 
+  private extractAttributes(raw: Record<string, string>, consumedKeys: string[]): Record<string, string> {
+    const attributes: Record<string, string> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      if (!consumedKeys.includes(key) && typeof value === 'string' && value.length < 100 && value.length > 0) {
+        // Simple heuristic: tags < 100 chars might be variants/attributes (like Renk, Beden)
+        const cleanKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // e.g. "renk" -> "Renk"
+        attributes[cleanKey] = value;
+      }
+    }
+    return attributes;
+  }
+
   /**
    * MEY İTHALAT ve Genel formatlar için Mapping
    */
   private mapProduct(raw: Record<string, string>): ProductXML {
+    const consumedKeys: string[] = [];
+    const getVal = (keys: string[]) => {
+      for (const k of keys) {
+        if (raw[k]) {
+          consumedKeys.push(k);
+          return raw[k];
+        }
+      }
+      return undefined;
+    };
+
     return {
-      urunKodu: raw.productcode || raw.urunkodu || raw.barcode || raw.barkod || raw.sku || raw.barkodno,
-      urunAdi: raw.name || raw.urunadi || raw.title || raw.productname,
-      kategori: raw.category || raw.kategori,
-      fiyat: raw.price || raw.fiyat || raw.bayifiyat || raw.alisfiyati,
-      stok: raw.quantity || raw.stok || raw.stock || raw.qty,
-      aciklama: raw.detail || raw.aciklama || raw.description,
-      resim: this.cleanImageUrl(raw.resim || raw.image || raw.image1),
-      marka: raw.brand || raw.marka,
-      tax: raw.tax || raw.kdvorani,
-      desi: raw.desi,
+      urunKodu: getVal(['productcode', 'urunkodu', 'barcode', 'barkod', 'sku', 'barkodno']),
+      urunAdi: getVal(['name', 'urunadi', 'title', 'productname']),
+      kategori: getVal(['category', 'kategori']),
+      fiyat: getVal(['price', 'fiyat', 'bayifiyat', 'alisfiyati']),
+      stok: getVal(['quantity', 'stok', 'stock', 'qty']),
+      aciklama: getVal(['detail', 'aciklama', 'description']),
+      resim: this.cleanImageUrl(getVal(['resim', 'image', 'image1'])),
+      marka: getVal(['brand', 'marka']),
+      tax: getVal(['tax', 'kdvorani']),
+      desi: getVal(['desi']),
+      categoryAttributes: this.extractAttributes(raw, consumedKeys),
     };
   }
 
@@ -155,13 +180,21 @@ export class XMLParserService {
       return this.mapProduct(raw);
     }
 
+    const consumedKeys: string[] = [];
+
     const resolveField = (mappedKey: string | undefined, defaultAliases: string[]) => {
       if (mappedKey && mappedKey.trim() !== '') {
         const normKey = mappedKey.toLowerCase().replace(/[-_ ]/g, '');
-        if (raw[normKey]) return raw[normKey];
+        if (raw[normKey]) {
+          consumedKeys.push(normKey);
+          return raw[normKey];
+        }
       }
       for (const alias of defaultAliases) {
-        if (raw[alias]) return raw[alias];
+        if (raw[alias]) {
+          consumedKeys.push(alias);
+          return raw[alias];
+        }
       }
       return undefined;
     };
@@ -177,6 +210,7 @@ export class XMLParserService {
       marka: resolveField(fieldMapping.marka, ['brand', 'marka']),
       tax: resolveField(fieldMapping.tax, ['tax', 'kdvorani']),
       desi: resolveField(fieldMapping.desi, ['desi']),
+      categoryAttributes: this.extractAttributes(raw, consumedKeys),
     };
   }
 

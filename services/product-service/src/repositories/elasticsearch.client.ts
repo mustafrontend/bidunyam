@@ -33,6 +33,7 @@ export const indexProduct = async (product: any) => {
         rating: product.rating,
         sourceType: 'DATABASE',
         userId: product.userId || 'admin-user-001',
+        categoryAttributes: product.categoryAttributes || {},
       },
     });
     console.log(`[ES] Indexed product: ${product.name}`);
@@ -80,7 +81,8 @@ export const syncXmlProductsToSearch = async (xmlProducts: any[], userId: string
         sourceType: 'XML_REQUEST',
         barcode: product.barcode,
         stock: product.stock,
-        userId: userId
+        userId: userId,
+        categoryAttributes: product.categoryAttributes || {}
       });
     }
 
@@ -96,5 +98,58 @@ export const syncXmlProductsToSearch = async (xmlProducts: any[], userId: string
   }
 };
 
-export default esClient;
+export const getCategoryFilters = async (category: string) => {
+  try {
+    const response = await esClient.search({
+      index: 'products',
+      size: 0,
+      query: {
+        match_phrase: { category }
+      },
+      // Unfortunately we don't have dynamic mapping for nested categoryAttributes to do perfect terms aggregation dynamically easily without mapping changes,
+      // but we can pull a sample of 500 products and aggregate in memory to be safe and avoid mapping errors.
+    });
+    // Let's use memory aggregation for up to 1000 items in that category to avoid ES dynamic mapping nested aggregation complexities.
+    const searchRes = await esClient.search({
+      index: 'products',
+      size: 1000,
+      query: {
+        match_phrase: { category }
+      },
+      _source: ['categoryAttributes', 'brand']
+    });
 
+    const hits = searchRes.hits.hits as any[];
+    const filters: Record<string, Set<string>> = {};
+    const brands = new Set<string>();
+
+    for (const hit of hits) {
+      const src = hit._source;
+      if (src.brand) brands.add(src.brand);
+      
+      if (src.categoryAttributes) {
+        for (const [key, val] of Object.entries(src.categoryAttributes)) {
+          if (!filters[key]) filters[key] = new Set();
+          if (typeof val === 'string' && val.trim() !== '') {
+            filters[key].add(val.trim());
+          }
+        }
+      }
+    }
+
+    const formattedFilters = Object.keys(filters).map(key => ({
+      name: key,
+      options: Array.from(filters[key]).slice(0, 50) // limit to 50 options per filter
+    }));
+
+    return {
+      brands: Array.from(brands),
+      attributes: formattedFilters
+    };
+  } catch (err) {
+    console.error(`[ES] Error fetching filters for category ${category}:`, err);
+    return { brands: [], attributes: [] };
+  }
+};
+
+export default esClient;

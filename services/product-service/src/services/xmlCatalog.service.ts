@@ -1,7 +1,10 @@
+import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 import { syncXmlProductsToSearch } from '../repositories/elasticsearch.client';
 import { normalizeKeys } from './xmlParser.service';
+
+const prisma = new PrismaClient();
 
 export interface XmlCatalogProduct {
   _id: string;
@@ -18,6 +21,7 @@ export interface XmlCatalogProduct {
   stock: number;
   rating: number;
   reviewCount: number;
+  categoryAttributes?: Record<string, string>;
 }
 
 export interface PublishRequestMeta {
@@ -61,7 +65,7 @@ class XmlCatalogService {
     this.loadState();
   }
 
-  publishProducts(input: { products: any[]; sourceUrl: string; xmlFileName: string; userId: string }): PublishRequestMeta {
+  async publishProducts(input: { products: any[]; sourceUrl: string; xmlFileName: string; userId: string }): Promise<PublishRequestMeta> {
     const requestId = `xml-req-${Date.now()}`;
     const createdAt = new Date().toISOString();
     const mappedProducts = input.products
@@ -96,7 +100,94 @@ class XmlCatalogService {
       console.error(`[XML Catalog] Failed to sync XML products to ES for user ${input.userId}:`, err);
     });
 
+    // Otomatik Kategori ve Marka Oluşturma (Ağaç yapısı)
+    this.syncOptionsToDatabase(mappedProducts).catch(err => {
+      console.error(`[XML Catalog] Failed to sync options to DB:`, err);
+    });
+
     return meta;
+  }
+
+  private async syncOptionsToDatabase(products: XmlCatalogProduct[]) {
+    const uniqueCategories = new Set<string>();
+    const uniqueBrands = new Set<string>();
+
+    for (const p of products) {
+      if (p.category && p.category.trim() !== '') uniqueCategories.add(p.category.trim());
+      if (p.brand && p.brand.trim() !== '') uniqueBrands.add(p.brand.trim());
+    }
+
+    try {
+      const { CatalogRepository } = require('../repositories/catalog.repository');
+
+      // Save brands
+      for (const brand of uniqueBrands) {
+        await CatalogRepository.upsertBrand(brand);
+      }
+
+      // Save categories with full tree structure (supports 3+ levels)
+      for (const catStr of uniqueCategories) {
+        const parts = catStr.split('>').map((p: string) => p.trim()).filter(Boolean);
+        
+        if (parts.length === 0) continue;
+        
+        // Always create the main category
+        const mainCategory = parts[0];
+        
+        // Create sub-categories for each level after the first
+        if (parts.length >= 2) {
+          for (let i = 1; i < parts.length; i++) {
+            await CatalogRepository.upsertCategory(mainCategory, parts[i]);
+          }
+        } else {
+          await CatalogRepository.upsertCategory(mainCategory);
+        }
+      }
+
+      // Also auto-extract categoryAttributes for filter templates
+      const filterMap = new Map<string, Map<string, Set<string>>>();
+      for (const p of products) {
+        const catKey = p.category?.split('>')[0]?.trim();
+        if (!catKey || !p.categoryAttributes) continue;
+        
+        if (!filterMap.has(catKey)) filterMap.set(catKey, new Map());
+        const catFilters = filterMap.get(catKey)!;
+        
+        for (const [key, value] of Object.entries(p.categoryAttributes)) {
+          if (!key || !value) continue;
+          if (!catFilters.has(key)) catFilters.set(key, new Set());
+          catFilters.get(key)!.add(String(value));
+        }
+      }
+
+      // Save auto-extracted filter templates (only if no manual template exists)
+      const prismaClient = require('../repositories/prisma.client').default;
+      for (const [categoryName, attrMap] of filterMap) {
+        const existing = await prismaClient.categoryFilterTemplate.findUnique({
+          where: { categoryName },
+        }).catch(() => null);
+        
+        if (!existing) {
+          const filters = Array.from(attrMap.entries())
+            .filter(([, vals]) => vals.size > 1 && vals.size <= 50)
+            .map(([name, vals]) => ({
+              name,
+              type: 'select',
+              options: Array.from(vals).sort((a: string, b: string) => a.localeCompare(b, 'tr')),
+            }));
+          
+          if (filters.length > 0) {
+            await prismaClient.categoryFilterTemplate.create({
+              data: { categoryName, filters },
+            }).catch(() => {});
+          }
+        }
+      }
+
+      console.log(`[XML Catalog] Synced ${uniqueBrands.size} brands and ${uniqueCategories.size} categories to DB`);
+    } catch (error) {
+      console.error(`[XML Catalog] Sync options error:`, error);
+    }
   }
 
   getActiveRequestMeta(userId: string): PublishRequestMeta | null {
@@ -130,7 +221,7 @@ class XmlCatalogService {
     let filtered = allProducts;
 
     if (query.category) {
-      filtered = filtered.filter((p) => p.category.toLowerCase() === query.category!.toLowerCase());
+      filtered = filtered.filter((p) => p.category.toLowerCase() === query.category!.toLowerCase() || p.category.toLowerCase().includes(query.category!.toLowerCase()));
     }
     if (query.brand) {
       filtered = filtered.filter((p) => p.brand.toLowerCase() === query.brand!.toLowerCase());
@@ -221,6 +312,7 @@ class XmlCatalogService {
       stock,
       rating: 4.6,
       reviewCount: 0,
+      categoryAttributes: raw.categoryAttributes || {},
     };
   }
 

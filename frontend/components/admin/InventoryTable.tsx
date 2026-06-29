@@ -8,6 +8,9 @@ interface InventoryTableProps {
   togglingId: string | null;
   page: number;
   totalPages: number;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAll?: () => void;
   onEdit: (product: Product) => void;
   onDuplicate: (product: Product) => void;
   onDelete: (product: Product) => void;
@@ -18,8 +21,19 @@ interface InventoryTableProps {
 const TABLE_HEADERS = ["Ürün", "Barkod", "SKU", "Marka", "Kategori", "Fiyat", "Stok", "Durum", "İşlem"];
 
 export function InventoryTable({
-  products, loading, togglingId, page, totalPages,
-  onEdit, onDuplicate, onDelete, onToggleActive, onPageChange,
+  products,
+  loading,
+  togglingId,
+  page,
+  totalPages,
+  selectedIds = new Set(),
+  onToggleSelect,
+  onToggleSelectAll,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  onToggleActive,
+  onPageChange,
 }: InventoryTableProps) {
   if (loading) {
     return (
@@ -36,6 +50,16 @@ export function InventoryTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-100 bg-slate-50">
+            {onToggleSelectAll && (
+              <th className="px-4 py-3 w-10">
+                <input 
+                  type="checkbox" 
+                  className="accent-[#ff6000] w-4 h-4 cursor-pointer"
+                  checked={products.length > 0 && selectedIds.size === products.length}
+                  onChange={onToggleSelectAll} 
+                />
+              </th>
+            )}
             {TABLE_HEADERS.map((h) => (
               <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase text-slate-500">{h}</th>
             ))}
@@ -44,13 +68,23 @@ export function InventoryTable({
         <tbody>
           {products.length === 0 ? (
             <tr>
-              <td colSpan={9} className="py-16 text-center font-semibold text-slate-400">
+              <td colSpan={10} className="py-16 text-center font-semibold text-slate-400">
                 Ürün bulunamadı.
               </td>
             </tr>
           ) : (
             products.map((p) => (
               <tr key={p._id} className="border-b border-slate-50 hover:bg-slate-50">
+                {onToggleSelect && (
+                  <td className="px-4 py-3">
+                    <input 
+                      type="checkbox" 
+                      className="accent-[#ff6000] w-4 h-4 cursor-pointer"
+                      checked={selectedIds.has(p._id)}
+                      onChange={() => onToggleSelect(p._id)} 
+                    />
+                  </td>
+                )}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <img src={p.imageUrl} alt={p.name} className="h-10 w-10 rounded-lg bg-slate-100 object-cover" />

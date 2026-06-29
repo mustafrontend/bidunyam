@@ -27,6 +27,7 @@ import { LoginModal } from "../molecules/LoginModal";
 import { UserMenu } from "../molecules/UserMenu";
 import { SearchResults } from "../molecules/SearchResults";
 import { CategoriesMegaMenu } from "./CategoriesMegaMenu";
+import { useSearchSessionStore } from "@/stores/searchSessionStore";
 
 interface Product {
   id: string;
@@ -51,11 +52,14 @@ export const Navbar: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchCategories, setSearchCategories] = useState<string[]>([]);
+  const [searchSubCategories, setSearchSubCategories] = useState<string[]>([]);
   const [searchBrands, setSearchBrands] = useState<string[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [recommended, setRecommended] = useState<Product[]>([]);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  
+  const { lastSearchedCategory, lastSearchedSubCategory, clearSearchSession, addRecentSearch } = useSearchSessionStore();
 
   useEffect(() => {
     setIsMounted(true);
@@ -81,32 +85,32 @@ export const Navbar: React.FC = () => {
       if (searchQuery.length >= 0 && showResults) {
         try {
           const userIdParam = user?.id ? `&userId=${user.id}` : "";
-          const res = await apiClient.get(`/search?q=${searchQuery}${userIdParam}`);
+          const sessionParam = lastSearchedCategory ? `&category=${encodeURIComponent(lastSearchedCategory)}` : "";
+          const sessionSubParam = lastSearchedSubCategory ? `&subCategory=${encodeURIComponent(lastSearchedSubCategory)}` : "";
+          const res = await apiClient.get(`/search?q=${searchQuery}${userIdParam}${sessionParam}${sessionSubParam}`);
           
           if (searchQuery.length > 0) {
             setSearchResults(res.data.data || []);
             let cats = res.data.categories || [];
+            let subCats = res.data.subCategories || [];
             if (cats.length === 0) {
                const ALL_CATS = ["Elektronik", "Moda", "Ev & Yaşam", "Anne & Bebek", "Kozmetik", "Spor", "Otomobil"];
-               cats = ALL_CATS.filter(c => c.toLowerCase().includes(searchQuery.toLowerCase())).slice(0,3);
+               cats = ALL_CATS.filter((c: string) => c.toLowerCase().includes(searchQuery.toLowerCase())).slice(0,3);
             }
             let brnds = res.data.brands || [];
             if (brnds.length === 0) {
                const ALL_BRANDS = ["Apple", "Samsung", "Xiaomi", "Nike", "Adidas", "Puma", "Fiat", "Ford"];
-               brnds = ALL_BRANDS.filter(b => b.toLowerCase().includes(searchQuery.toLowerCase())).slice(0,3);
+               brnds = ALL_BRANDS.filter((b: string) => b.toLowerCase().includes(searchQuery.toLowerCase())).slice(0,3);
             }
             
             setSearchCategories(cats);
+            setSearchSubCategories(subCats);
             setSearchBrands(brnds);
-            setRecentSearches([]);
             setRecommended([]);
           } else {
             setSearchResults([]);
             setSearchCategories([]);
             setSearchBrands([]);
-            setRecentSearches(res.data.recentSearches?.length ? res.data.recentSearches : [
-              "cep telefonu", "starbucks", "fiat modifiye", "araç italyan", "vücut geliştirme ekipman"
-            ]);
             setRecommended(res.data.recommended?.length ? res.data.recommended : []);
           }
         } catch (err) {
@@ -150,6 +154,25 @@ export const Navbar: React.FC = () => {
                 <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#ff5000] transition-colors duration-300">
                   <Search size={15} strokeWidth={2.2} />
                 </div>
+                {/* Active Session Badge */}
+                {(lastSearchedCategory || lastSearchedSubCategory) && (
+                  <div className="absolute inset-y-0 left-10 flex items-center">
+                    <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 text-[#ff5000] px-2 py-1 rounded-md text-[10px] font-bold">
+                      <span className="w-3 h-3">🏷️</span>
+                      {lastSearchedSubCategory || lastSearchedCategory} içinde ara
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          clearSearchSession();
+                        }}
+                        className="ml-1 hover:bg-orange-200 rounded-full p-0.5 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <input
                   type="text"
                   value={searchQuery}
@@ -158,26 +181,45 @@ export const Navbar: React.FC = () => {
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && searchQuery.trim()) {
                       setShowResults(false);
-                      router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+                      addRecentSearch(searchQuery);
+                      const catQuery = lastSearchedCategory ? `&kategori=${encodeURIComponent(lastSearchedCategory)}` : "";
+                      const subCatQuery = lastSearchedSubCategory ? `&altkategori=${encodeURIComponent(lastSearchedSubCategory)}` : "";
+                      router.push(`/arama?q=${encodeURIComponent(searchQuery)}${catQuery}${subCatQuery}`);
                     }
                   }}
-                  placeholder="Aradığınız her şeyi tek adımda bulun..."
-                  className="w-full rounded-2xl border border-slate-100 bg-slate-50/70 py-2.5 pl-11 pr-5 text-xs font-medium text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-[#ff5000]/30 focus:bg-white focus:ring-4 focus:ring-[#ff5000]/5"
+                  placeholder={(lastSearchedCategory || lastSearchedSubCategory) ? "Ürün arayın..." : "Ürün, kategori veya marka ara..."}
+                  className={`w-full bg-slate-50 border border-slate-200 text-sm rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#ff5000]/20 focus:border-[#ff5000] transition-all duration-300 shadow-inner ${(lastSearchedCategory || lastSearchedSubCategory) ? 'pl-48' : 'pl-11'} pr-12 py-3.5 font-medium placeholder:text-slate-400`}
                 />
-
-                {/* Search Engine Dropdown Node */}
-                {showResults && (
-                  <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-2xl border border-slate-100/80 overflow-hidden z-50">
-                    <SearchResults 
-                      query={searchQuery}
-                      results={searchResults} 
-                      categories={searchCategories}
-                      brands={searchBrands}
-                      recentSearches={recentSearches}
-                      recommended={recommended}
-                      onClose={() => setShowResults(false)} 
-                    />
+                
+                {/* Search Button Indicator */}
+                <div className="absolute inset-y-0 right-3 flex items-center">
+                  <div className="w-8 h-8 rounded-xl bg-[#ff5000] text-white flex items-center justify-center shadow-md shadow-[#ff5000]/20 cursor-pointer hover:bg-orange-600 transition-colors"
+                    onClick={() => {
+                      if (searchQuery.trim()) {
+                        setShowResults(false);
+                        addRecentSearch(searchQuery);
+                        const catQuery = lastSearchedCategory ? `&kategori=${encodeURIComponent(lastSearchedCategory)}` : "";
+                        const subCatQuery = lastSearchedSubCategory ? `&altkategori=${encodeURIComponent(lastSearchedSubCategory)}` : "";
+                        router.push(`/arama?q=${encodeURIComponent(searchQuery)}${catQuery}${subCatQuery}`);
+                      }
+                    }}
+                  >
+                    <Search size={14} strokeWidth={2.5} />
                   </div>
+                </div>
+
+                {/* Dropdown Results Area */}
+                {showResults && (
+                  <SearchResults 
+                    query={searchQuery}
+                    results={searchResults}
+                    categories={searchCategories}
+                    subCategories={searchSubCategories}
+                    brands={searchBrands}
+                    recentSearches={recentSearches}
+                    recommended={recommended}
+                    onClose={() => setShowResults(false)}
+                  />
                 )}
               </div>
             </div>

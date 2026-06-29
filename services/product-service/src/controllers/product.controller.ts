@@ -73,11 +73,45 @@ const ReviewInputSchema = z.object({
   sellerName: z.string().optional(),
 });
 
+const BulkPriceSchema = z.object({
+  productIds: z.array(z.string().uuid()).min(1).max(500),
+  operation: z.enum(['PERCENTAGE_DISCOUNT', 'FIXED_DISCOUNT', 'PERCENTAGE_INCREASE', 'FIXED_INCREASE']),
+  value: z.coerce.number().min(0),
+});
+
+const BulkStatusSchema = z.object({
+  productIds: z.array(z.string().uuid()).min(1).max(500),
+  isActive: z.boolean(),
+});
+
+const BulkCategorySchema = z.object({
+  productIds: z.array(z.string().uuid()).min(1).max(500),
+  categoryName: z.string().min(1),
+});
+
+const BulkDeleteSchema = z.object({
+  productIds: z.array(z.string().uuid()).min(1).max(500),
+});
+
 export const ProductController = {
   async getCatalogOptions(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const options = await ProductService.getCatalogOptions();
       res.json({ success: true, data: options });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getCategoryFilters(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { category } = req.query;
+      if (!category || typeof category !== 'string') {
+        res.status(400).json({ success: false, message: 'category query parameter is required' });
+        return;
+      }
+      const filters = await ProductService.getCategoryFilters(category);
+      res.json({ success: true, data: filters });
     } catch (err) {
       next(err);
     }
@@ -262,5 +296,50 @@ export const ProductController = {
     } catch (err) {
       next(err);
     }
-  }
+  },
+
+  // ─── Bulk Operations ──────────────────────────────────────────
+  async bulkUpdatePrice(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const body = BulkPriceSchema.parse(req.body);
+      const userId = req.user?.id;
+      const result = await ProductService.bulkUpdatePrice(body.productIds, body.operation, body.value, userId);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async bulkUpdateStatus(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const body = BulkStatusSchema.parse(req.body);
+      const userId = req.user?.id;
+      const result = await ProductService.bulkUpdateStatus(body.productIds, body.isActive, userId);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async bulkUpdateCategory(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const body = BulkCategorySchema.parse(req.body);
+      const userId = req.user?.id;
+      const result = await ProductService.bulkUpdateCategory(body.productIds, body.categoryName, userId);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async bulkDelete(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const body = BulkDeleteSchema.parse(req.body);
+      const userId = req.user?.id;
+      const result = await ProductService.bulkDelete(body.productIds, userId);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
 };

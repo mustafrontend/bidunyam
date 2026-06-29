@@ -55,10 +55,17 @@ app.use('/campaigns', campaignRoutes);
 
 // Product meta & admin endpoints
 app.get('/meta/options', ProductController.getCatalogOptions);
+app.get('/meta/filters', ProductController.getCategoryFilters);
 app.post('/meta/brand', ProductController.createBrandOption);
 app.post('/meta/category', ProductController.createCategoryOption);
 app.get('/admin/:id', authenticate, ProductController.getByIdAny);
 app.get('/admin/products/all', authenticate, requireAdmin, ProductController.getAdminProducts);
+
+// Bulk Operations (Admin)
+app.patch('/admin/products/bulk/price', authenticate, ProductController.bulkUpdatePrice);
+app.patch('/admin/products/bulk/status', authenticate, ProductController.bulkUpdateStatus);
+app.patch('/admin/products/bulk/category', authenticate, ProductController.bulkUpdateCategory);
+app.delete('/admin/products/bulk', authenticate, ProductController.bulkDelete);
 
 // Question & Answer endpoints
 app.get('/:id/questions', ProductController.getQuestions);

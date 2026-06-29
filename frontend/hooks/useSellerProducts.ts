@@ -248,10 +248,16 @@ export function useSellerProducts() {
   const [duplicateCount, setDuplicateCount] = useState("1");
   const [duplicating, setDuplicating] = useState(false);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  // Bulk operation states
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkPriceModal, setBulkPriceModal] = useState(false);
+
+  // XML States
   const [activeTab, setActiveTab] = useState<"DB" | "XML">("DB");
   const [xmlLoading, setXmlLoading] = useState(false);
   const [xmlData, setXmlData] = useState<XmlCatalogData | null>(null);
@@ -635,6 +641,12 @@ export function useSellerProducts() {
     // Actions
     fetchProducts, fetchXmlCatalog, resetForm, openEditForm, handleDelete,
     handleToggleActive, addCategoryMain, addCategorySub, addBrand,
-    handleImageChange, handleDuplicate, handleSave, handleDelete, deleteXmlFeed
+    handleDuplicate,
+    handleDelete,
+    deleteXmlFeed,
+    selectedIds,
+    setSelectedIds,
+    bulkPriceModal,
+    setBulkPriceModal,
   };
 }

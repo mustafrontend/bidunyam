@@ -8,6 +8,7 @@ import { useCartStore } from "@/stores/cartStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useFavoriteStore } from "@/stores/favoriteStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import { ProductGallery } from "@/components/molecules/ProductGallery";
 import { DeliverySidebar } from "@/components/molecules/DeliverySidebar";
 import { ProductReviews } from "@/components/organisms/ProductReviews";
@@ -228,6 +229,8 @@ export default function ProductDetail() {
   
   const isFav = useMemo(() => favs.includes(id as string), [favs, id]);
 
+  const { addProduct: addRecentlyViewed } = useRecentlyViewedStore();
+
   const similarScrollRef = useRef<HTMLDivElement>(null);
   const boughtScrollRef = useRef<HTMLDivElement>(null);
 
@@ -293,6 +296,22 @@ export default function ProductDetail() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Track recently viewed product
+  useEffect(() => {
+    if (product) {
+      addRecentlyViewed({
+        id: product._id,
+        name: product.name,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        imageUrl: product.imageUrl || product.imageUrls?.[0] || '',
+        brand: product.brand || '',
+        rating: product.rating || 0,
+        reviewCount: product.reviewCount || 0,
+      });
+    }
+  }, [product?._id]);
 
   // Fetch Category-Based Similar Products
   useEffect(() => {

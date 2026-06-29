@@ -352,7 +352,7 @@ router.post('/admin/xml/import-url', authenticate, async (req: AuthenticatedRequ
     // Publish to lightweight XML request catalog (no Product collection writes)
     const xmlFileName = `import-${Date.now()}.xml`;
     const userId = req.user!.id;
-    const publishInfo = xmlCatalogService.publishProducts({
+    const publishInfo = await xmlCatalogService.publishProducts({
       products,
       sourceUrl: xmlUrl,
       xmlFileName,
@@ -500,7 +500,7 @@ router.post('/admin/xml/upload', authenticate, upload.single('file'), async (req
     // Publish to lightweight XML request catalog (no Product collection writes)
     const xmlFileName = req.file.originalname;
     const userId = req.user!.id;
-    const publishInfo = xmlCatalogService.publishProducts({
+    const publishInfo = await xmlCatalogService.publishProducts({
       products,
       sourceUrl: `file://${req.file.originalname}`,
       xmlFileName,

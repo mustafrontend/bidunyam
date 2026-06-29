@@ -121,11 +121,16 @@ export const Footer: React.FC = () => {
         </p>
 
         {/* Güven Veren Ödeme Çözümleri Maskot Alanı */}
-        <div className="flex items-center gap-2 opacity-40 grayscale hover:opacity-70 hover:grayscale-0 transition-all duration-300">
+        <div className="flex items-center gap-3 opacity-60 hover:opacity-100 transition-all duration-300">
           <span className="text-[10px] font-bold text-slate-400 tracking-wider mr-1 uppercase">Güvenli Ödeme:</span>
-          <div className="px-2 py-1 bg-slate-50 text-[10px] font-bold text-slate-600 rounded border border-slate-200">troy</div>
-          <div className="px-2 py-1 bg-slate-50 text-[10px] font-bold text-slate-600 rounded border border-slate-200">visa</div>
-          <div className="px-2 py-1 bg-slate-50 text-[10px] font-bold text-slate-600 rounded border border-slate-200">mastercard</div>
+          {/* TROY Badge */}
+          <div className="h-5 flex items-center justify-center px-2 bg-[#00a1cb] rounded-sm shadow-sm grayscale opacity-80 hover:grayscale-0 hover:opacity-100 transition-all cursor-default">
+            <span className="text-[11px] font-black text-white tracking-tighter italic">troy</span>
+          </div>
+          {/* VISA Badge */}
+          <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzOCAxMiI+PHBhdGggZD0iTTE0LjYxMyAxMS42NjZMMTYuOTI0LjM2NGgyLjQ2NEwxNy4wNzYgMTEuNjY2aC0yLjQ2M3ptMTMuMTExLTExLjNjLTEuMTI3LS4zLTIuMzE2LS40OC0zLjUyOC0uNDgtMy44NyAwLTYuNTk4IDItNi42MjEgNC44NjgtLjAyNCAyLjEyNiAxLjk1IDMuMzE1IDMuNDI1IDQuMDI1IDEuNTEuNzIyIDIuMDE1IDEuMTg5IDIuMDEwIDEuODM0LS4wMDcuOTg2LTEuMjE4IDEuNDMzLTIuMzQ1IDEuNDMzLTEuNTYgMC0yLjM5OC0uMjQtMy42NjYtLjhsLS41MTMtLjIzOC0uMzQ0IDIuMDcyYy45MDkuNDEgMi41ODMuNzYzIDQuMzE2Ljc4MiA0LjEwMyAwIDYuNzktMS45NyA2LjgxOS01LjAyNS4wMTMtMS42ODgtLjk5LTIuOTU1LTMuMjY3LTQuMDA0LTEuMzUzLS42NjgtMi4xODQtMS4xMTEtMi4xODAtMS43ODUuMDA0LS42My43Mi0xLjMwNiAyLjIyLTEuMzA2IDEuMjU4LS4wMiAyLjE5LjI2MyAyLjk0Ni41OTRsLjM1NC4xNi40MjUtMi4xM3ptNi42NTcgOC4zNThjLjI1Ny0yLjYxNiAyLjQ3LTUuMDQyIDQuNTQyLTYuMTk2LS40NDQtMi4xNDgtMi40MDQtMy43OS00LjcwNC0zLjkyMS0yLjAwMy0uMTEyLTMuOTA1IDEuMjIyLTQuOTMxIDEuMjIyLTEuMDEwIDAtMi41OC0xLjE5Ni00LjI0LTEuMTYzLTIuMTMuMDMzLTQuMDk1IDEuMjA2LTUuMTg1IDMuMDM3LTIuMjIgMy43MzEtLjU2OCA5LjI1IDEuNTk3IDEyLjI4IDEuMDU0IDEuNDgxIDIuMzAyIDMuMTY3IDMuOTE2IDMuMSAxLjU1NC0uMDcgMi4xNDQtMS4wMTEgNC4wMjEtMS4wMTEgMS44NjcgMCAyLjQwNSAxLjAxMSA0LjAzMi45NzcgMS42NjYtLjAzMiAyLjc0OC0xLjUzNiAzLjc5My0zLjAwNiAxLjIwOC0xLjcwNSAxLjcwNC0zLjM2IDEuNzMzLTMuNDQ3LS4wMzctLjAxNS0zLjMyNy0xLjIzOC0zLjU4NS0zLjg3ek0yOC4wMjYuNDRjLS42MyAyLjkyLTMuMTMgNS40OC01Ljc0OCA1Ljc1LS4xMjUuMDEyLS4yNS4wMTgtLjM3Mi4wMTgtLjQ2NSAwLS45MTYtLjEtMS4zMzItLjI3Ni41NC0zLjAyIDMuMTc1LTUuNTQ1IDUuOTIyLTUuNzYuMDgyLS4wMDYuMTY0LS4wMS4yNDYtLjAxLjQ0MiAwIC44NjYuMDg4IDEuMjYyLjI0N0wyOC4wMjYuNDR6TTYuOTI0IDExLjY2NmgzLjkxNGw2LjEwMy0xMS4zSDEzLjIzTDkuNjEgOC41MjggNy45NzMuMzY0SDMuMDE4bC0uMDQzLjE5NWMtLjcxNCAzLjQyLTMuMzUgOC4xNjctNS45MTggMTAuMzdMLjY3OCAxMS4yM2wzLjY5Mi0uMDAyTDYuOTI0IDExLjY2NnoiIGZpbGw9IiMxNDM0Q0IiLz48L3N2Zz4=" alt="Visa" className="h-4 object-contain grayscale opacity-80 hover:grayscale-0 hover:opacity-100 transition-all cursor-default" />
+          {/* MASTERCARD Badge */}
+          <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAxNSI+PGNpcmNsZSBjeD0iNy41IiBjeT0iNy41IiByPSI3LjUiIGZpbGw9IiNlYjAwMWIiLz48Y2lyY2xlIGN4PSIxNi41IiBjeT0iNy41IiByPSI3LjUiIGZpbGw9IiNmNzkzMWUiLz48cGF0aCBkPSJNMTIgMTEuOTdBNy40NiA3LjQ2IDAgMCAwIDE0LjM0IDcuNSA3LjQ2IDcuNDYgMCAwIDAgMTIgMy4wM2E3LjQ2IDcuNDYgMCAwIDAgLTIuMzQgNC40N0E3LjQ2IDcuNDYgMCAwIDAgMTIgMTEuOTd6IiBmaWxsPSIjZmY1YjAwIi8+PC9zdmc+" alt="Mastercard" className="h-5 object-contain grayscale opacity-80 hover:grayscale-0 hover:opacity-100 transition-all cursor-default" />
         </div>
       </div>
       

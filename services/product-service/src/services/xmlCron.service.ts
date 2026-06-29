@@ -91,7 +91,7 @@ export class XmlCronService {
           const products = await xmlParserService.parseXMLStream(xmlStream, fieldMapping as any);
           
           // Güncellenen ürünleri yayınla
-          const publishInfo = xmlCatalogService.publishProducts({
+          const publishInfo = await xmlCatalogService.publishProducts({
             products,
             sourceUrl: feed.url,
             xmlFileName: feed.name,
@@ -133,7 +133,7 @@ export class XmlCronService {
       const fieldMapping = typeof feed.fieldMapping === 'string' ? JSON.parse(feed.fieldMapping) : feed.fieldMapping;
       const products = await xmlParserService.parseXMLStream(xmlStream, fieldMapping as any);
       
-      const publishInfo = xmlCatalogService.publishProducts({
+      const publishInfo = await xmlCatalogService.publishProducts({
         products,
         sourceUrl: feed.url,
         xmlFileName: feed.name,

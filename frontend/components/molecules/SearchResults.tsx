@@ -2,6 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
+import { useSearchSessionStore } from "@/stores/searchSessionStore";
+import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 
 interface SearchProduct {
   id: string;
@@ -16,8 +18,8 @@ interface SearchResultsProps {
   query?: string;
   results: SearchProduct[];
   categories?: string[];
+  subCategories?: string[];
   brands?: string[];
-  recentSearches?: string[];
   recommended?: any[];
   onClose: () => void;
 }
@@ -28,11 +30,14 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   query = "", 
   results, 
   categories = [], 
+  subCategories = [],
   brands = [], 
-  recentSearches = [],
   recommended = [],
   onClose 
 }) => {
+  const { setSearchSession, lastSearchedCategory, recentSearches, clearRecentSearches } = useSearchSessionStore();
+  const { products: recentlyViewed, clearAll: clearRecentlyViewed } = useRecentlyViewedStore();
+
   if (!query.trim()) {
     return (
       <div className="absolute left-1/2 -translate-x-1/2 w-[95vw] md:w-[750px] top-full z-50 mt-2 overflow-hidden rounded-2xl border-[0.5px] border-slate-200 bg-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 select-none flex">
@@ -44,7 +49,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-black text-slate-800">Geçmiş aramaların</h3>
-              <button className="text-xs font-bold text-[#ff5000] hover:underline">Temizle</button>
+              {recentSearches.length > 0 && (
+                <button onClick={clearRecentSearches} className="text-xs font-bold text-[#ff5000] hover:underline">Temizle</button>
+              )}
             </div>
             <div className="space-y-1">
               {recentSearches.map((term, i) => (
@@ -85,51 +92,56 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
         {/* Right Column: Recently Viewed Products */}
         <div className="w-1/2 p-6 max-h-[500px] overflow-y-auto">
-          <h3 className="text-sm font-black text-slate-800 mb-4">Son gezdiğin ürünler</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-black text-slate-800">Son gezdiğin ürünler</h3>
+            {recentlyViewed.length > 0 && (
+              <button onClick={clearRecentlyViewed} className="text-xs font-bold text-[#ff5000] hover:underline">Temizle</button>
+            )}
+          </div>
           <div className="flex flex-col gap-3">
-            {/* Hardcoded placeholders for recently viewed if empty */}
-            {(recommended.length > 0 ? recommended : [
-              { id: "mock1", name: "Apple MacBook Air M4...", rating: 4.9, reviewCount: 201, price: 45875, imageUrl: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=200&auto=format&fit=crop" },
-              { id: "mock2", name: "Erkek Ön Cep Cüzdanı...", rating: 0, reviewCount: 0, price: 399, coupon: "Ek 30 TL Kupon", imageUrl: "https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=200&auto=format&fit=crop" },
-              { id: "mock3", name: "Trusador Valencia Hakiki Deri Cüzdan", rating: 0, reviewCount: 0, originalPrice: 1539, price: 1338.93, coupon: "Ek 30 TL Kupon", imageUrl: "https://images.unsplash.com/photo-1559564475-478a2f58be5b?q=80&w=200&auto=format&fit=crop", cartSpecial: true },
-            ]).map((prod: any, idx) => (
-              <div key={prod.id || `mock-${idx}`} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:shadow-md transition-shadow cursor-pointer bg-white group">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-slate-50 rounded-lg overflow-hidden shrink-0 p-1 flex items-center justify-center">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={prod.imageUrl} alt={prod.name} className="w-full h-full object-contain mix-blend-multiply" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    {prod.coupon && (
-                      <span className="text-[9px] font-black text-[#ff5000] bg-orange-50 px-1.5 py-0.5 rounded self-start">
-                        {prod.coupon}
-                      </span>
-                    )}
-                    <p className="text-xs text-slate-800 line-clamp-1 group-hover:text-[#ff5000] transition-colors">{prod.name}</p>
-                    {prod.rating > 0 && (
-                      <div className="flex items-center gap-1 text-[10px]">
-                        <span className="text-[#ff5000]">★</span>
-                        <span className="font-bold text-slate-700">{prod.rating}</span>
-                        <span className="text-slate-400">({prod.reviewCount})</span>
-                      </div>
-                    )}
-                    <div className="flex items-baseline gap-2 mt-0.5">
-                      {prod.cartSpecial ? (
-                        <div className="flex flex-col">
-                          <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider">Sepete özel</span>
-                          <span className="text-sm font-black text-emerald-600">{prod.price.toLocaleString("tr-TR")} TL</span>
+            {recentlyViewed.length > 0 ? recentlyViewed.map((prod, idx) => (
+              <Link href={`/product/${prod.id}`} key={prod.id || `rv-${idx}`} onClick={onClose}>
+                <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:shadow-md transition-shadow cursor-pointer bg-white group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-slate-50 rounded-lg overflow-hidden shrink-0 p-1 flex items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={prod.imageUrl} alt={prod.name} className="w-full h-full object-contain mix-blend-multiply" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs text-slate-800 line-clamp-1 group-hover:text-[#ff5000] transition-colors">{prod.name}</p>
+                      {prod.rating > 0 && (
+                        <div className="flex items-center gap-1 text-[10px]">
+                          <span className="text-[#ff5000]">★</span>
+                          <span className="font-bold text-slate-700">{prod.rating}</span>
+                          <span className="text-slate-400">({prod.reviewCount})</span>
                         </div>
-                      ) : (
-                        <span className="text-sm font-black text-slate-900">{prod.price.toLocaleString("tr-TR")} TL</span>
                       )}
+                      <div className="flex items-baseline gap-2 mt-0.5">
+                        {prod.originalPrice && prod.originalPrice > prod.price ? (
+                          <>
+                            <span className="text-sm font-black text-slate-900">{prod.price.toLocaleString("tr-TR")} TL</span>
+                            <span className="text-[10px] text-slate-400 line-through">{prod.originalPrice.toLocaleString("tr-TR")} TL</span>
+                          </>
+                        ) : (
+                          <span className="text-sm font-black text-slate-900">{prod.price.toLocaleString("tr-TR")} TL</span>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  <button className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:text-[#ff5000] hover:border-[#ff5000] transition-all hover:bg-orange-50">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                  </button>
                 </div>
-                <button className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:text-[#ff5000] hover:border-[#ff5000] transition-all hover:bg-orange-50">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                </button>
+              </Link>
+            )) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                </div>
+                <p className="text-sm font-bold text-slate-500">Henüz ürün gezmediniz</p>
+                <p className="text-xs text-slate-400 mt-1">Gezdiğiniz ürünler burada görünecek</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -138,7 +150,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
   return (
     <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border-[0.5px] border-slate-200 bg-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 select-none">
-      {(results.length > 0 || categories.length > 0 || brands.length > 0) ? (
+      {(results.length > 0 || categories.length > 0 || subCategories.length > 0 || brands.length > 0) ? (
         <div className="py-2 max-h-[400px] overflow-y-auto divide-y divide-slate-100">
           
           {/* Categories Section */}
@@ -150,12 +162,41 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               {categories.map((cat, idx) => (
                 <Link
                   key={`cat-${idx}`}
-                  href={`/?category=${encodeURIComponent(cat)}`}
-                  onClick={onClose}
+                  href={`/arama?kategori=${encodeURIComponent(cat)}`}
+                  onClick={() => {
+                    setSearchSession(cat, null);
+                    onClose();
+                  }}
                   className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50 text-xs font-bold text-slate-700"
                 >
-                  <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center">📁</span>
-                  {cat}
+                  <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs">📂</span>
+                  <span className="flex-1">{cat}</span>
+                  <span className="text-[10px] text-slate-400">Kategorisinde Ara</span>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* SubCategories Section */}
+          {subCategories.length > 0 && (
+            <div className="pb-2">
+              <div className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50/50">
+                Alt Kategoriler
+              </div>
+              {subCategories.map((sub, idx) => (
+                <Link
+                  key={`subcat-${idx}`}
+                  href={`/arama?altkategori=${encodeURIComponent(sub)}`}
+                  onClick={() => {
+                    setSearchSession(null, sub);
+                    onClose();
+                  }}
+                  className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50 text-xs font-bold text-slate-700 pl-8 relative"
+                >
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-3 h-[1px] bg-slate-200"></div>
+                  <div className="absolute left-5 top-0 h-1/2 w-[1px] bg-slate-200"></div>
+                  <span className="flex-1">{sub}</span>
+                  <span className="text-[10px] text-slate-400">İçinde Ara</span>
                 </Link>
               ))}
             </div>

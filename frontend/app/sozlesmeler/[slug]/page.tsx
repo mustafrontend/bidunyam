@@ -350,8 +350,9 @@ const LEGAL_PAGES: Record<string, { title: string; content: React.ReactNode }> =
   },
 };
 
-export default function LegalPage({ params }: { params: { slug: string } }) {
-  const page = LEGAL_PAGES[params.slug];
+export default async function LegalPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const page = LEGAL_PAGES[slug];
 
   if (!page) {
     notFound();

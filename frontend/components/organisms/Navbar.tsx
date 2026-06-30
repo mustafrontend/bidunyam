@@ -7,15 +7,7 @@ import {
   User, 
   ShoppingCart, 
   Search, 
-  Heart, 
-  Zap, 
-  CheckCircle2, 
-  Shirt, 
-  Home as HomeIcon, 
-  Laptop, 
-  Smile, 
-  Sparkles, 
-  Activity 
+  Heart
 } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -27,6 +19,7 @@ import { LoginModal } from "../molecules/LoginModal";
 import { UserMenu } from "../molecules/UserMenu";
 import { SearchResults } from "../molecules/SearchResults";
 import { CategoriesMegaMenu } from "./CategoriesMegaMenu";
+import { NavCategories } from "./NavCategories";
 import { useSearchSessionStore } from "@/stores/searchSessionStore";
 
 interface Product {
@@ -300,55 +293,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* 3. Fluid Sub-Navigation Layer (Yarı Opak Filtreli Premium Alan) */}
-          <nav className="mt-3.5 flex items-center gap-2 overflow-x-auto no-scrollbar border-t border-slate-100 pt-3 text-xs font-medium text-slate-500 select-none scroll-smooth snap-x group/nav">
-            
-            {/* Flaş Fırsatlar: Turuncu & Siyah Lüks Kapsül */}
-            <Link href="/arama?kampanya=flas" className="snap-start group relative flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-950 text-white font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0 shadow-sm hover:bg-[#ff5000] group-hover/nav:opacity-100">
-              <div className="relative flex h-2 w-2 items-center justify-center">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400"></span>
-              </div>
-              <Zap size={14} className="text-amber-400 fill-amber-400 group-hover:text-white group-hover:fill-white transition-colors duration-300 shrink-0" /> 
-              <span>Flaş Fırsatlar</span>
-            </Link>
-
-            {/* Diğer Fluid Linkler: Hover anında diğerlerini %60 opaklığa düşürür */}
-            <Link href="/arama?onayli=true" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
-              <CheckCircle2 size={14} className="text-slate-400 group-hover:text-emerald-500 transition-colors duration-300 shrink-0" /> 
-              <span>Sadece Onaylılar</span>
-            </Link>
-
-            <Link href="/arama?kategori=Giyim" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
-              <Shirt size={14} className="text-slate-400 group-hover:text-[#ff5000] transition-colors duration-300 shrink-0" /> 
-              <span>Giyim</span>
-            </Link>
-
-            <Link href="/arama?kategori=Ev%20%26%20Yaşam" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
-              <HomeIcon size={14} className="text-slate-400 group-hover:text-orange-500 transition-colors duration-300 shrink-0" /> 
-              <span>Ev & Yaşam</span>
-            </Link>
-
-            <Link href="/arama?kategori=Elektronik" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
-              <Laptop size={14} className="text-slate-400 group-hover:text-indigo-500 transition-colors duration-300 shrink-0" /> 
-              <span>Elektronik</span>
-            </Link>
-
-            <Link href="/arama?kategori=Bebek%20%26%20Çocuk" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
-              <Smile size={14} className="text-slate-400 group-hover:text-purple-500 transition-colors duration-300 shrink-0" /> 
-              <span>Bebek & Çocuk</span>
-            </Link>
-
-            <Link href="/arama?kategori=Kozmetik" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
-              <Sparkles size={14} className="text-slate-400 group-hover:text-pink-500 transition-colors duration-300 shrink-0" /> 
-              <span>Kozmetik</span>
-            </Link>
-
-            <Link href="/arama?kategori=Spor%20%26%20Outdoor" className="snap-start group flex items-center gap-1.5 px-4 py-2 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50/80 text-slate-600 hover:text-slate-900 font-medium transition-all duration-300 shrink-0 group-hover/nav:hover:!opacity-100 group-hover/nav:opacity-60">
-              <Activity size={14} className="text-slate-400 group-hover:text-rose-500 transition-colors duration-300 shrink-0" /> 
-              <span>Spor & Outdoor</span>
-            </Link>
-
-          </nav>
+          <NavCategories />
 
         </div>
       </header>

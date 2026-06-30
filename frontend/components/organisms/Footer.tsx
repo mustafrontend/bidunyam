@@ -62,11 +62,10 @@ export const Footer: React.FC = () => {
         <div className="flex flex-col gap-3.5">
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Kurumsal</h3>
           <div className="flex flex-col gap-2.5 text-xs font-medium text-slate-500">
-            <Link href="#" className="hover:text-slate-900 transition-colors">Hakkımızda</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Bizimle Çalışın (Kariyer)</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">İletişim & Destek</Link>
+            <Link href="/sozlesmeler/hakkimizda" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">Hakkımızda</Link>
+            <Link href="/sozlesmeler/kariyer" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">Bizimle Çalışın (Kariyer)</Link>
+            <Link href="/sozlesmeler/iletisim" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">İletişim &amp; Destek</Link>
             <div className="w-full border-t border-slate-100/70 my-1" />
-            {/* İstediğiniz Yönetici Girişi Buraya Eklendi */}
             <Link href="/yonetim" className="text-slate-800 hover:text-[#ff5000] font-semibold flex items-center gap-1 transition-colors group">
               <span>Yönetici Girişi</span>
               <span className="text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded group-hover:bg-[#ff5000]/10 group-hover:text-[#ff5000] transition-colors">Panel</span>
@@ -76,14 +75,14 @@ export const Footer: React.FC = () => {
 
         {/* Kolon 2: Yasal Sözleşmeler (E-ticaret İçin Şart Olanlar) */}
         <div className="flex flex-col gap-3.5">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Sözleşmeler & Yasal</h3>
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Sözleşmeler &amp; Yasal</h3>
           <div className="flex flex-col gap-2.5 text-xs font-medium text-slate-500">
-            <Link href="/sozlesmeler/gizlilik-politikasi" className="hover:text-slate-900 transition-colors">Gizlilik Politikası</Link>
-            <Link href="/sozlesmeler/kullanim-kosullari" className="hover:text-slate-900 transition-colors">Kullanım Koşulları</Link>
-            <Link href="/sozlesmeler/gizlilik-politikasi" className="hover:text-slate-900 transition-colors">KVKK Aydınlatma Metni</Link>
-            <Link href="/sozlesmeler/gizlilik-politikasi" className="hover:text-slate-900 transition-colors">Çerez (Cookie) Politikası</Link>
-            <Link href="/sozlesmeler/mesafeli-satis-sozlesmesi" className="hover:text-slate-900 transition-colors">Mesafeli Satış Sözleşmesi</Link>
-            <Link href="/sozlesmeler/mesafeli-satis-sozlesmesi" className="hover:text-slate-900 transition-colors">Ön Bilgilendirme Formu</Link>
+            <Link href="/sozlesmeler/gizlilik-politikasi" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">Gizlilik Politikası</Link>
+            <Link href="/sozlesmeler/kullanim-kosullari" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">Kullanım Koşulları</Link>
+            <Link href="/sozlesmeler/kvkk" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">KVKK Aydınlatma Metni</Link>
+            <Link href="/sozlesmeler/cerez-politikasi" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">Çerez (Cookie) Politikası</Link>
+            <Link href="/sozlesmeler/mesafeli-satis-sozlesmesi" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">Mesafeli Satış Sözleşmesi</Link>
+            <Link href="/sozlesmeler/on-bilgilendirme-formu" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">Ön Bilgilendirme Formu</Link>
           </div>
         </div>
 
@@ -91,11 +90,11 @@ export const Footer: React.FC = () => {
         <div className="flex flex-col gap-3.5">
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Müşteri İlişkileri</h3>
           <div className="flex flex-col gap-2.5 text-xs font-medium text-slate-500">
-            <Link href="#" className="hover:text-slate-900 transition-colors">Sıkça Sorulan Sorular</Link>
-            <Link href="/sozlesmeler/gizlilik-politikasi" className="hover:text-slate-900 transition-colors">Güvenlik Merkezi</Link>
-            <Link href="/sozlesmeler/iptal-iade-kosullari" className="hover:text-slate-900 transition-colors">İptal & İade Şartları</Link>
-            <Link href="/sozlesmeler/teslimat-sartlari" className="hover:text-slate-900 transition-colors">Kargo ve Teslimat Süreçleri</Link>
-            <Link href="#" className="hover:text-slate-900 transition-colors">Site Haritası</Link>
+            <Link href="/sozlesmeler/sikca-sorulan-sorular" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">Sıkça Sorulan Sorular</Link>
+            <Link href="/sozlesmeler/guvenlik-merkezi" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">Güvenlik Merkezi</Link>
+            <Link href="/sozlesmeler/iptal-iade-kosullari" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">İptal &amp; İade Şartları</Link>
+            <Link href="/sozlesmeler/teslimat-sartlari" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">Kargo ve Teslimat Süreçleri</Link>
+            <Link href="/sozlesmeler/site-haritasi" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">Site Haritası</Link>
           </div>
         </div>
 

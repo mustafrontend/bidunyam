@@ -18,3 +18,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Docker deploy archives
+*.tar
+*.tar.gz
+deploy.tar.gz

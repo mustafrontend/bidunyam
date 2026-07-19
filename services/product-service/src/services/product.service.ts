@@ -206,6 +206,66 @@ export const ProductService = {
     };
   },
 
+  // ─── Category Filter Templates (Dinamik Kategori Şablonları) ──
+  async getFilterTemplates() {
+    return prisma.categoryFilterTemplate.findMany({
+      orderBy: { categoryName: 'asc' },
+    });
+  },
+
+  async getFilterTemplate(categoryName: string) {
+    return prisma.categoryFilterTemplate.findUnique({
+      where: { categoryName },
+    });
+  },
+
+  async upsertFilterTemplate(categoryName: string, filters: any[]) {
+    return prisma.categoryFilterTemplate.upsert({
+      where: { categoryName },
+      update: { filters },
+      create: { categoryName, filters },
+    });
+  },
+
+  async deleteFilterTemplate(categoryName: string) {
+    await prisma.categoryFilterTemplate.delete({ where: { categoryName } }).catch(() => null);
+    return { deleted: true };
+  },
+
+  // Taksonomi + filtre şablonlarını seed'ler (kategori/alt kategori tabloları + şablonlar)
+  async seedTaxonomy() {
+    const { TAXONOMY, flattenTemplates } = await import('../data/taxonomy');
+
+    for (const cat of TAXONOMY) {
+      const category = await prisma.category.upsert({
+        where: { name: cat.name },
+        update: {},
+        create: { name: cat.name },
+      });
+      for (const sub of cat.subCategories) {
+        const existingSub = await prisma.subCategory.findFirst({
+          where: { name: sub.name, categoryId: category.id },
+        });
+        if (!existingSub) {
+          await prisma.subCategory.create({
+            data: { name: sub.name, categoryId: category.id },
+          });
+        }
+      }
+    }
+
+    // Filtre şablonları (alt kategori adına göre)
+    const templates = flattenTemplates();
+    for (const t of templates) {
+      await prisma.categoryFilterTemplate.upsert({
+        where: { categoryName: t.categoryName },
+        update: { filters: t.filters as any },
+        create: { categoryName: t.categoryName, filters: t.filters as any },
+      });
+    }
+    console.log(`[Taxonomy Seed] ${TAXONOMY.length} kategori, ${templates.length} filtre şablonu senkronlandı.`);
+  },
+
   // ─── Question & Answer Methods ──────────────────────────────
   async getQuestionsByProductId(productId: string) {
     return prisma.question.findMany({

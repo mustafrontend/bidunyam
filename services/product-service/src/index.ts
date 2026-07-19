@@ -58,6 +58,10 @@ app.get('/meta/options', ProductController.getCatalogOptions);
 app.get('/meta/filters', ProductController.getCategoryFilters);
 app.post('/meta/brand', ProductController.createBrandOption);
 app.post('/meta/category', ProductController.createCategoryOption);
+// Kategori filtre şablonları (dinamik kategori özellikleri)
+app.get('/meta/filter-templates', ProductController.getFilterTemplates);
+app.put('/meta/filter-templates', ProductController.upsertFilterTemplate);
+app.delete('/meta/filter-templates/:category', ProductController.deleteFilterTemplate);
 app.get('/admin/:id', authenticate, ProductController.getByIdAny);
 app.get('/admin/products/all', authenticate, requireAdmin, ProductController.getAdminProducts);
 
@@ -107,6 +111,9 @@ const start = async (): Promise<void> => {
 
   // Seed sample products if database is empty
   await ProductService.seedProducts();
+
+  // Seed kategori taksonomisi + dinamik filtre şablonları (idempotent)
+  await ProductService.seedTaxonomy().catch((e) => console.error('[Taxonomy Seed] failed:', e));
 
   // Sync products to Elasticsearch (Disabled since ES is not running)
   // await ProductService.syncAllToSearch();

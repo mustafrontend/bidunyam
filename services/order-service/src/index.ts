@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { OrderController } from './controllers/order.controller';
+import { PaymentController } from './controllers/payment.controller';
 import { startOrderWorker } from './queue/order.worker';
 
 dotenv.config();
@@ -35,10 +36,31 @@ const requireAdmin = (req: any, res: any, next: any) => {
   next();
 };
 
+const requireSellerOrAdmin = (req: any, res: any, next: any) => {
+  if (req.user?.role !== 'ADMIN' && req.user?.role !== 'SELLER') {
+    return res.status(403).json({ message: 'Only sellers or admins can access this route' });
+  }
+  next();
+};
+
 // Routes
 app.post('/checkout', authenticate, OrderController.checkout);
 app.get('/history', authenticate, OrderController.list);
+app.get('/my-orders', authenticate, OrderController.list);
+app.get('/', authenticate, requireSellerOrAdmin, OrderController.getAdminOrders);
 app.get('/admin/all', authenticate, requireAdmin, OrderController.getAdminOrders);
+
+// Kargo (Navlungo) — satıcı/admin gönderi oluşturur, takip ilerletir
+app.post('/:id/ship', authenticate, OrderController.ship);
+app.post('/:id/advance', authenticate, OrderController.advanceTracking);
+app.patch('/:id/status', authenticate, OrderController.updateStatus);
+app.get('/:id/tracking', OrderController.getTracking);
+app.get('/:id', authenticate, OrderController.getById);
+
+// İyzico ödeme simülasyonu (mockup)
+app.post('/payment/installments', authenticate, PaymentController.installments);
+app.post('/payment/init', authenticate, PaymentController.init);
+app.post('/payment/3ds/complete', authenticate, PaymentController.complete3DS);
 
 const start = async () => {
   try {

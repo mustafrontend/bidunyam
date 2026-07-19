@@ -4,6 +4,16 @@ import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
 import { useSellerAuthStore } from "@/stores/sellerAuthStore";
 
+interface TrackingEvent { status: string; label: string; location?: string; timestamp: string; }
+interface Shipment {
+  carrier?: string;
+  trackingNumber?: string;
+  barcode?: string;
+  navlungoShipmentId?: string;
+  desi?: number;
+  estimatedDelivery?: string;
+  events?: TrackingEvent[];
+}
 interface Order {
   _id: string;
   userId: string;
@@ -11,27 +21,35 @@ interface Order {
   totalAmount: number;
   status: string;
   address: string;
+  shipment?: Shipment;
   createdAt: string;
 }
 
+// Görsel 3 aşama; ara statüler (PREPARING/IN_TRANSIT) bunlara eşlenir
 const KARGO_STAGES = ["PAID", "SHIPPED", "DELIVERED"];
 
 const STAGE_LABEL: Record<string, string> = {
-  PAID: "Hazirlaniyor",
+  PAID: "Hazırlanıyor",
+  PREPARING: "Hazırlanıyor",
   SHIPPED: "Kargoya Verildi",
+  IN_TRANSIT: "Yolda",
   DELIVERED: "Teslim Edildi",
 };
 
 const STAGE_COLOR: Record<string, string> = {
   PAID: "bg-blue-500",
+  PREPARING: "bg-blue-500",
   SHIPPED: "bg-purple-500",
+  IN_TRANSIT: "bg-indigo-500",
   DELIVERED: "bg-green-500",
 };
 
-const MOCK_CARRIERS = ["Yurtici Kargo", "MNG Kargo", "Aras Kargo", "PTT Kargo", "Suredas"];
-
-function trackingCode(orderId: string) {
-  return `TRK${orderId.slice(-10).toUpperCase()}`;
+// Sipariş statüsünü 3 görsel aşamadan birine indir
+function visualStage(status: string): number {
+  if (["PAID", "PREPARING"].includes(status)) return 0;
+  if (["SHIPPED", "IN_TRANSIT"].includes(status)) return 1;
+  if (status === "DELIVERED") return 2;
+  return 0;
 }
 
 export default function KargoPage() {
@@ -49,38 +67,49 @@ export default function KargoPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const shippable = orders.filter((o) => ["PAID", "SHIPPED", "DELIVERED"].includes(o.status));
+  const shippable = orders.filter((o) => ["PAID", "PREPARING", "SHIPPED", "IN_TRANSIT", "DELIVERED"].includes(o.status));
 
   const filtered = shippable.filter((o) => {
-    const matchStatus = statusFilter === "Tumu" || o.status === statusFilter;
+    const matchStatus = statusFilter === "Tumu" || visualStage(o.status) === visualStage(statusFilter);
     const matchSearch = o._id.toLowerCase().includes(search.toLowerCase()) ||
       o.address?.toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
   });
 
-  const handleAdvance = async (order: Order) => {
-    const idx = KARGO_STAGES.indexOf(order.status);
-    if (idx >= KARGO_STAGES.length - 1) return;
-    const nextStatus = KARGO_STAGES[idx + 1];
+  const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
+
+  // PAID → Navlungo gönderi oluştur (gerçek takip no üretir)
+  const handleShip = async (order: Order) => {
     setUpdating(order._id);
     try {
-      await apiClient.patch(`/orders/${order._id}/status`, { status: nextStatus }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setOrders((prev) => prev.map((o) => o._id === order._id ? { ...o, status: nextStatus } : o));
-    } catch {
-      setOrders((prev) => prev.map((o) => o._id === order._id ? { ...o, status: nextStatus } : o));
+      const res = await apiClient.post(`/orders/${order._id}/ship`, {}, authHeaders);
+      const updated = res.data?.data;
+      setOrders((prev) => prev.map((o) => o._id === order._id ? updated : o));
+    } catch (e) {
+      console.error("Gönderi oluşturulamadı", e);
     } finally {
       setUpdating(null);
     }
   };
 
-  const carrierFor = (id: string) => MOCK_CARRIERS[parseInt(id.slice(-2), 16) % MOCK_CARRIERS.length];
+  // Kargo takip durumunu bir adım ilerlet (webhook simülasyonu)
+  const handleAdvance = async (order: Order) => {
+    setUpdating(order._id);
+    try {
+      const res = await apiClient.post(`/orders/${order._id}/advance`, {}, authHeaders);
+      const updated = res.data?.data;
+      setOrders((prev) => prev.map((o) => o._id === order._id ? updated : o));
+    } catch (e) {
+      console.error("Takip ilerletilemedi", e);
+    } finally {
+      setUpdating(null);
+    }
+  };
 
   const counts = {
-    PAID: shippable.filter((o) => o.status === "PAID").length,
-    SHIPPED: shippable.filter((o) => o.status === "SHIPPED").length,
-    DELIVERED: shippable.filter((o) => o.status === "DELIVERED").length,
+    PAID: shippable.filter((o) => visualStage(o.status) === 0).length,
+    SHIPPED: shippable.filter((o) => visualStage(o.status) === 1).length,
+    DELIVERED: shippable.filter((o) => visualStage(o.status) === 2).length,
   };
 
   return (
@@ -134,23 +163,36 @@ export default function KargoPage() {
             </div>
           )}
           {filtered.map((order) => {
-            const stageIdx = KARGO_STAGES.indexOf(order.status);
-            const carrier = carrierFor(order._id);
-            const tracking = trackingCode(order._id);
+            const stageIdx = visualStage(order.status);
+            const sh = order.shipment;
+            const hasShipment = !!sh?.trackingNumber;
+            const isPaid = visualStage(order.status) === 0;
+            const lastEvent = sh?.events?.[sh.events.length - 1];
             return (
               <div key={order._id} className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3 mb-2">
                       <p className="font-mono text-sm font-bold text-slate-700">{order._id.slice(-8).toUpperCase()}</p>
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold text-white ${STAGE_COLOR[order.status]}`}>
-                        {STAGE_LABEL[order.status]}
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold text-white ${STAGE_COLOR[order.status] || "bg-slate-400"}`}>
+                        {STAGE_LABEL[order.status] || order.status}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mb-1 truncate">{order.address}</p>
-                    <p className="text-xs text-slate-400">
-                      {carrier} — Takip: <span className="font-mono font-bold text-slate-600">{tracking}</span>
-                    </p>
+                    {hasShipment ? (
+                      <p className="text-xs text-slate-400">
+                        {sh!.carrier} — Takip: <span className="font-mono font-bold text-slate-600">{sh!.trackingNumber}</span>
+                        {sh!.desi ? <span className="ml-2 text-slate-400">· {sh!.desi} desi</span> : null}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-amber-600 font-semibold">Henüz kargoya verilmedi</p>
+                    )}
+                    {lastEvent && (
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        <span className="font-semibold text-slate-600">{lastEvent.label}</span>
+                        {lastEvent.location ? ` — ${lastEvent.location}` : ""}
+                      </p>
+                    )}
                   </div>
 
                   {/* Progress Bar */}
@@ -169,14 +211,26 @@ export default function KargoPage() {
 
                   <div className="flex flex-col items-end gap-2">
                     <p className="font-black text-slate-800">{order.totalAmount.toLocaleString("tr-TR")} TL</p>
-                    {order.status !== "DELIVERED" && (
+                    {isPaid && (
                       <button
-                        onClick={() => handleAdvance(order)}
+                        onClick={() => handleShip(order)}
                         disabled={updating === order._id}
                         className="rounded-lg bg-[#ff6000] px-3 py-1.5 text-xs font-black text-white disabled:opacity-60 hover:bg-[#d85000] transition-colors"
                       >
-                        {updating === order._id ? "..." : order.status === "PAID" ? "Kargoya Ver" : "Teslim Edildi"}
+                        {updating === order._id ? "..." : "Kargoya Ver (Navlungo)"}
                       </button>
+                    )}
+                    {stageIdx === 1 && (
+                      <button
+                        onClick={() => handleAdvance(order)}
+                        disabled={updating === order._id}
+                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-60 hover:bg-indigo-700 transition-colors"
+                      >
+                        {updating === order._id ? "..." : "Durumu İlerlet →"}
+                      </button>
+                    )}
+                    {stageIdx === 2 && (
+                      <span className="rounded-lg bg-green-50 px-3 py-1.5 text-xs font-black text-green-600">Teslim Edildi ✓</span>
                     )}
                   </div>
                 </div>

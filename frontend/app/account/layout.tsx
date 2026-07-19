@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import Link from "next/link";
@@ -21,13 +21,22 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   const user = useAuthStore((s) => s.user);
   const setLoginModalOpen = useUiStore((s) => s.setLoginModalOpen);
 
+  // Zustand persist hidrasyonunu bekle; aksi halde token yüklenmeden redirect olur
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
-    if (!token) {
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (hydrated && !token) {
       setLoginModalOpen(true);
       router.push("/");
     }
-  }, [token, router, setLoginModalOpen]);
+  }, [hydrated, token, router, setLoginModalOpen]);
 
+  if (!hydrated) {
+    return null;
+  }
   if (!token) {
     return null;
   }

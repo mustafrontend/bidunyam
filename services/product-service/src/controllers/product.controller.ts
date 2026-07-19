@@ -117,6 +117,47 @@ export const ProductController = {
     }
   },
 
+  // ─── Category Filter Templates ────────────────────────────────
+  async getFilterTemplates(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const templates = await ProductService.getFilterTemplates();
+      res.json({ success: true, data: templates });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async upsertFilterTemplate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const schema = z.object({
+        categoryName: z.string().min(1),
+        filters: z.array(z.object({
+          name: z.string().min(1),
+          label: z.string().optional(),
+          type: z.enum(['select', 'number', 'text', 'boolean']).default('text'),
+          options: z.array(z.string()).optional(),
+          unit: z.string().optional(),
+          required: z.boolean().optional(),
+        })).default([]),
+      });
+      const body = schema.parse(req.body);
+      const result = await ProductService.upsertFilterTemplate(body.categoryName, body.filters);
+      res.status(201).json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async deleteFilterTemplate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { category } = req.params;
+      const result = await ProductService.deleteFilterTemplate(category);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async createBrandOption(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const body = BrandOptionSchema.parse(req.body);

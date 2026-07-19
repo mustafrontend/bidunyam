@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useSellerProducts } from "@/hooks/useSellerProducts";
 import { InventoryTable } from "@/components/admin/InventoryTable";
 import { ProductFormModal } from "@/components/admin/ProductFormModal";

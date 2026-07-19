@@ -28,3 +28,18 @@
     text-wrap: balance;
   }
 }
+
+@layer components {
+  .input-cx {
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input-cx:focus {
+    border-color: #ff6000;
+  }
+}

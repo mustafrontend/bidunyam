@@ -45,7 +45,7 @@ export function FlashDealsGrid({ products, timeLeft }: FlashDealsGridProps) {
             <div
               key={p._id}
               onClick={() => router.push(`/product/${p._id}`)}
-              className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 hover:shadow-lg transition-all duration-300 group cursor-pointer flex flex-col justify-between min-w-[160px] md:min-w-[240px] shrink-0 snap-start"
+              className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 hover:shadow-lg transition-all duration-300 group cursor-pointer flex flex-col justify-between w-[160px] md:w-[240px] shrink-0 snap-start"
             >
               <div>
                 <div className="relative aspect-square mb-3 overflow-hidden rounded-xl bg-white flex items-center justify-center p-3 border border-slate-100">

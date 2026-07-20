@@ -28,6 +28,7 @@ function normalize(data: unknown[]): Product[] {
 
 const CONDITIONS = [
   { key: "", label: "Tümü" },
+  { key: "EL_EMEGI", label: "El Emeği / Butik" },
   { key: "SIFIR", label: "Sıfır" },
   { key: "AZ_KULLANILMIS", label: "Az Kullanılmış" },
   { key: "IKINCI_EL", label: "İkinci El" },
@@ -51,24 +52,24 @@ export default function PazarPage() {
 
   const count = products.length;
   const heroStats = useMemo(() => ([
-    { icon: Tag, label: "Uygun Fiyat", desc: "Bütçe dostu ikinci el" },
+    { icon: Sparkles, label: "Özgün & Butik", desc: "El yapımı özel ürünler" },
+    { icon: Recycle, label: "Sürdürülebilir", desc: "İkinci el hazineler" },
     { icon: ShieldCheck, label: "Güvenli Alışveriş", desc: "biDünyam güvencesi" },
-    { icon: Recycle, label: "Sürdürülebilir", desc: "Yeniden değerlendir" },
   ]), []);
 
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 md:px-10 xl:px-14 space-y-8">
         {/* Hero */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-8 md:p-10 text-white">
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#ff5000] via-[#ff7300] to-[#ff9100] p-8 md:p-10 text-white shadow-md">
           <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
           <div className="relative">
             <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-black backdrop-blur">
-              <Recycle size={14} /> biDünyam Pazar
+              <Sparkles size={14} /> biDünyam Pazar
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight">İkinci El Hazineler</h1>
-            <p className="mt-2 max-w-lg text-sm font-medium text-white/85">
-              Bireysel satıcılardan az kullanılmış ve ikinci el ürünler. Uygun fiyata, güvenle keşfet.
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight">El Emeği & İkinci El Hazineler</h1>
+            <p className="mt-2 max-w-lg text-sm font-medium text-white/90">
+              Bireysel satıcılardan butik üretimler, el işi tasarımlar ve az kullanılmış hazineler. Uygun fiyata, güvenle keşfet.
             </p>
             <div className="mt-6 grid grid-cols-3 gap-3 max-w-xl">
               {heroStats.map((s) => (
@@ -87,7 +88,7 @@ export default function PazarPage() {
           {CONDITIONS.map((c) => (
             <button key={c.key} onClick={() => setCondition(c.key)}
               className={`rounded-full border px-4 py-1.5 text-xs font-black transition-colors ${
-                condition === c.key ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-violet-400"
+                condition === c.key ? "border-[#ff5000] bg-[#ff5000] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-[#ff5000]"
               }`}>
               {c.label}
             </button>

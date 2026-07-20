@@ -61,6 +61,8 @@ export type FormState = {
   shippingType: "SELF_SHIPPING" | "MARKETPLACE_LOGISTICS";
   saleStatus: "ACTIVE" | "PASSIVE";
   approvalStatus: "APPROVED" | "REJECTED" | "PENDING";
+  condition: "SIFIR" | "AZ_KULLANILMIS" | "IKINCI_EL";
+  listingType: "KURUMSAL" | "BIREYSEL";
 };
 
 export interface XmlCatalogData {
@@ -110,6 +112,8 @@ export const EMPTY_FORM: FormState = {
   shippingType: "MARKETPLACE_LOGISTICS",
   saleStatus: "ACTIVE",
   approvalStatus: "PENDING",
+  condition: "SIFIR",
+  listingType: "KURUMSAL",
 };
 
 export const EMPTY_IMAGES = Array.from({ length: 5 }, () => "");
@@ -390,6 +394,8 @@ export function useSellerProducts() {
         shippingType: (p.shippingType as FormState["shippingType"]) || "MARKETPLACE_LOGISTICS",
         saleStatus: p.isActive ? "ACTIVE" : "PASSIVE",
         approvalStatus: (p.approvalStatus as FormState["approvalStatus"]) || "PENDING",
+        condition: (p.condition as FormState["condition"]) || "SIFIR",
+        listingType: (p.listingType as FormState["listingType"]) || "KURUMSAL",
       });
       const slots = Array.from({ length: 5 }, (_, i) => ((p.imageUrls as string[] | undefined)?.[i] || (i === 0 ? p.imageUrl : "")) || "");
       setImageSlots(slots);
@@ -596,6 +602,7 @@ export function useSellerProducts() {
         desi: Number(form.desi), preparationDays: Number(form.preparationDays),
         shippingType: form.shippingType, saleStatus: form.saleStatus,
         approvalStatus: form.approvalStatus, variants, extraServices: services,
+        condition: form.condition, listingType: form.listingType,
         categoryAttributes: attributesObj,
       };
       if (editingProduct) {

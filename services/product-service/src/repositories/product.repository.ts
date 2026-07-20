@@ -7,6 +7,8 @@ export interface ProductFilters {
   minPrice?: number;
   maxPrice?: number;
   search?: string;
+  condition?: string;
+  listingType?: string;
   includeAll?: boolean;
   userId?: string;
   attributes?: Record<string, string[]>;
@@ -38,6 +40,14 @@ export const ProductRepository = {
 
     if (filters.brand && filters.brand.length > 0) {
       where.brandName = { in: filters.brand };
+    }
+
+    if (filters.listingType) {
+      where.listingType = filters.listingType;
+    }
+
+    if (filters.condition) {
+      where.condition = filters.condition;
     }
 
     if (filters.attributes && Object.keys(filters.attributes).length > 0) {
@@ -186,6 +196,8 @@ export const ProductRepository = {
         rating: Number(input.rating || 0),
         reviewCount: Number(input.reviewCount || 0),
         isActive: input.isActive ?? true,
+        condition: input.condition || 'SIFIR',
+        listingType: input.listingType || 'KURUMSAL',
         sellerName: input.sellerName || 'FUAR BOX',
         sellerRating: Number(input.sellerRating || 9.3),
       },
@@ -222,6 +234,8 @@ export const ProductRepository = {
     if (input.shippingType !== undefined) data.shippingType = input.shippingType;
     if (input.saleStatus !== undefined) data.saleStatus = input.saleStatus;
     if (input.approvalStatus !== undefined) data.approvalStatus = input.approvalStatus;
+    if (input.condition !== undefined) data.condition = input.condition;
+    if (input.listingType !== undefined) data.listingType = input.listingType;
     if (input.marketplaceListingNo !== undefined) data.marketplaceListingNo = input.marketplaceListingNo;
     if (input.stock !== undefined) data.stock = Number(input.stock);
     if (input.rating !== undefined) data.rating = Number(input.rating);

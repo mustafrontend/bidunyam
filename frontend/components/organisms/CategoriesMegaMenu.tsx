@@ -1,41 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, ChevronRight } from "lucide-react";
-import { apiClient } from "@/lib/api";
-
-type CategoryData = {
-  name: string;
-  subCategories: string[];
-};
+import { CATEGORY_TREE, catHref, subCatHref } from "@/lib/categories";
 
 export const CategoriesMegaMenu: React.FC = () => {
-  const [categories, setCategories] = useState<CategoryData[]>([]);
+  // Kanonik, temiz kategori ağacı (DB'deki XML çöp kategorileri yerine)
+  const categories = CATEGORY_TREE;
   const [isOpen, setIsOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await apiClient.get("/products/meta/options");
-        const fetchedCats: CategoryData[] = res.data?.data?.categories || [];
-        
-        if (fetchedCats.length > 0) {
-          setCategories(fetchedCats);
-        } else {
-          // Eğer kategoriler boşsa, fallback gösterme
-          setCategories([]);
-        }
-      } catch (error) {
-        console.error("Failed to fetch categories for mega menu", error);
-        setCategories([]);
-      }
-    };
-    fetchCategories();
-  }, []);
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -111,28 +87,27 @@ export const CategoriesMegaMenu: React.FC = () => {
                     {activeCategoryData?.name}
                   </h3>
                   
-                  <div className="columns-2 gap-8 space-y-4">
-                    {activeCategoryData?.subCategories.slice(0, 20).map((sub) => (
-                      <Link 
-                        href={`/arama?kategori=${encodeURIComponent(activeCategoryData.name)}&altkategori=${encodeURIComponent(sub)}`} 
-                        key={sub} 
-                        className="block text-sm text-slate-600 hover:text-orange-500 hover:underline transition-colors break-inside-avoid py-1"
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+                    {activeCategoryData?.subCategories.map((sub) => (
+                      <Link
+                        href={subCatHref(activeCategoryData.name, sub)}
+                        key={sub}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-orange-50 hover:text-orange-600"
                       >
+                        <ChevronRight className="w-3.5 h-3.5 opacity-40" />
                         {sub}
                       </Link>
                     ))}
                   </div>
 
-                  {(activeCategoryData?.subCategories?.length || 0) > 20 && (
-                    <div className="mt-8 pt-4 border-t border-slate-100">
-                      <Link 
-                        href={`/arama?kategori=${encodeURIComponent(activeCategoryData?.name || '')}`}
-                        className="inline-flex items-center text-sm font-bold text-orange-500 hover:text-orange-600 transition-colors"
-                      >
-                        Tümünü Gör <ChevronRight className="w-4 h-4 ml-1" />
-                      </Link>
-                    </div>
-                  )}
+                  <div className="mt-6 pt-4 border-t border-slate-100">
+                    <Link
+                      href={catHref(activeCategoryData?.name || '')}
+                      className="inline-flex items-center text-sm font-bold text-orange-500 hover:text-orange-600 transition-colors"
+                    >
+                      Tüm {activeCategoryData?.name} ürünleri <ChevronRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </div>
                 </div>
               </>
             )}

@@ -20,7 +20,14 @@ export interface Product {
   rating: number;
   reviewCount: number;
   stock: number;
+  condition?: string;    // SIFIR, AZ_KULLANILMIS, IKINCI_EL
+  listingType?: string;  // KURUMSAL, BIREYSEL
 }
+
+const CONDITION_LABEL: Record<string, string> = {
+  AZ_KULLANILMIS: "Az Kullanılmış",
+  IKINCI_EL: "İkinci El",
+};
 
 interface ProductCardProps {
   product: Product;
@@ -143,10 +150,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
       {/* 2. Product Meta & Info */}
       <div className="flex flex-1 flex-col p-4 bg-white">
-        {/* Brand Label */}
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1 truncate">
-          {product.brand || "biDunyam"}
-        </span>
+        {/* Brand Label + Durum rozeti */}
+        <div className="mb-1 flex items-center gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
+            {product.brand || "biDunyam"}
+          </span>
+          {(product.listingType === "BIREYSEL" || (product.condition && product.condition !== "SIFIR")) && (
+            <span className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-violet-700">
+              {CONDITION_LABEL[product.condition || ""] || "Dolap"}
+            </span>
+          )}
+        </div>
 
         {/* Title */}
         <h3 className="line-clamp-2 text-xs font-medium text-slate-700 leading-relaxed group-hover:text-slate-900 transition-colors min-h-[36px]">
@@ -159,7 +173,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <Star size={10} fill="currentColor" className="stroke-none" />
             <span>{product.rating ? product.rating.toFixed(1) : "4.6"}</span>
           </div>
-          <span className="text-[11px] font-medium text-slate-400">({product.reviewCount})</span>
+          {product.reviewCount > 0 ? (
+            <span className="text-[11px] font-medium text-slate-400">({product.reviewCount} değerlendirme)</span>
+          ) : (
+            <span className="text-[11px] font-medium text-emerald-600">Yeni</span>
+          )}
         </div>
 
         {/* Pricing & Mobile Action (Kuruş format hatası toLocaleString konfigürasyonu ile çözüldü) */}
@@ -191,8 +209,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
         {/* Footer info area */}
         <div className="mt-3 flex items-center justify-between text-[10px] font-medium text-slate-400 select-none">
-          <span className="bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded border border-slate-100/40">{simulatedSoldCount}</span>
-          <span className="text-emerald-600 font-semibold uppercase tracking-wider text-[9px]">Hızlı Gönderi</span>
+          {product.reviewCount > 0 ? (
+            <span className="bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded border border-slate-100/40">{simulatedSoldCount}</span>
+          ) : (
+            <span className="text-slate-300">Stokta</span>
+          )}
+          <span className="flex items-center gap-1 text-emerald-600 font-semibold uppercase tracking-wider text-[9px]">
+            <Check size={9} strokeWidth={3} /> Hızlı Gönderi
+          </span>
         </div>
       </div>
     </Link>

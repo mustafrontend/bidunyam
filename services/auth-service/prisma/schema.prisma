@@ -82,6 +82,8 @@ model Product {
   views                Int           @default(0)
   sales                Int           @default(0)
   isActive             Boolean       @default(true)
+  condition            String        @default("SIFIR")
+  listingType          String        @default("KURUMSAL")
   sellerName           String        @default("FUAR BOX")
   sellerRating         Float         @default(9.3)
   createdAt            DateTime      @default(now())
@@ -89,11 +91,76 @@ model Product {
   
   questions            Question[]
   reviews              Review[]
+  campaigns            CampaignProduct[]
 
   @@index([name])
   @@index([categoryId])
   @@index([brandId])
   @@map("products")
+}
+
+// ─── Shared Database Models (product-service ile ortak; db push'ta düşmesini önler) ───
+model Campaign {
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  imageUrl        String?
+  discountType    String   @default("PERCENTAGE")
+  discountValue   Float    @default(0)
+  startDate       DateTime
+  endDate         DateTime
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  products        CampaignProduct[]
+
+  @@map("campaigns")
+}
+
+model CampaignProduct {
+  id              String   @id @default(uuid())
+  campaignId      String
+  productId       String
+  sellerId        String
+  campaignPrice   Float
+  status          String   @default("PENDING")
+
+  campaign        Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([campaignId, productId])
+  @@index([campaignId])
+  @@index([sellerId])
+  @@map("campaign_products")
+}
+
+model CategoryFilterTemplate {
+  id           String   @id @default(uuid())
+  categoryName String   @unique
+  filters      Json     @default("[]")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("category_filter_templates")
+}
+
+model XmlFeed {
+  id              String   @id @default(uuid())
+  userId          String   @default("admin-user-001")
+  name            String
+  url             String
+  isActive        Boolean  @default(true)
+  syncInterval    Int      @default(60)
+  lastSyncAt      DateTime?
+  lastSyncStatus  String?
+  fieldMapping    Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("xml_feeds")
 }
 
 model Question {
@@ -163,22 +230,38 @@ model Favorite {
 }
 
 model SellerAccount {
-  id          String      @id @default(uuid())
-  email       String      @unique
-  password    String
-  accountType AccountType @default(BIREYSEL)
+  id                      String      @id @default(uuid())
+  email                   String      @unique
+  password                String
+  accountType             AccountType @default(BIREYSEL)
 
   // Bireysel
-  fullName    String?
+  fullName                String?
+  tcNo                    String?
+  iban                    String?
 
   // Tüzel
-  companyName String?
-  taxNo       String?
-  taxOffice   String?
+  companyName             String?
+  taxNo                   String?
+  taxOffice               String?
+  companyIban             String?
 
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // Sözleşme Onayları
+  acceptedKvkk            Boolean     @default(false)
+  acceptedSellerAgreement Boolean     @default(false)
+
+  // Mağaza / Bireysel storefront (Shopier tarzı)
+  storeSlug               String?     @unique
+  storeName               String?
+  storeBio                String?
+  storeTheme              String      @default("minimal")
+  storeColor              String      @default("#7c3aed")
+  storeLogo               String?
+  storeBanner             String?
+
+  isActive                Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   @@index([email])
   @@map("seller_accounts")

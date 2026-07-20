@@ -133,6 +133,11 @@ export function ProductFormModal({
   const templateNames = new Set(template.map((t) => t.name));
   const customAttributes = categoryAttributes.filter((a) => !templateNames.has(a.key));
 
+  // Doldurma ilerlemesi (Trendyol tarzı okunabilirlik)
+  const requiredAttrs = template.filter((t) => t.required);
+  const filledRequired = requiredAttrs.filter((t) => getAttr(t.name).trim()).length;
+  const filledTotal = template.filter((t) => getAttr(t.name).trim()).length;
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h3 className="mb-5 text-base font-black text-slate-700">
@@ -264,28 +269,47 @@ export function ProductFormModal({
         </section>
 
         {/* Kategori Özellikleri (Dinamik / Kategoriye Özel Filtreler) */}
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h4 className="text-sm font-black uppercase tracking-wide text-slate-700">Kategori Özellikleri</h4>
+        <section className="rounded-2xl border border-[#ff6000]/20 bg-gradient-to-br from-[#ff6000]/[0.03] to-transparent p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff6000]/10 text-[#ff6000]">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-800">Ürün Özellikleri</h4>
+                <p className="text-[11px] font-semibold text-slate-400">Kategoriye özel; arama filtrelerinde görünür</p>
+              </div>
+            </div>
             {templateSource === "template" && (
-              <span className="rounded-full bg-[#ff6000]/10 px-3 py-1 text-[11px] font-black text-[#ff6000]">
-                {form.categorySub || form.categoryMain} şablonu
+              <span className="rounded-full bg-[#ff6000] px-3 py-1 text-[11px] font-black text-white">
+                {form.categorySub || form.categoryMain}
               </span>
             )}
           </div>
 
           {!form.categoryMain ? (
-            <div className="rounded-xl border border-dashed border-slate-200 py-6 text-center text-sm font-semibold text-slate-400">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white py-6 text-center text-sm font-semibold text-slate-400">
               Kategoriye özel özelliklerin (RAM, Beden, Hafıza vb.) görünmesi için önce kategori seçin.
             </div>
           ) : (
             <>
               {template.length > 0 && (
                 <>
-                  <p className="mb-4 text-xs text-slate-500">
-                    <span className="font-bold text-slate-600">{form.categorySub || form.categoryMain}</span> kategorisine özel özellikler.
-                    Bu alanlar arama sayfasında otomatik filtreye dönüşür.
-                  </p>
+                  {/* Doldurma ilerlemesi */}
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+                      <div className="h-full rounded-full bg-[#ff6000] transition-all duration-300"
+                        style={{ width: `${template.length ? (filledTotal / template.length) * 100 : 0}%` }} />
+                    </div>
+                    <span className="shrink-0 text-[11px] font-black text-slate-500">
+                      {filledTotal}/{template.length} dolduruldu
+                      {requiredAttrs.length > 0 && (
+                        <span className={filledRequired === requiredAttrs.length ? "ml-1 text-emerald-600" : "ml-1 text-red-500"}>
+                          · {filledRequired}/{requiredAttrs.length} zorunlu
+                        </span>
+                      )}
+                    </span>
+                  </div>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {template.map((attr) => {
                       const label = (attr.label || attr.name) + (attr.unit ? ` (${attr.unit})` : "");
@@ -297,7 +321,7 @@ export function ProductFormModal({
                               {label} {attr.required && <span className="text-red-500">*</span>}
                             </label>
                             <select value={value} onChange={(e) => setAttr(attr.name, e.target.value)}
-                              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#ff6000]">
+                              className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-[#ff6000] ${value ? "border-slate-200" : attr.required ? "border-red-200" : "border-slate-200"}`}>
                               <option value="">Seçiniz</option>
                               {attr.options.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
@@ -314,7 +338,7 @@ export function ProductFormModal({
                             value={value}
                             onChange={(e) => setAttr(attr.name, e.target.value)}
                             placeholder={attr.type === "number" ? "0" : ""}
-                            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#ff6000]"
+                            className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-[#ff6000] ${!value && attr.required ? "border-red-200" : "border-slate-200"}`}
                           />
                         </div>
                       );
@@ -416,9 +440,43 @@ export function ProductFormModal({
           </div>
         </section>
 
+        {/* İlan Tipi & Ürün Durumu (Dolap / Bireysel) */}
+        <section className="rounded-2xl border border-slate-200 bg-slate-50/40 p-5">
+          <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">İlan Tipi ve Ürün Durumu</h4>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">İlan Tipi</label>
+              <div className="grid grid-cols-2 gap-2">
+                {([["KURUMSAL", "Kurumsal (Sıfır Ürün)"], ["BIREYSEL", "Bireysel (Dolap)"]] as const).map(([val, lbl]) => (
+                  <button key={val} type="button"
+                    onClick={() => setForm((f) => ({ ...f, listingType: val, condition: val === "KURUMSAL" ? "SIFIR" : f.condition }))}
+                    className={`rounded-lg border px-3 py-2.5 text-xs font-black transition-all ${form.listingType === val ? "border-[#ff6000] bg-[#ff6000]/5 text-[#ff6000]" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
+                Ürün Durumu {form.listingType === "BIREYSEL" && <span className="text-[#ff6000]">(Dolap)</span>}
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {([["SIFIR", "Sıfır"], ["AZ_KULLANILMIS", "Az Kullanılmış"], ["IKINCI_EL", "İkinci El"]] as const).map(([val, lbl]) => (
+                  <button key={val} type="button"
+                    disabled={form.listingType === "KURUMSAL" && val !== "SIFIR"}
+                    onClick={() => setForm((f) => ({ ...f, condition: val }))}
+                    className={`rounded-lg border px-2 py-2.5 text-[11px] font-black transition-all disabled:opacity-40 disabled:cursor-not-allowed ${form.condition === val ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Durum */}
         <section>
-          <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">Durum</h4>
+          <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">Yayın Durumu</h4>
           <div className="grid gap-4 md:grid-cols-3">
             <SelectField label="Satış Durumu" value={form.saleStatus} onChange={(v) => setForm((f) => ({ ...f, saleStatus: v as FormState["saleStatus"] }))} options={["ACTIVE", "PASSIVE"]} />
             <SelectField label="Onay Durumu" value={form.approvalStatus} onChange={(v) => setForm((f) => ({ ...f, approvalStatus: v as FormState["approvalStatus"] }))} options={["PENDING", "APPROVED", "REJECTED"]} />

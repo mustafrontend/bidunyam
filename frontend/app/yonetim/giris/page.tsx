@@ -28,10 +28,24 @@ export default function YonetimGirisPage() {
   const [regPasswordConfirm, setRegPasswordConfirm] = useState("");
   const [accountType, setAccountType] = useState<"bireysel" | "tüzel">("bireysel");
   
+  // Bireysel ödeme/tahsilat alanları
+  const [regTc, setRegTc] = useState("");
+  const [regIban, setRegIban] = useState("");
+
   // Tüzel ek alanlar
   const [companyName, setCompanyName] = useState("");
   const [taxNo, setTaxNo] = useState("");
   const [taxOffice, setTaxOffice] = useState("");
+  const [companyIban, setCompanyIban] = useState("");
+
+  // Sözleşme onayları (bireysel/tüzel'e göre farklılaşır)
+  const [agreeTerms, setAgreeTerms] = useState(false);   // Üyelik & Kullanım Koşulları
+  const [agreeKvkk, setAgreeKvkk] = useState(false);     // KVKK Aydınlatma Metni
+  const [agreeSeller, setAgreeSeller] = useState(false); // Pazaryeri Satıcı Sözleşmesi (tüzel için zorunlu)
+
+  const contractsOk = accountType === "tüzel"
+    ? agreeTerms && agreeKvkk && agreeSeller
+    : agreeTerms && agreeKvkk;
 
   useEffect(() => {
     if (isAuthenticated()) router.replace("/yonetim");
@@ -70,16 +84,22 @@ export default function YonetimGirisPage() {
       setError("Tüzel kişi bilgileri eksiksiz doldurulmalıdır.");
       return;
     }
+    if (!contractsOk) {
+      setError("Devam etmek için sözleşmeleri onaylamanız gerekmektedir.");
+      return;
+    }
 
     setLoading(true);
     try {
-      const payload: Record<string, string> = {
+      const payload: Record<string, string | boolean> = {
         accountType: accountType === "tüzel" ? "TUZEL" : "BIREYSEL",
         email: regEmail,
         password: regPassword,
+        acceptedKvkk: agreeKvkk,
+        acceptedSellerAgreement: accountType === "tüzel" ? agreeSeller : agreeTerms,
         ...(accountType === "bireysel"
-          ? { fullName: regName }
-          : { companyName, taxNo, taxOffice }),
+          ? { fullName: regName, tcNo: regTc, iban: regIban }
+          : { companyName, taxNo, taxOffice, companyIban }),
       };
 
       await apiClient.post("/auth/seller/register", payload);
@@ -215,17 +235,41 @@ export default function YonetimGirisPage() {
 
                 {/* Account-specific Fields */}
                 {accountType === "bireysel" ? (
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Ad Soyad</label>
-                    <input
-                      type="text"
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                      required
-                      minLength={2}
-                      placeholder="Mustafa Öztürk"
-                      className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
-                    />
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Ad Soyad</label>
+                      <input
+                        type="text"
+                        value={regName}
+                        onChange={(e) => setRegName(e.target.value)}
+                        required
+                        minLength={2}
+                        placeholder="Mustafa Öztürk"
+                        className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">T.C. Kimlik No</label>
+                      <input
+                        type="text"
+                        value={regTc}
+                        onChange={(e) => setRegTc(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                        placeholder="11 haneli (tahsilat için gerekli)"
+                        maxLength={11}
+                        className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">IBAN (Ödemelerinizin yatacağı hesap)</label>
+                      <input
+                        type="text"
+                        value={regIban}
+                        onChange={(e) => setRegIban(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 26))}
+                        placeholder="TR00 0000 0000 0000 0000 0000 00"
+                        className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
+                      />
+                      <p className="text-[9px] font-semibold text-slate-400">Satışlarınız kargo teslimi sonrası bu IBAN'a haftalık aktarılır.</p>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -264,6 +308,17 @@ export default function YonetimGirisPage() {
                           className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
                         />
                       </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Şirket IBAN (Hakediş hesabı)</label>
+                      <input
+                        type="text"
+                        value={companyIban}
+                        onChange={(e) => setCompanyIban(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 26))}
+                        placeholder="TR00 0000 0000 0000 0000 0000 00"
+                        className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
+                      />
+                      <p className="text-[9px] font-semibold text-slate-400">Faturalı satışlarınızın hakedişi 15 günlük vade ile bu hesaba aktarılır.</p>
                     </div>
                   </div>
                 )}
@@ -338,10 +393,40 @@ export default function YonetimGirisPage() {
                   </div>
                 )}
 
+                {/* Sözleşme Onayları */}
+                <div className="space-y-2.5 rounded-xl border-[0.5px] border-slate-200 bg-slate-50/50 p-3.5">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    {accountType === "tüzel" ? "Kurumsal Satıcı Sözleşmeleri" : "Bireysel Satıcı Sözleşmeleri"}
+                  </p>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff6000]" />
+                    <span className="text-[11px] font-semibold leading-snug text-slate-600">
+                      <Link href="/sozlesmeler/kullanim-kosullari" target="_blank" className="text-[#ff6000] hover:underline">Üyelik ve Kullanım Koşulları</Link>'nı okudum, onaylıyorum.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input type="checkbox" checked={agreeKvkk} onChange={(e) => setAgreeKvkk(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff6000]" />
+                    <span className="text-[11px] font-semibold leading-snug text-slate-600">
+                      <Link href="/sozlesmeler/kvkk" target="_blank" className="text-[#ff6000] hover:underline">KVKK Aydınlatma Metni</Link>'ni okudum, kişisel verilerimin işlenmesini kabul ediyorum.
+                    </span>
+                  </label>
+                  {accountType === "tüzel" && (
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input type="checkbox" checked={agreeSeller} onChange={(e) => setAgreeSeller(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff6000]" />
+                      <span className="text-[11px] font-semibold leading-snug text-slate-600">
+                        <Link href="/sozlesmeler/mesafeli-satis-sozlesmesi" target="_blank" className="text-[#ff6000] hover:underline">Pazaryeri Satıcı Sözleşmesi</Link>'ni okudum, tüzel kişi olarak onaylıyorum.
+                      </span>
+                    </label>
+                  )}
+                </div>
+
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="w-full mt-2 rounded-xl bg-slate-800 py-3.5 text-xs font-black text-white hover:bg-slate-900 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 uppercase tracking-wider"
+                  disabled={loading || !contractsOk}
+                  className="w-full mt-2 rounded-xl bg-slate-800 py-3.5 text-xs font-black text-white hover:bg-slate-900 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed uppercase tracking-wider"
                 >
                   {loading ? "Kaydediliyor..." : "Partner Hesabı Oluştur"}
                 </button>

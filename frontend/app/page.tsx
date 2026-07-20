@@ -26,12 +26,14 @@ function normalizeProducts(data: unknown[]): Product[] {
       price: Number(p.price) || 0,
       originalPrice: Number(p.originalPrice) || Number(p.price) || 0,
       imageUrl: (p.imageUrl || "") as string,
-      brand: (p.brand || "biDunyam") as string,
+      brand: (((p.brand as { name?: string })?.name) || p.brandName || (typeof p.brand === "string" ? p.brand : "") || "biDünyam") as string,
       barcode: p.barcode ? String(p.barcode) : undefined,
       category: (p.category || "Genel") as string,
       rating: Number(p.rating) || 4.2,
       reviewCount: Number(p.reviewCount) || 0,
       stock: Number(p.stock) ?? 99,
+      condition: (p.condition as string) || "SIFIR",
+      listingType: (p.listingType as string) || "KURUMSAL",
       discountPercent: 0,
     };
   });

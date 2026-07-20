@@ -79,10 +79,10 @@ export const HeroSection: React.FC = () => {
   if (campaigns === null) {
     return (
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
-        <div className="lg:col-span-2 h-[280px] md:h-[420px] rounded-3xl bg-slate-200 animate-pulse" />
-        <div className="hidden lg:flex flex-col gap-4">
-          <div className="flex-1 rounded-3xl bg-slate-200 animate-pulse" />
-          <div className="flex-1 rounded-3xl bg-slate-200 animate-pulse" />
+        <div className="lg:col-span-2 h-[280px] lg:h-[440px] rounded-3xl bg-slate-200 animate-pulse" />
+        <div className="hidden lg:flex flex-col gap-4 lg:h-[440px]">
+          <div className="flex-1 min-h-0 rounded-3xl bg-slate-200 animate-pulse" />
+          <div className="flex-1 min-h-0 rounded-3xl bg-slate-200 animate-pulse" />
         </div>
       </section>
     );
@@ -96,7 +96,7 @@ export const HeroSection: React.FC = () => {
   return (
     <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
       {/* Ana büyük banner */}
-      <div className="lg:col-span-2 relative h-[280px] md:h-[420px] rounded-3xl overflow-hidden group shadow-sm">
+      <div className="lg:col-span-2 relative h-[280px] lg:h-[440px] rounded-3xl overflow-hidden group shadow-sm">
         <AnimatePresence mode="wait">
           <motion.div
             key={slide.id}
@@ -184,14 +184,14 @@ export const HeroSection: React.FC = () => {
       </div>
 
       {/* Yan kampanya kartları */}
-      <div className="hidden lg:flex flex-col gap-4">
+      <div className="hidden lg:flex flex-col gap-4 lg:h-[440px]">
         {sideCards.map((c) => {
           const img = resolveImg(c.imageUrl);
           return (
             <div
               key={c.id}
               onClick={() => go(c)}
-              className="relative flex-1 rounded-3xl overflow-hidden cursor-pointer group shadow-sm"
+              className="relative flex-1 min-h-0 rounded-3xl overflow-hidden cursor-pointer group shadow-sm"
             >
               {img ? (
                 <img src={img} alt={c.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />

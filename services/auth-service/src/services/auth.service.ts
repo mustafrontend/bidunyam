@@ -138,9 +138,13 @@ export const AuthService = {
     password: string;
     accountType: string;
     fullName?: string;
+    tcNo?: string;
+    iban?: string;
     companyName?: string;
     taxNo?: string;
     taxOffice?: string;
+    acceptedKvkk?: boolean;
+    acceptedSellerAgreement?: boolean;
   }, deviceId?: string) {
     const exists = await SellerRepository.existsByEmail(input.email);
     if (exists) {
@@ -157,9 +161,13 @@ export const AuthService = {
       password: hashedPassword,
       accountType,
       fullName: input.fullName,
+      tcNo: input.tcNo,
+      iban: input.iban,
       companyName: input.companyName,
       taxNo: input.taxNo,
       taxOffice: input.taxOffice,
+      acceptedKvkk: input.acceptedKvkk ?? false,
+      acceptedSellerAgreement: input.acceptedSellerAgreement ?? false,
     });
 
     const displayName = accountType === 'TUZEL' ? seller.companyName! : seller.fullName!;
@@ -216,6 +224,44 @@ export const AuthService = {
       throw err;
     }
     return { ...seller, role: 'SELLER' };
+  },
+
+  async updateSellerProfile(sellerId: string, input: Record<string, unknown>) {
+    // Yalnızca izin verilen alanlar güncellenebilir
+    const allowed = [
+      'fullName', 'tcNo', 'iban', 'companyName', 'taxNo', 'taxOffice', 'companyIban',
+      'storeName', 'storeBio', 'storeTheme', 'storeColor', 'storeLogo', 'storeBanner', 'storeSlug',
+    ];
+    const data: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (input[key] !== undefined) data[key] = input[key];
+    }
+
+    // Slug'ı normalize et ve benzersizlik kontrolü
+    if (typeof data.storeSlug === 'string' && data.storeSlug) {
+      const slug = (data.storeSlug as string)
+        .toLowerCase().trim()
+        .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c')
+        .replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      if (!slug) {
+        delete data.storeSlug;
+      } else {
+        const taken = await SellerRepository.slugTaken(slug, sellerId);
+        if (taken) {
+          const err = new Error('Bu mağaza adresi (slug) zaten kullanımda') as Error & { statusCode: number };
+          err.statusCode = 409;
+          throw err;
+        }
+        data.storeSlug = slug;
+      }
+    }
+
+    const seller = await SellerRepository.updateProfile(sellerId, data);
+    return { ...seller, role: 'SELLER' };
+  },
+
+  async getStoreBySlug(slug: string) {
+    return SellerRepository.findBySlug(slug);
   },
 
   async getFavorites(userId: string) {

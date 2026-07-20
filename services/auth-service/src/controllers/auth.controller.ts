@@ -20,6 +20,10 @@ const SellerRegisterSchema = z.discriminatedUnion('accountType', [
     email: z.string().email(),
     password: z.string().min(8, 'Şifre en az 8 karakter olmalıdır'),
     fullName: z.string().min(2).max(60),
+    tcNo: z.string().optional(),
+    iban: z.string().optional(),
+    acceptedKvkk: z.boolean().optional(),
+    acceptedSellerAgreement: z.boolean().optional(),
   }),
   z.object({
     accountType: z.literal('TUZEL'),
@@ -28,6 +32,8 @@ const SellerRegisterSchema = z.discriminatedUnion('accountType', [
     companyName: z.string().min(2).max(120),
     taxNo: z.string().length(10, 'Vergi numarası 10 haneli olmalıdır'),
     taxOffice: z.string().min(2).max(80),
+    acceptedKvkk: z.boolean().optional(),
+    acceptedSellerAgreement: z.boolean().optional(),
   }),
 ]);
 
@@ -110,6 +116,33 @@ export const AuthController = {
       }
       const seller = await AuthService.getSellerProfile(sellerId);
       res.status(200).json({ success: true, data: seller });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async updateSellerProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const sellerId = (req as Request & { user?: { id: string } }).user?.id;
+      if (!sellerId) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+      const seller = await AuthService.updateSellerProfile(sellerId, req.body);
+      res.status(200).json({ success: true, data: seller });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getStoreBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const store = await AuthService.getStoreBySlug(req.params.slug);
+      if (!store) {
+        res.status(404).json({ success: false, message: 'Mağaza bulunamadı' });
+        return;
+      }
+      res.status(200).json({ success: true, data: store });
     } catch (err) {
       next(err);
     }

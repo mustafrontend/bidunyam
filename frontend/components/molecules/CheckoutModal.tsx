@@ -6,6 +6,7 @@ import { X, CreditCard, MapPin, CheckCircle2, Loader2, ArrowRight, Plus, ShieldC
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useAddressStore, Address } from '@/stores/addressStore';
+import { PaymentLogos } from '@/components/molecules/PaymentLogos';
 import { apiClient } from '@/lib/api';
 import confetti from 'canvas-confetti';
 
@@ -366,6 +367,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                     <span className="text-sm font-bold text-slate-600">Ödenecek Tutar</span>
                     <span className="text-xl font-black text-[#ff6000]">{TL(payableTotal)}</span>
                   </div>
+                  <PaymentLogos className="justify-center pt-1" />
                 </div>
               )}
 

@@ -19,6 +19,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [agreeContract, setAgreeContract] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -38,6 +39,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
     try {
       if (mode === 'kayit') {
+        if (!agreeContract) {
+          setError('Devam etmek için üyelik sözleşmesi ve KVKK metnini onaylayın.');
+          setLoading(false);
+          return;
+        }
         // Kayıt işlemini gerçekleştir
         await apiClient.post('/auth/register', { name, email, password });
         // Kayıt başarılıysa otomatik giriş yap
@@ -212,11 +218,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
+                {/* Sözleşme onayı (yalnızca kayıt) */}
+                {mode === 'kayit' && (
+                  <label className="flex items-start gap-2 pt-1 cursor-pointer">
+                    <input type="checkbox" checked={agreeContract} onChange={(e) => setAgreeContract(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff5000]" />
+                    <span className="text-[11px] font-medium leading-snug text-slate-500">
+                      <a href="/sozlesmeler/kullanim-kosullari" target="_blank" className="text-[#ff5000] hover:underline">Üyelik Sözleşmesi</a> ve{' '}
+                      <a href="/sozlesmeler/kvkk" target="_blank" className="text-[#ff5000] hover:underline">KVKK Aydınlatma Metni</a>'ni okudum, onaylıyorum.
+                    </span>
+                  </label>
+                )}
+
                 {/* Core Form Action Primary Trigger */}
                 <div className="pt-4">
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || (mode === 'kayit' && !agreeContract)}
                     className="w-full bg-slate-950 text-white py-3.5 rounded-2xl text-xs font-bold uppercase tracking-wider active:scale-[0.98] hover:bg-[#ff5000] transition-all duration-300 flex items-center justify-center gap-2 shadow-md shadow-slate-950/5 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none cursor-pointer"
                   >
                     {loading ? (

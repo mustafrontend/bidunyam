@@ -11,6 +11,7 @@ const NAV = [
   { href: "/yonetim/urunler", label: "Ürün Yönetimi" },
   { href: "/yonetim/siparisler", label: "Sipariş Yönetimi" },
   { href: "/yonetim/kargo", label: "Kargo Durumu" },
+  { href: "/yonetim/iadeler", label: "İade Yönetimi" },
   { href: "/yonetim/musteriler", label: "Müşteri Yönetimi" },
   { href: "/yonetim/stok", label: "Stok Takibi" },
   { href: "/yonetim/kampanyalar", label: "Kampanya Yönetimi" },

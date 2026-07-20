@@ -11,6 +11,9 @@ const QuerySchema = z.object({
   minPrice: z.coerce.number().optional(),
   maxPrice: z.coerce.number().optional(),
   search: z.string().optional(),
+  condition: z.string().optional(),
+  listingType: z.string().optional(),
+  sellerId: z.string().optional(),
   includeAll: z.coerce.boolean().default(false),
   myProducts: z.coerce.boolean().default(false),
 });
@@ -42,6 +45,8 @@ const ProductInputSchema = z.object({
   saleStatus: z.string().default('ACTIVE'),
   approvalStatus: z.string().default('APPROVED'),
   marketplaceListingNo: z.string().default(''),
+  condition: z.enum(['SIFIR', 'AZ_KULLANILMIS', 'IKINCI_EL']).default('SIFIR'),
+  listingType: z.enum(['KURUMSAL', 'BIREYSEL']).default('KURUMSAL'),
   sellerName: z.string().default('FUAR BOX'),
   sellerRating: z.coerce.number().default(9.3),
 });
@@ -199,6 +204,10 @@ export const ProductController = {
       const wantsMyProducts = query.includeAll || query.myProducts;
       if (req.user?.id && (req.user.role === 'SELLER' || req.user.role === 'ADMIN') && wantsMyProducts) {
         filtersWithUser.userId = req.user.id;
+      }
+      // Public: belirli bir satıcının (mağaza) ürünlerini getir
+      if (query.sellerId) {
+        filtersWithUser.userId = query.sellerId;
       }
 
       const result = await ProductService.getProducts(filtersWithUser, page, limit);

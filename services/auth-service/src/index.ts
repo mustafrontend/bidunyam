@@ -34,6 +34,9 @@ app.get('/profile', authenticate, AuthController.profile);
 app.post('/seller/register', AuthController.sellerRegister);
 app.post('/seller/login', AuthController.sellerLogin);
 app.get('/seller/profile', authenticate, AuthController.sellerProfile);
+app.put('/seller/profile', authenticate, AuthController.updateSellerProfile);
+// Public mağaza (slug ile) — /seller/store/:slug
+app.get('/seller/store/:slug', AuthController.getStoreBySlug);
 
 // Favoriler (müşteri)
 app.get('/favorites', authenticate, requireCustomer, AuthController.getFavorites);

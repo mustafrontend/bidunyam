@@ -1,46 +1,32 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, Lock, CreditCard, Truck } from "lucide-react";
+import { ShieldCheck, CreditCard, Truck, RotateCcw } from "lucide-react";
 
 const BENEFITS = [
-  {
-    icon: Lock,
-    label: "Güvenli Gizlilik Koruması",
-    desc: "Kişisel verileriniz 256-bit SSL ile korunur",
-  },
-  {
-    icon: CreditCard,
-    label: "Güvenli Ödeme",
-    desc: "Tüm banka kartlarına taksit imkanı",
-  },
-  {
-    icon: Truck,
-    label: "Teslimat Garantisi",
-    desc: "Hasarsız ve zamanında kargo güvencesi",
-  },
+  { icon: ShieldCheck, label: "Güvenli Alışveriş", desc: "256-bit SSL koruması", color: "text-emerald-600", bg: "bg-emerald-50" },
+  { icon: CreditCard, label: "Taksitli Ödeme", desc: "Tüm kartlara taksit imkanı", color: "text-indigo-600", bg: "bg-indigo-50" },
+  { icon: Truck, label: "Hızlı Teslimat", desc: "Kapına kadar güvenle", color: "text-blue-600", bg: "bg-blue-50" },
+  { icon: RotateCcw, label: "Kolay İade", desc: "14 gün içinde ücretsiz iade", color: "text-rose-600", bg: "bg-rose-50" },
 ];
 
 export const TrustBar: React.FC = () => {
   return (
-    <section className="bg-emerald-50/40 border border-emerald-100/80 rounded-2xl p-4 md:p-5 flex flex-wrap justify-between items-center gap-4 select-none">
-      <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm md:text-base">
-        <ShieldCheck size={20} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
-        <span>Neden Bi Dünyam?</span>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs md:text-sm text-emerald-700">
-        {BENEFITS.map((item, idx) => (
-          <div key={idx} className="flex items-center gap-2 group hover:text-emerald-900 transition-colors duration-150">
-            <div className="h-6 w-6 rounded-lg bg-emerald-100/50 flex items-center justify-center text-emerald-600 shrink-0 group-hover:scale-105 transition-transform duration-150">
-              <item.icon size={14} strokeWidth={2.5} />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-semibold leading-none">{item.label}</span>
-              <span className="text-[10px] text-emerald-600/70 hidden sm:inline">{item.desc}</span>
-            </div>
+    <section className="grid grid-cols-2 gap-3 md:grid-cols-4 select-none">
+      {BENEFITS.map((item, idx) => (
+        <div
+          key={idx}
+          className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 transition-shadow hover:shadow-sm"
+        >
+          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${item.bg} ${item.color}`}>
+            <item.icon size={20} strokeWidth={2.2} />
           </div>
-        ))}
-      </div>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-slate-800 leading-tight">{item.label}</p>
+            <p className="text-[11px] font-medium text-slate-400 leading-tight mt-0.5">{item.desc}</p>
+          </div>
+        </div>
+      ))}
     </section>
   );
 };

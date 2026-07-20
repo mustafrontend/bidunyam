@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
-import { Package, Truck, CheckCircle2, XCircle, Clock, ChevronRight, MapPin } from "lucide-react";
+import { Package, Truck, CheckCircle2, XCircle, Clock, ChevronRight, RotateCcw } from "lucide-react";
+import { ReturnModal } from "@/components/molecules/ReturnModal";
 
 type OrderStatus = "PENDING" | "PAID" | "PREPARING" | "SHIPPED" | "IN_TRANSIT" | "DELIVERED" | "CANCELLED";
 
@@ -96,23 +97,43 @@ function TrackingTimeline({ shipment }: { shipment: Shipment }) {
   );
 }
 
+const RETURN_STATUS: Record<string, { label: string; cls: string }> = {
+  REQUESTED: { label: "İade Talebi Alındı", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  APPROVED: { label: "İade Onaylandı — Kargoya Ver", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  IN_RETURN_TRANSIT: { label: "İade Kargoda", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  REFUNDED: { label: "Para İadesi Yapıldı", cls: "bg-green-50 text-green-700 border-green-200" },
+  REJECTED: { label: "İade Reddedildi", cls: "bg-red-50 text-red-600 border-red-200" },
+};
+
+interface ReturnReq {
+  _id: string;
+  orderId: string;
+  status: string;
+  refundAmount: number;
+  returnShipment?: { carrier?: string; trackingNumber?: string };
+}
+
 export default function OrdersPage() {
   const token = useAuthStore((s) => s.token);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [returns, setReturns] = useState<ReturnReq[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [returnOrder, setReturnOrder] = useState<Order | null>(null);
 
   const fetchOrders = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await apiClient.get("/orders/my-orders", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = res.data?.data?.orders || res.data?.data || [];
+      const [ordRes, retRes] = await Promise.all([
+        apiClient.get("/orders/my-orders", { headers: { Authorization: `Bearer ${token}` } }),
+        apiClient.get("/orders/returns/my", { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+      ]);
+      const data = ordRes.data?.data?.orders || ordRes.data?.data || [];
       setOrders(Array.isArray(data) ? data : []);
+      setReturns(retRes?.data?.data || []);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Siparişler yüklenemedi.";
       setError(msg);
@@ -124,6 +145,8 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  const returnFor = (orderId: string) => returns.find((r) => r.orderId === orderId && r.status !== "REJECTED");
 
   return (
     <div>
@@ -210,10 +233,51 @@ export default function OrdersPage() {
                 </div>
 
                 {isOpen && order.shipment && <TrackingTimeline shipment={order.shipment} />}
+
+                {/* İade alanı */}
+                {(() => {
+                  const ret = returnFor(order._id);
+                  if (ret) {
+                    const cfg = RETURN_STATUS[ret.status] || RETURN_STATUS.REQUESTED;
+                    return (
+                      <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-2.5 ${cfg.cls}`}>
+                        <span className="flex items-center gap-1.5 text-xs font-black">
+                          <RotateCcw size={13} /> {cfg.label}
+                        </span>
+                        {ret.returnShipment?.trackingNumber && (
+                          <span className="font-mono text-[11px] font-bold opacity-80">
+                            {ret.returnShipment.carrier} · {ret.returnShipment.trackingNumber}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (order.status === "DELIVERED") {
+                    return (
+                      <button
+                        onClick={() => setReturnOrder(order)}
+                        className="mt-3 flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-600 transition-colors hover:border-rose-300 hover:text-rose-600"
+                      >
+                        <RotateCcw size={13} /> İade Talebi Oluştur
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             );
           })}
         </div>
+      )}
+
+      {returnOrder && (
+        <ReturnModal
+          isOpen={!!returnOrder}
+          onClose={() => setReturnOrder(null)}
+          orderId={returnOrder._id}
+          items={returnOrder.items || []}
+          onSuccess={fetchOrders}
+        />
       )}
     </div>
   );

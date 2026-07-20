@@ -82,6 +82,9 @@ model Product {
   views                Int           @default(0)
   sales                Int           @default(0)
   isActive             Boolean       @default(true)
+  // Dolap / bireysel ikinci el modeli
+  condition            String        @default("SIFIR")     // SIFIR, AZ_KULLANILMIS, IKINCI_EL
+  listingType          String        @default("KURUMSAL")  // KURUMSAL, BIREYSEL
   sellerName           String        @default("FUAR BOX")
   sellerRating         Float         @default(9.3)
   createdAt            DateTime      @default(now())
@@ -164,22 +167,38 @@ model Favorite {
 }
 
 model SellerAccount {
-  id          String      @id @default(uuid())
-  email       String      @unique
-  password    String
-  accountType AccountType @default(BIREYSEL)
+  id                      String      @id @default(uuid())
+  email                   String      @unique
+  password                String
+  accountType             AccountType @default(BIREYSEL)
 
   // Bireysel
-  fullName    String?
+  fullName                String?
+  tcNo                    String?
+  iban                    String?
 
   // Tüzel
-  companyName String?
-  taxNo       String?
-  taxOffice   String?
+  companyName             String?
+  taxNo                   String?
+  taxOffice               String?
+  companyIban             String?
 
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // Sözleşme Onayları
+  acceptedKvkk            Boolean     @default(false)
+  acceptedSellerAgreement Boolean     @default(false)
+
+  // Mağaza / Bireysel storefront
+  storeSlug               String?     @unique
+  storeName               String?
+  storeBio                String?
+  storeTheme              String      @default("minimal")
+  storeColor              String      @default("#7c3aed")
+  storeLogo               String?
+  storeBanner             String?
+
+  isActive                Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   @@index([email])
   @@map("seller_accounts")

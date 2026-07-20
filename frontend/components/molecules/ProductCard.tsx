@@ -157,7 +157,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </span>
           {(product.listingType === "BIREYSEL" || (product.condition && product.condition !== "SIFIR")) && (
             <span className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-violet-700">
-              {CONDITION_LABEL[product.condition || ""] || "Dolap"}
+              {CONDITION_LABEL[product.condition || ""] || "Pazar"}
             </span>
           )}
         </div>

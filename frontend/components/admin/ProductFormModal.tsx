@@ -440,14 +440,14 @@ export function ProductFormModal({
           </div>
         </section>
 
-        {/* İlan Tipi & Ürün Durumu (Dolap / Bireysel) */}
+        {/* İlan Tipi & Ürün Durumu (Pazar / Bireysel) */}
         <section className="rounded-2xl border border-slate-200 bg-slate-50/40 p-5">
           <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">İlan Tipi ve Ürün Durumu</h4>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">İlan Tipi</label>
               <div className="grid grid-cols-2 gap-2">
-                {([["KURUMSAL", "Kurumsal (Sıfır Ürün)"], ["BIREYSEL", "Bireysel (Dolap)"]] as const).map(([val, lbl]) => (
+                {([["KURUMSAL", "Kurumsal (Sıfır Ürün)"], ["BIREYSEL", "Bireysel (Pazar)"]] as const).map(([val, lbl]) => (
                   <button key={val} type="button"
                     onClick={() => setForm((f) => ({ ...f, listingType: val, condition: val === "KURUMSAL" ? "SIFIR" : f.condition }))}
                     className={`rounded-lg border px-3 py-2.5 text-xs font-black transition-all ${form.listingType === val ? "border-[#ff6000] bg-[#ff6000]/5 text-[#ff6000]" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
@@ -458,7 +458,7 @@ export function ProductFormModal({
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
-                Ürün Durumu {form.listingType === "BIREYSEL" && <span className="text-[#ff6000]">(Dolap)</span>}
+                Ürün Durumu {form.listingType === "BIREYSEL" && <span className="text-[#ff6000]">(Pazar)</span>}
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {([["SIFIR", "Sıfır"], ["AZ_KULLANILMIS", "Az Kullanılmış"], ["IKINCI_EL", "İkinci El"]] as const).map(([val, lbl]) => (

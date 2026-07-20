@@ -28,13 +28,13 @@ const NavCategoriesInner: React.FC = () => {
         <span>Flaş Fırsatlar</span>
       </Link>
 
-      {/* Dolap (İkinci El) */}
+      {/* Pazar (İkinci El) */}
       <Link
-        href="/dolap"
+        href="/pazar"
         className="snap-start group flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 font-semibold text-white shadow-sm shrink-0 transition-all hover:scale-[1.02]"
       >
         <Recycle size={14} className="shrink-0" />
-        <span>Dolap</span>
+        <span>Pazar</span>
       </Link>
 
       {/* Sadece Onaylılar */}

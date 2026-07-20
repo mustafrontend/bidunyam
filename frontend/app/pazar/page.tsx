@@ -10,7 +10,7 @@ function normalize(data: unknown[]): Product[] {
   return data.map((item: unknown, idx) => {
     const p = item as Record<string, unknown>;
     return {
-      _id: (p.id || p._id || `dolap-${idx}`) as string,
+      _id: (p.id || p._id || `pazar-${idx}`) as string,
       name: (p.name || "Ürün") as string,
       price: Number(p.price) || 0,
       originalPrice: Number(p.originalPrice) || Number(p.price) || 0,
@@ -33,7 +33,7 @@ const CONDITIONS = [
   { key: "IKINCI_EL", label: "İkinci El" },
 ];
 
-export default function DolapPage() {
+export default function PazarPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [condition, setCondition] = useState("");
@@ -64,7 +64,7 @@ export default function DolapPage() {
           <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
           <div className="relative">
             <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-black backdrop-blur">
-              <Recycle size={14} /> biDünyam Dolap
+              <Recycle size={14} /> biDünyam Pazar
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight">İkinci El Hazineler</h1>
             <p className="mt-2 max-w-lg text-sm font-medium text-white/85">
@@ -103,7 +103,7 @@ export default function DolapPage() {
         ) : count === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-200 bg-white py-20 text-center">
             <Sparkles className="mx-auto mb-3 text-slate-300" size={36} />
-            <p className="font-black text-slate-700">Henüz Dolap ilanı yok</p>
+            <p className="font-black text-slate-700">Henüz Pazar ilanı yok</p>
             <p className="mt-1 text-sm font-medium text-slate-400">Bireysel satıcılar ilan ekledikçe burada görünecek.</p>
           </div>
         ) : (

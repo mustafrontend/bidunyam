@@ -21,26 +21,10 @@ export const SellerRepository = {
   },
 
   async findById(id: string): Promise<Omit<SellerAccount, 'password'> | null> {
-    return prisma.sellerAccount.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        email: true,
-        accountType: true,
-        fullName: true,
-        tcNo: true,
-        iban: true,
-        companyName: true,
-        taxNo: true,
-        taxOffice: true,
-        acceptedKvkk: true,
-        acceptedSellerAgreement: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        password: false,
-      },
-    });
+    const user = await prisma.sellerAccount.findUnique({ where: { id } });
+    if (!user) return null;
+    const { password, ...rest } = user;
+    return rest;
   },
 
   async create(data: CreateSellerInput): Promise<SellerAccount> {
@@ -53,18 +37,12 @@ export const SellerRepository = {
   },
 
   async updateProfile(id: string, data: Record<string, unknown>): Promise<Omit<SellerAccount, 'password'>> {
-    return prisma.sellerAccount.update({
+    const updated = await prisma.sellerAccount.update({
       where: { id },
       data,
-      select: {
-        id: true, email: true, accountType: true, fullName: true, tcNo: true, iban: true,
-        companyName: true, taxNo: true, taxOffice: true, companyIban: true,
-        acceptedKvkk: true, acceptedSellerAgreement: true,
-        storeSlug: true, storeName: true, storeBio: true, storeTheme: true,
-        storeColor: true, storeLogo: true, storeBanner: true,
-        isActive: true, createdAt: true, updatedAt: true, password: false,
-      },
     });
+    const { password, ...rest } = updated;
+    return rest;
   },
 
   async findBySlug(slug: string) {

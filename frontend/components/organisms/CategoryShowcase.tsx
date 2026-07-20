@@ -21,32 +21,28 @@ const ICONS: Record<string, React.ReactNode> = {
 
 export const CategoryShowcase: React.FC = () => {
   return (
-    <section className="w-full py-6">
-      <div className="flex items-center gap-4 mb-8">
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Kategoriler</h2>
-        <span className="h-[0.5px] flex-1 bg-slate-200" />
+    <section className="w-full py-2">
+      <div className="flex items-center gap-4 mb-6">
+        <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Kategorileri Keşfet</h2>
+        <span className="h-[1px] flex-1 bg-gradient-to-r from-slate-200 to-transparent" />
       </div>
-      <div className="grid grid-cols-4 md:grid-cols-8 gap-4 md:gap-6">
+      <div className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-3 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
         {CATEGORY_TREE.map((c, i) => (
           <motion.div
             key={c.name}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04, duration: 0.5, ease: "easeOut" }}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.05, duration: 0.5, ease: "easeOut" }}
+            className="snap-start shrink-0"
           >
             <Link 
               href={catHref(c.name)} 
-              className="group flex flex-col items-center gap-3 text-center active:scale-[0.98] transition-all duration-200"
+              className="group flex items-center gap-3 bg-white border-[0.5px] border-slate-200/80 rounded-full px-6 py-3.5 shadow-sm hover:shadow-md hover:border-[#ff5000]/30 transition-all duration-300 active:scale-[0.97]"
             >
-              <div className="w-16 h-16 md:w-[84px] md:h-[84px] rounded-2xl bg-white border-[0.5px] border-slate-200 flex items-center justify-center text-slate-700 group-hover:border-slate-300 group-hover:shadow-sm transition-all duration-300 relative overflow-hidden">
-                {/* Çok hafif bir arka plan parlaması (glow) efekti hover durumunda */}
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 bg-gradient-to-br ${c.gradient} transition-opacity duration-300`} />
-                
-                <div className="group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300 ease-out relative z-10">
-                  {ICONS[c.icon]}
-                </div>
+              <div className="text-slate-400 group-hover:text-[#ff5000] group-hover:scale-110 transition-all duration-300">
+                {React.cloneElement(ICONS[c.icon] as React.ReactElement, { size: 20, strokeWidth: 2.5 })}
               </div>
-              <span className="text-[12px] md:text-[13px] font-semibold text-slate-600 group-hover:text-slate-900 transition-colors leading-tight tracking-tight">
+              <span className="text-[13px] font-bold text-slate-700 group-hover:text-slate-900 tracking-wide">
                 {c.name}
               </span>
             </Link>

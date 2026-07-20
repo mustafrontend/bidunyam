@@ -183,7 +183,7 @@ function HomeContent() {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-slate-50">
-        <div className="w-full max-w-[1600px] px-4 sm:px-6 md:px-10 xl:px-14 py-6 space-y-10 mx-auto">
+        <div className="w-full max-w-[1600px] px-4 sm:px-6 md:px-10 xl:px-14 py-8 lg:py-12 space-y-16 lg:space-y-24 mx-auto">
 
           {/* 1. Hero + yan kampanyalar */}
           <HeroSection />

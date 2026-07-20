@@ -90,7 +90,7 @@ export const CampaignGrid: React.FC<CampaignGridProps> = ({ startIndex = 0, coun
             className={`group relative h-[190px] rounded-2xl overflow-hidden border border-slate-100 transition-all duration-500 ${
               isDb 
                 ? "cursor-pointer bg-slate-900 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] hover:border-slate-200/60" 
-                : "bg-slate-50/50 border-dashed border-slate-200"
+                : "bg-gradient-to-br from-slate-50 to-slate-100/50 shadow-sm hover:shadow-md cursor-default"
             }`}
           >
             {isDb ? (

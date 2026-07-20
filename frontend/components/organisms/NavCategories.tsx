@@ -31,7 +31,7 @@ const NavCategoriesInner: React.FC = () => {
       {/* Pazar (İkinci El) */}
       <Link
         href="/pazar"
-        className="snap-start group flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 font-semibold text-white shadow-sm shrink-0 transition-all hover:scale-[1.02]"
+        className="snap-start group flex items-center gap-1.5 rounded-xl bg-[#ff5000] px-4 py-2 font-semibold text-white shadow-sm shrink-0 transition-all hover:bg-[#e64a00] hover:scale-[1.02] active:scale-[0.98]"
       >
         <Recycle size={14} className="shrink-0" />
         <span>Pazar</span>

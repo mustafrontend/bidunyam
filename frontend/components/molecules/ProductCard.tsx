@@ -108,7 +108,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         {/* Absolute Badge: Discount (Sol üst köşeye, ürünü asla kapatmayacak şekilde zarifleştirildi) */}
         {hasDiscount && (
           <div className="absolute left-3 top-3 z-10 pointer-events-none">
-            <span className="inline-flex items-center gap-1 bg-red-500 text-white font-bold text-[10px] px-2 py-1 rounded-md shadow-sm tracking-wide uppercase">
+            <span className="inline-flex items-center gap-1 bg-red-500/95 backdrop-blur-md text-white font-black text-[9px] px-2.5 py-1 rounded-full shadow-sm tracking-widest uppercase">
               %{discountPct} İndirim
             </span>
           </div>
@@ -127,16 +127,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="absolute inset-x-0 bottom-3 px-3 z-10 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 hidden md:block">
           <button
             onClick={handleAddToCart}
-            className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all duration-300 flex items-center justify-center gap-2 shadow-md ${
+            className={`w-full py-2 rounded-xl font-bold text-xs transition-all duration-300 flex items-center justify-center gap-2 shadow-sm border ${
               added
-                ? "bg-emerald-500 text-white shadow-emerald-500/10"
-                : "bg-slate-900 text-white hover:bg-[#ff5000] shadow-slate-950/10 active:scale-[0.98]"
+                ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+                : "bg-white/95 backdrop-blur-sm text-slate-700 border-slate-200 hover:border-[#ff5000] hover:text-[#ff5000] active:scale-[0.98]"
             }`}
           >
             {added ? (
               <>
                 <Check size={14} strokeWidth={3} />
-                <span>Sepete Eklendi</span>
+                <span>Eklendi</span>
               </>
             ) : (
               <>

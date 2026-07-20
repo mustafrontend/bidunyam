@@ -37,7 +37,7 @@ export function FlashDealsGrid({ products, timeLeft }: FlashDealsGridProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {products.map((p) => {
           const discount = Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
           const soldPercent = Math.min(95, Math.max(30, Math.round((p.price % 60) + 35)));
@@ -45,7 +45,7 @@ export function FlashDealsGrid({ products, timeLeft }: FlashDealsGridProps) {
             <div
               key={p._id}
               onClick={() => router.push(`/product/${p._id}`)}
-              className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 hover:shadow-lg transition-all duration-300 group cursor-pointer flex flex-col justify-between"
+              className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 hover:shadow-lg transition-all duration-300 group cursor-pointer flex flex-col justify-between min-w-[160px] md:min-w-[240px] shrink-0 snap-start"
             >
               <div>
                 <div className="relative aspect-square mb-3 overflow-hidden rounded-xl bg-white flex items-center justify-center p-3 border border-slate-100">

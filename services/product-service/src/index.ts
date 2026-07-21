@@ -118,9 +118,19 @@ const start = async (): Promise<void> => {
   // Seed kategori taksonomisi + dinamik filtre şablonları (idempotent)
   await ProductService.seedTaxonomy().catch((e) => console.error('[Taxonomy Seed] failed:', e));
 
+  // XML onay akışı öncesinde eklenmiş ve halihazırda senkron olan feed'leri
+  // geriye dönük onaylı say (aksi halde deploy sonrası çalışan feed'ler durur).
+  await prisma.xmlFeed
+    .updateMany({
+      where: { approvalStatus: 'PENDING', lastSyncAt: { not: null } },
+      data: { approvalStatus: 'APPROVED', reviewedBy: 'system-backfill', reviewedAt: new Date() },
+    })
+    .then((r) => r.count > 0 && console.log(`[XML] ${r.count} mevcut feed geriye dönük onaylandı`))
+    .catch((e) => console.error('[XML Feed Backfill] failed:', e));
+
   // Sync products to Elasticsearch (Disabled since ES is not running)
   // await ProductService.syncAllToSearch();
-  
+
   // Start XML Cron Service
   xmlCronService.start();
 

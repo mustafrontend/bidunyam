@@ -5,7 +5,7 @@ import fs from 'fs';
 import http from 'http';
 import https from 'https';
 import { Readable } from 'stream';
-import { xmlParserService } from '../services/xmlParser.service';
+import { xmlParserService, parseDecimal } from '../services/xmlParser.service';
 import { xmlCatalogService } from '../services/xmlCatalog.service';
 import { authenticate, optionalAuthenticate, AuthenticatedRequest, requireAdmin } from '../middlewares/auth.middleware';
 import prisma from '../repositories/prisma.client';
@@ -641,11 +641,162 @@ router.get('/admin/xml/feeds', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * GET /admin/xml/feeds/all
+ * Tum feed'ler + sahibi olan satici bilgisi (yalnizca admin).
+ * NOT: Bu route, /admin/xml/feeds/:id kaliplarindan ONCE gelmeli.
+ */
+router.get('/admin/xml/feeds/all', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const status = String(req.query.status || '').toUpperCase();
+    const feeds = await prisma.xmlFeed.findMany({
+      where: status ? { approvalStatus: status } : undefined,
+      orderBy: [{ approvalStatus: 'asc' }, { createdAt: 'desc' }],
+    });
+
+    // Feed sahiplerini tek sorguda cek (userId -> satici)
+    const ownerIds = [...new Set(feeds.map((f) => f.userId))];
+    const sellers = ownerIds.length
+      ? await prisma.sellerAccount.findMany({
+          where: { id: { in: ownerIds } },
+          select: {
+            id: true,
+            email: true,
+            accountType: true,
+            fullName: true,
+            companyName: true,
+            storeName: true,
+            storeSlug: true,
+          },
+        })
+      : [];
+    const sellerById = new Map(sellers.map((s) => [s.id, s]));
+
+    res.json({
+      success: true,
+      feeds: feeds.map((f) => {
+        const s = sellerById.get(f.userId);
+        return {
+          ...f,
+          seller: s
+            ? {
+                id: s.id,
+                email: s.email,
+                accountType: s.accountType,
+                displayName:
+                  s.storeName || (s.accountType === 'BIREYSEL' ? s.fullName : s.companyName) || s.email,
+                storeSlug: s.storeSlug,
+              }
+            : { id: f.userId, email: '-', accountType: 'ADMIN', displayName: 'Admin / Sistem', storeSlug: null },
+        };
+      }),
+      counts: {
+        pending: feeds.filter((f) => f.approvalStatus === 'PENDING').length,
+        approved: feeds.filter((f) => f.approvalStatus === 'APPROVED').length,
+        rejected: feeds.filter((f) => f.approvalStatus === 'REJECTED').length,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /admin/xml/feeds/:id/preview
+ * Admin, onaylamadan once feed'in gercek icerigini onizler.
+ */
+router.get('/admin/xml/feeds/:id/preview', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const feed = await prisma.xmlFeed.findUnique({ where: { id: req.params.id } });
+    if (!feed) return res.status(404).json({ success: false, message: 'Feed bulunamadı' });
+
+    const xmlUrl = normalizeRemoteXmlUrl(feed.url);
+    const xmlStream = await fetchRemoteXmlContent(xmlUrl);
+    const mapping = (feed.fieldMapping || {}) as Record<string, string>;
+    const cleanedMapping = Object.fromEntries(
+      Object.entries(mapping).filter(([, v]) => v && String(v).trim() !== '')
+    );
+    const products = await xmlParserService.parseXMLStream(
+      xmlStream,
+      Object.keys(cleanedMapping).length > 0 ? cleanedMapping : undefined
+    );
+    const validation = xmlParserService.validateProducts(products);
+
+    res.json({
+      success: true,
+      feed: { id: feed.id, name: feed.name, url: feed.url, approvalStatus: feed.approvalStatus },
+      totalProducts: products.length,
+      validProducts: products.length - Object.keys(validation.errors).length,
+      invalidProducts: Object.keys(validation.errors).length,
+      errors: validation.errors,
+      rawProduct: products.length > 0 ? (products[0] as any)._rawProduct || {} : {},
+      preview: products.slice(0, 20).map((p: any) => ({
+        urunAdi: p.urunAdi || 'Eşleşmedi',
+        barkodno: p.urunKodu || 'N/A',
+        kategori: p.kategori || 'N/A',
+        altKategori: p.altkategori || 'N/A',
+        marka: p.marka || 'N/A',
+        fiyat: parseDecimal(p.fiyat),
+        listeFiyati: parseDecimal(p.listeFiyati),
+        stok: Number(p.stok ?? 0) || 0,
+        resim: p.resim ? String(p.resim) : '',
+      })),
+    });
+  } catch (error: any) {
+    console.error('[XML Feed Preview Error]', error);
+    const statusCode = isUpstreamXmlError(error) ? 502 : 400;
+    res.status(statusCode).json({
+      success: false,
+      message: 'Feed önizlenemedi',
+      error: error.message || 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /admin/xml/feeds/:id/review  { action: 'APPROVE' | 'REJECT', note?: string }
+ * Onaylanan feed hemen senkronize edilir; reddedilen pasife alinir.
+ */
+router.post('/admin/xml/feeds/:id/review', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const action = String(req.body?.action || '').toUpperCase();
+    if (action !== 'APPROVE' && action !== 'REJECT') {
+      return res.status(400).json({ success: false, message: "action 'APPROVE' veya 'REJECT' olmalı" });
+    }
+    const feed = await prisma.xmlFeed.findUnique({ where: { id: req.params.id } });
+    if (!feed) return res.status(404).json({ success: false, message: 'Feed bulunamadı' });
+
+    const approved = action === 'APPROVE';
+    const updated = await prisma.xmlFeed.update({
+      where: { id: feed.id },
+      data: {
+        approvalStatus: approved ? 'APPROVED' : 'REJECTED',
+        reviewNote: req.body?.note ? String(req.body.note).slice(0, 500) : null,
+        reviewedAt: new Date(),
+        reviewedBy: (req as any).user?.email || (req as any).user?.id || 'admin',
+        // Onay feed'i yayina alir; red pasife ceker (daha once reddedilmis bir
+        // feed sonradan onaylanirsa tekrar aktiflesmeli)
+        isActive: approved,
+      },
+    });
+
+    if (approved) {
+      xmlCronService.syncFeed(updated.id).catch((err) => console.error('Onay sonrası sync hatası', err));
+    }
+
+    res.json({ success: true, feed: updated });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.post('/admin/xml/feeds', authenticate, async (req, res) => {
   try {
     const { name, url, syncInterval, fieldMapping } = req.body;
     const userId = (req as any).user.id;
-    
+    const isAdmin = (req as any).user?.role === 'ADMIN';
+
+    // Admin'in eklediği feed dogrudan onayli; saticinin eklediği feed onaya duser
     const newFeed = await prisma.xmlFeed.create({
       data: {
         userId,
@@ -653,14 +804,25 @@ router.post('/admin/xml/feeds', authenticate, async (req, res) => {
         url,
         syncInterval: syncInterval || 60,
         fieldMapping: fieldMapping || {},
-        isActive: true
+        isActive: true,
+        approvalStatus: isAdmin ? 'APPROVED' : 'PENDING',
+        reviewedAt: isAdmin ? new Date() : null,
+        reviewedBy: isAdmin ? (req as any).user?.email || 'admin' : null,
       }
     });
 
-    // Otomatik olarak ilk senkronizasyonu arka planda başlat
-    xmlCronService.syncFeed(newFeed.id).catch(err => console.error('Initial sync failed', err));
+    // Yalnızca onaylı feed'ler için ilk senkronizasyonu arka planda başlat
+    if (newFeed.approvalStatus === 'APPROVED') {
+      xmlCronService.syncFeed(newFeed.id).catch(err => console.error('Initial sync failed', err));
+    }
 
-    res.json({ success: true, feed: newFeed });
+    res.json({
+      success: true,
+      feed: newFeed,
+      message: newFeed.approvalStatus === 'PENDING'
+        ? 'Feed kaydedildi ve admin onayına gönderildi. Onaylandığında ürünler otomatik aktarılacak.'
+        : 'Feed eklendi ve senkronizasyon başlatıldı.',
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -674,7 +836,8 @@ router.delete('/admin/xml/feeds/:id', authenticate, async (req, res) => {
     if (!feed) {
       return res.status(404).json({ success: false, message: 'Feed bulunamadı' });
     }
-    if (feed.userId !== userId) {
+    const isAdmin = (req as any).user?.role === 'ADMIN';
+    if (feed.userId !== userId && !isAdmin) {
       return res.status(403).json({ success: false, message: 'Yetkisiz işlem' });
     }
     

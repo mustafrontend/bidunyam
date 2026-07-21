@@ -157,6 +157,11 @@ model XmlFeed {
   lastSyncAt      DateTime?
   lastSyncStatus  String?
   fieldMapping    Json     @default("{}")
+  // Admin onay akisi (product-service ile ayni tutulmali)
+  approvalStatus  String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewNote      String?
+  reviewedAt      DateTime?
+  reviewedBy      String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

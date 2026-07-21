@@ -329,7 +329,7 @@ export const AuthService = {
   },
 
   async getAllSellers() {
-    return prisma.sellerAccount.findMany({
+    const sellers = await prisma.sellerAccount.findMany({
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -341,7 +341,68 @@ export const AuthService = {
         taxOffice: true,
         isActive: true,
         createdAt: true,
+        storeName: true,
+        storeSlug: true,
+        iban: true,
+        companyIban: true,
+        acceptedSellerAgreement: true,
+        contractAcceptedAt: true,
       }
+    });
+
+    // Ürün / satış / XML feed istatistikleri: aynı veritabanında olduğu için
+    // tek seferde gruplayıp bellekte eşleştiriyoruz (satıcı başına N+1 sorgu yok).
+    type ProductStat = {
+      userId: string;
+      productCount: number;
+      activeProducts: number;
+      totalStock: number;
+      totalSales: number;
+      revenue: number;
+    };
+    type FeedStat = { userId: string; feedCount: number; pendingFeeds: number; approvedFeeds: number };
+
+    const [productStats, feedStats] = await Promise.all([
+      prisma.$queryRaw<ProductStat[]>`
+        SELECT "userId",
+               COUNT(*)::int AS "productCount",
+               COUNT(*) FILTER (WHERE "saleStatus" = 'ACTIVE')::int AS "activeProducts",
+               COALESCE(SUM("stock"), 0)::int AS "totalStock",
+               COALESCE(SUM("sales"), 0)::int AS "totalSales",
+               COALESCE(SUM("price" * "sales"), 0)::float8 AS "revenue"
+        FROM "products"
+        GROUP BY "userId"
+      `.catch(() => [] as ProductStat[]),
+      prisma.$queryRaw<FeedStat[]>`
+        SELECT "userId",
+               COUNT(*)::int AS "feedCount",
+               COUNT(*) FILTER (WHERE "approvalStatus" = 'PENDING')::int AS "pendingFeeds",
+               COUNT(*) FILTER (WHERE "approvalStatus" = 'APPROVED')::int AS "approvedFeeds"
+        FROM "xml_feeds"
+        GROUP BY "userId"
+      `.catch(() => [] as FeedStat[]),
+    ]);
+
+    const productByUser = new Map(productStats.map((s) => [s.userId, s]));
+    const feedByUser = new Map(feedStats.map((s) => [s.userId, s]));
+
+    return sellers.map((s) => {
+      const p = productByUser.get(s.id);
+      const f = feedByUser.get(s.id);
+      const isBireysel = s.accountType === 'BIREYSEL';
+      return {
+        ...s,
+        displayName: s.storeName || (isBireysel ? s.fullName : s.companyName) || s.email,
+        payoutIban: (isBireysel ? s.iban : s.companyIban) || null,
+        productCount: p?.productCount ?? 0,
+        activeProducts: p?.activeProducts ?? 0,
+        totalStock: p?.totalStock ?? 0,
+        totalSales: p?.totalSales ?? 0,
+        revenue: Math.round((p?.revenue ?? 0) * 100) / 100,
+        feedCount: f?.feedCount ?? 0,
+        pendingFeeds: f?.pendingFeeds ?? 0,
+        approvedFeeds: f?.approvedFeeds ?? 0,
+      };
     });
   }
 };

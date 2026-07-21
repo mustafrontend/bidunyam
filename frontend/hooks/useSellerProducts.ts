@@ -654,8 +654,7 @@ export function useSellerProducts() {
     // Actions
     fetchProducts, fetchXmlCatalog, resetForm, openEditForm, handleDelete,
     handleToggleActive, addCategoryMain, addCategorySub, addBrand,
-    handleDuplicate,
-    handleDelete,
+    handleDuplicate, handleSave, handleImageChange,
     deleteXmlFeed,
     selectedIds,
     setSelectedIds,

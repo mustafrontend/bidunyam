@@ -97,17 +97,36 @@ function XmlTab({ state }: { state: ReturnType<typeof useSellerProducts> }) {
     <div className="space-y-6">
       {xmlFeeds.length > 0 && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm mb-6">
-          <h3 className="text-lg font-black text-slate-800 mb-4">⚙️ Aktif XML Entegrasyonları (Otomatik Güncellenenler)</h3>
+          <h3 className="text-lg font-black text-slate-800 mb-4">⚙️ XML Entegrasyonlarınız</h3>
           <div className="grid gap-4 md:grid-cols-2">
-            {xmlFeeds.map((feed) => (
+            {xmlFeeds.map((feed) => {
+              // Satıcı feed'leri admin onayından geçer; durumu burada gösteriyoruz
+              const approval = (feed as { approvalStatus?: string }).approvalStatus || "APPROVED";
+              const reviewNote = (feed as { reviewNote?: string | null }).reviewNote;
+              const approvalBadge =
+                approval === "APPROVED"
+                  ? { text: "● Onaylı — Otomatik güncelleniyor", cls: "bg-emerald-100 text-emerald-800" }
+                  : approval === "REJECTED"
+                    ? { text: "● Reddedildi", cls: "bg-red-100 text-red-700" }
+                    : { text: "● Admin onayı bekleniyor", cls: "bg-amber-100 text-amber-800" };
+              return (
               <div key={feed.id} className="rounded-xl border border-slate-100 p-4 bg-slate-50 flex items-start justify-between">
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-800 uppercase">Her {feed.syncInterval} Dk</span>
                     <h4 className="font-bold text-slate-800">{feed.name}</h4>
                   </div>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-black mb-2 ${approvalBadge.cls}`}>
+                    {approvalBadge.text}
+                  </span>
                   <a href={feed.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline break-all block mb-2">{feed.url}</a>
                   <p className="text-[10px] text-slate-500">Son Senkronizasyon: {feed.lastSyncAt ? new Date(feed.lastSyncAt).toLocaleString('tr-TR') : 'Henüz çalışmadı'}</p>
+                  {approval === "PENDING" && (
+                    <p className="text-[10px] font-bold text-amber-700 mt-1">Onaylandığında ürünleriniz otomatik olarak aktarılacaktır.</p>
+                  )}
+                  {approval === "REJECTED" && reviewNote && (
+                    <p className="text-[10px] font-bold text-red-600 mt-1">Red gerekçesi: {reviewNote}</p>
+                  )}
                 </div>
                 <button
                   onClick={() => {
@@ -120,7 +139,8 @@ function XmlTab({ state }: { state: ReturnType<typeof useSellerProducts> }) {
                   Sil
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

@@ -75,12 +75,12 @@ export class XmlCronService {
 
   async runSync() {
     try {
-      // Sadece aktif olan XML Feed'lerini getir
+      // Sadece aktif VE admin tarafından onaylanmış feed'leri getir
       const activeFeeds = await prisma.xmlFeed.findMany({
-        where: { isActive: true }
+        where: { isActive: true, approvalStatus: 'APPROVED' }
       });
 
-      console.log(`[XML Cron] Güncellenecek toplam aktif feed sayısı: ${activeFeeds.length}`);
+      console.log(`[XML Cron] Güncellenecek toplam aktif/onaylı feed sayısı: ${activeFeeds.length}`);
 
       for (const feed of activeFeeds) {
         try {
@@ -126,6 +126,11 @@ export class XmlCronService {
   async syncFeed(feedId: string) {
     const feed = await prisma.xmlFeed.findUnique({ where: { id: feedId } });
     if (!feed || !feed.isActive) return;
+    // Onaylanmamış feed'ler asla senkronize edilmez
+    if (feed.approvalStatus !== 'APPROVED') {
+      console.log(`[XML Cron] '${feed.name}' onaylı değil (${feed.approvalStatus}), sync atlandı.`);
+      return;
+    }
 
     try {
       console.log(`[XML Cron] '${feed.name}' manual sync started... URL: ${feed.url}`);

@@ -179,7 +179,10 @@ export const XMLUploadComponent: React.FC = () => {
 
       setSuccess({
         success: true,
-        message: "Entegrasyon başarıyla kaydedildi! İlk senkronizasyon arka planda başlatıldı. Birazdan ürünler kataloğa eklenecektir.",
+        // Satıcı feed'leri admin onayına düşer; admin'in eklediği feed anında senkronlanır
+        message:
+          data.message ||
+          "Entegrasyon başarıyla kaydedildi! İlk senkronizasyon arka planda başlatıldı. Birazdan ürünler kataloğa eklenecektir.",
         xmlFileName: feedName,
         importedAt: new Date().toISOString(),
       } as any);

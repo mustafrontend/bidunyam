@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, SlidersHorizontal, X, ChevronDown, Star } from "lucide-react";
 import Link from "next/link";
@@ -49,7 +49,7 @@ function ProductSkeleton() {
   );
 }
 
-export default function SearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const q = searchParams.get("q") || "";
@@ -481,5 +481,20 @@ export default function SearchPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// useSearchParams() bir Suspense sınırı içinde olmalı (prerender hatası önlenir)
+export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 font-bold text-slate-400">
+          Yükleniyor…
+        </div>
+      }
+    >
+      <SearchPageContent />
+    </Suspense>
   );
 }

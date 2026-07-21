@@ -114,7 +114,8 @@ export const Navbar: React.FC = () => {
     return () => clearTimeout(delayDebounce);
   }, [searchQuery, showResults, user?.id]);
 
-  if (pathname?.startsWith("/yonetim") || pathname?.startsWith("/admin")) return null;
+  // Bireysel mağaza sayfaları kendi bağımsız tasarımıyla görünür (marketplace chrome'u yok)
+  if (pathname?.startsWith("/yonetim") || pathname?.startsWith("/admin") || pathname?.startsWith("/magaza")) return null;
 
   return (
     <>

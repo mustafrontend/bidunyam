@@ -186,6 +186,8 @@ model SellerAccount {
   // Sözleşme Onayları
   acceptedKvkk            Boolean     @default(false)
   acceptedSellerAgreement Boolean     @default(false)
+  contractAcceptedAt      DateTime?
+  contractVersion         String?     @default("1.0")
 
   // Mağaza / Bireysel storefront
   storeSlug               String?     @unique

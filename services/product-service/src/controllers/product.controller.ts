@@ -392,4 +392,52 @@ export const ProductController = {
       next(err);
     }
   },
+
+  async bulkUpdateStock(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const schema = z.object({
+        productIds: z.array(z.string()).min(1),
+        operation: z.enum(['SET', 'INCREASE', 'DECREASE']),
+        value: z.coerce.number().min(0),
+      });
+      const body = schema.parse(req.body);
+      const result = await ProductService.bulkUpdateStock(
+        body.productIds, body.operation, body.value, req.user?.id
+      );
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async bulkUpdateCondition(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const schema = z.object({
+        productIds: z.array(z.string()).min(1),
+        condition: z.enum(['SIFIR', 'AZ_KULLANILMIS', 'IKINCI_EL']).optional(),
+        listingType: z.enum(['KURUMSAL', 'BIREYSEL']).optional(),
+      });
+      const body = schema.parse(req.body);
+      const result = await ProductService.bulkUpdateCondition(
+        body.productIds, body.condition, body.listingType, req.user?.id
+      );
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async bulkUpdateVat(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const schema = z.object({
+        productIds: z.array(z.string()).min(1),
+        vatRate: z.coerce.number().refine((v) => [1, 10, 20].includes(v), 'KDV 1, 10 veya 20 olmalı'),
+      });
+      const body = schema.parse(req.body);
+      const result = await ProductService.bulkUpdateVat(body.productIds, body.vatRate, req.user?.id);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
 };

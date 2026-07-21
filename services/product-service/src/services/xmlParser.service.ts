@@ -7,7 +7,10 @@ export interface ProductXML {
   urunKodu?: string;
   urunAdi?: string;
   kategori?: string;
+  altKategori?: string;
   fiyat?: string | number;
+  listeFiyati?: string | number;
+  alisFiyati?: string | number;
   stok?: string | number;
   aciklama?: string;
   resim?: string;
@@ -26,6 +29,94 @@ export function normalizeKeys(obj: any): any {
     result[normalizedKey] = typeof value === 'object' && value !== null ? normalizeKeys(value) : value;
   }
   return result;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Dinamik alan sözlüğü — anahtarlar normalize edilmiş haldedir
+// (küçük harf, "-_ " karakterleri atılmış). Sıra önceliği belirler.
+// ─────────────────────────────────────────────────────────────
+export const FIELD_ALIASES: Record<string, string[]> = {
+  urunKodu: [
+    'barkod', 'barkodno', 'barcode', 'gtin', 'ean', 'productcode', 'urunkodu',
+    'stokkodu', 'sku', 'kod', 'code', 'productid', 'urunid', 'id',
+  ],
+  urunAdi: [
+    'urunadi', 'urunismi', 'urunad', 'name', 'productname', 'title', 'baslik',
+    'ad', 'urun', 'productitle', 'stokadi',
+  ],
+  kategori: [
+    'kategori', 'kategoriadi', 'kategoriismi', 'category', 'categoryname',
+    'anakategori', 'maincategory', 'kategoriler', 'categories', 'kategoriyolu',
+    'categorypath', 'kategoritree', 'cat',
+  ],
+  altKategori: [
+    'altkategori', 'altkategoriadi', 'subcategory', 'subcategoryname', 'altkat',
+  ],
+  fiyat: [
+    'satisfiyati', 'satisfiyat', 'indirimlifiyat', 'kampanyalifiyat', 'fiyat',
+    'fiyati', 'price', 'saleprice', 'urunfiyati', 'tutar', 'perakendefiyati',
+  ],
+  listeFiyati: [
+    'listefiyati', 'listefiyat', 'piyasafiyati', 'etiketfiyati', 'oldprice',
+    'listprice', 'marketprice', 'psf',
+  ],
+  alisFiyati: ['alisfiyati', 'bayifiyat', 'bayifiyati', 'costprice', 'maliyet'],
+  stok: [
+    'stok', 'stokadedi', 'stokadet', 'stokmiktari', 'stock', 'quantity', 'qty',
+    'adet', 'miktar', 'stockquantity', 'stokdurumu',
+  ],
+  aciklama: [
+    'aciklama', 'urunaciklamasi', 'detay', 'detail', 'description', 'aciklamasi',
+    'icerik', 'content', 'info', 'ozellik',
+  ],
+  resim: [
+    'resim', 'resim1', 'resimlink', 'resimurl', 'image', 'image1', 'imageurl',
+    'gorsel', 'gorsel1', 'picture', 'photo', 'img', 'anaresim', 'resimler', 'images',
+  ],
+  marka: ['marka', 'markaadi', 'brand', 'brandname', 'manufacturer', 'uretici'],
+  tax: ['kdv', 'kdvorani', 'kdvoran', 'tax', 'taxrate', 'vergi', 'vat'],
+  desi: ['desi', 'agirlik', 'weight', 'kg', 'hacim', 'volume'],
+};
+
+/**
+ * Türkçe/İngiliz sayı formatlarını doğru çözer.
+ *  "1.299,00" → 1299     "1,299.00" → 1299
+ *  "1299,50"  → 1299.5   "1.299"    → 1299 (binlik)
+ *  "149,90 TL"→ 149.9
+ * Son görülen ayraç ondalık kabul edilir; diğerleri binlik olarak atılır.
+ */
+export function parseDecimal(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (value === null || value === undefined) return 0;
+
+  let s = String(value).trim().replace(/[^\d.,-]/g, '');
+  if (!s) return 0;
+
+  const negative = s.startsWith('-');
+  s = s.replace(/-/g, '');
+
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+
+  if (lastComma > -1 && lastDot > -1) {
+    // İki ayraç da var → sonuncusu ondalık
+    if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
+    else s = s.replace(/,/g, '');
+  } else if (lastComma > -1) {
+    // Sadece virgül: 3 hane takip ediyorsa binlik ("1,299"), değilse ondalık ("149,90")
+    const decimals = s.length - lastComma - 1;
+    s = decimals === 3 && s.indexOf(',') === lastComma
+      ? s.replace(/,/g, '')
+      : s.replace(',', '.');
+  } else if (lastDot > -1) {
+    // Sadece nokta: 3 hane takip ediyorsa binlik ("1.299"), değilse ondalık ("149.90")
+    const decimals = s.length - lastDot - 1;
+    if (decimals === 3 && s.indexOf('.') === lastDot) s = s.replace(/\./g, '');
+  }
+
+  const parsed = parseFloat(s);
+  if (!Number.isFinite(parsed)) return 0;
+  return negative ? -parsed : parsed;
 }
 
 export class XMLParserService {
@@ -131,85 +222,83 @@ export class XMLParserService {
   }
 
   private extractAttributes(raw: Record<string, string>, consumedKeys: string[]): Record<string, string> {
+    // Bilinen tüm alan alias'ları özellik olarak sızmamalı (fiyat/isim/stok varyantları vb.)
+    const knownKeys = new Set<string>([...consumedKeys, ...Object.values(FIELD_ALIASES).flat()]);
+    // Teknik/gürültü alanlar
+    const noise = /^(_|xml|link|url|guid|updated|created|tarih|date|sira|order|active|aktif|durum)/i;
+
     const attributes: Record<string, string> = {};
     for (const [key, value] of Object.entries(raw)) {
-      if (!consumedKeys.includes(key) && typeof value === 'string' && value.length < 100 && value.length > 0) {
-        // Simple heuristic: tags < 100 chars might be variants/attributes (like Renk, Beden)
-        const cleanKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // e.g. "renk" -> "Renk"
-        attributes[cleanKey] = value;
-      }
+      if (knownKeys.has(key)) continue;
+      if (noise.test(key)) continue;
+      if (typeof value !== 'string') continue;
+      const v = value.trim();
+      // Kısa ve anlamlı değerler özellik olabilir (Renk, Beden, Materyal…)
+      if (v.length === 0 || v.length > 60) continue;
+      if (/^https?:\/\//i.test(v)) continue;
+      const cleanKey = key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+      attributes[cleanKey] = v;
     }
     return attributes;
   }
 
   /**
-   * MEY İTHALAT ve Genel formatlar için Mapping
+   * Stream dışı (tüm dosyayı okuyan) parse yolu için eşleme.
+   * Aynı dinamik alan sözlüğünü kullanır — tek kaynak.
    */
-  private mapProduct(raw: Record<string, string>): ProductXML {
-    const consumedKeys: string[] = [];
-    const getVal = (keys: string[]) => {
-      for (const k of keys) {
-        if (raw[k]) {
-          consumedKeys.push(k);
-          return raw[k];
-        }
-      }
-      return undefined;
-    };
-
-    return {
-      urunKodu: getVal(['productcode', 'urunkodu', 'barcode', 'barkod', 'sku', 'barkodno']),
-      urunAdi: getVal(['name', 'urunadi', 'title', 'productname']),
-      kategori: getVal(['category', 'kategori']),
-      fiyat: getVal(['price', 'fiyat', 'bayifiyat', 'alisfiyati']),
-      stok: getVal(['quantity', 'stok', 'stock', 'qty']),
-      aciklama: getVal(['detail', 'aciklama', 'description']),
-      resim: this.cleanImageUrl(getVal(['resim', 'image', 'image1'])),
-      marka: getVal(['brand', 'marka']),
-      tax: getVal(['tax', 'kdvorani']),
-      desi: getVal(['desi']),
-      categoryAttributes: this.extractAttributes(raw, consumedKeys),
-    };
+  private mapProduct(raw: Record<string, string>, fieldMapping?: Record<string, string>): ProductXML {
+    return this.applyFieldMapping(raw, fieldMapping);
   }
 
   /**
    * Dinamik eşleştirmeleri uygular
    */
+  /**
+   * Tek dinamik eşleme yolu: önce kullanıcının seçtiği alan, yoksa alias sözlüğü.
+   * (Eşleme verilse de verilmese de aynı mantık çalışır.)
+   */
   private applyFieldMapping(raw: Record<string, string>, fieldMapping?: Record<string, string>): ProductXML {
-    if (!fieldMapping || Object.keys(fieldMapping).length === 0) {
-      return this.mapProduct(raw);
-    }
-
     const consumedKeys: string[] = [];
+    const mapping = fieldMapping || {};
 
-    const resolveField = (mappedKey: string | undefined, defaultAliases: string[]) => {
-      if (mappedKey && mappedKey.trim() !== '') {
-        const normKey = mappedKey.toLowerCase().replace(/[-_ ]/g, '');
-        if (raw[normKey]) {
+    const resolve = (field: string): string | undefined => {
+      // 1) Kullanıcının açıkça seçtiği XML etiketi
+      const chosen = mapping[field];
+      if (chosen && String(chosen).trim() !== '') {
+        const normKey = String(chosen).toLowerCase().replace(/[-_ ]/g, '');
+        if (raw[normKey] !== undefined && String(raw[normKey]).trim() !== '') {
           consumedKeys.push(normKey);
-          return raw[normKey];
+          return String(raw[normKey]).trim();
         }
       }
-      for (const alias of defaultAliases) {
-        if (raw[alias]) {
+      // 2) Alias sözlüğünden otomatik tespit
+      for (const alias of FIELD_ALIASES[field] || []) {
+        if (raw[alias] !== undefined && String(raw[alias]).trim() !== '') {
           consumedKeys.push(alias);
-          return raw[alias];
+          return String(raw[alias]).trim();
         }
       }
       return undefined;
     };
 
+    // Kategori: "Ana > Alt" yolu ya da ayrı alt kategori alanı desteklenir
+    const kategoriRaw = resolve('kategori');
+    const altKategori = resolve('altKategori');
+
     return {
-      urunKodu: resolveField(fieldMapping.urunKodu, ['productcode', 'urunkodu', 'barcode', 'barkod', 'sku', 'barkodno']),
-      urunAdi: resolveField(fieldMapping.urunAdi, ['name', 'urunadi', 'title', 'productname']),
-      kategori: resolveField(fieldMapping.kategori, ['category', 'kategori']),
-      fiyat: resolveField(fieldMapping.fiyat, ['price', 'fiyat', 'bayifiyat', 'alisfiyati']),
-      stok: resolveField(fieldMapping.stok, ['quantity', 'stok', 'stock', 'qty']),
-      aciklama: resolveField(fieldMapping.aciklama, ['detail', 'aciklama', 'description']),
-      resim: this.cleanImageUrl(resolveField(fieldMapping.resim, ['resim', 'image', 'image1'])),
-      marka: resolveField(fieldMapping.marka, ['brand', 'marka']),
-      tax: resolveField(fieldMapping.tax, ['tax', 'kdvorani']),
-      desi: resolveField(fieldMapping.desi, ['desi']),
+      urunKodu: resolve('urunKodu'),
+      urunAdi: resolve('urunAdi'),
+      kategori: kategoriRaw,
+      altKategori,
+      fiyat: resolve('fiyat'),
+      listeFiyati: resolve('listeFiyati'),
+      alisFiyati: resolve('alisFiyati'),
+      stok: resolve('stok'),
+      aciklama: resolve('aciklama'),
+      resim: this.cleanImageUrl(resolve('resim')),
+      marka: resolve('marka'),
+      tax: resolve('tax'),
+      desi: resolve('desi'),
       categoryAttributes: this.extractAttributes(raw, consumedKeys),
     };
   }

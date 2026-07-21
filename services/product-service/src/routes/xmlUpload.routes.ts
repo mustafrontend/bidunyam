@@ -289,7 +289,15 @@ router.post('/admin/xml/preview-url', authenticate, async (req: AuthenticatedReq
   try {
     const xmlUrl = normalizeRemoteXmlUrl(req.body?.url);
     const xmlStream = await fetchRemoteXmlContent(xmlUrl);
-    const products = await xmlParserService.parseXMLStream(xmlStream);
+    // Kullanıcının seçtiği alan eşlemesiyle önizle (yoksa otomatik alias eşlemesi)
+    const rawMapping = req.body?.fieldMapping as Record<string, string> | undefined;
+    const cleanedMapping = rawMapping
+      ? Object.fromEntries(Object.entries(rawMapping).filter(([, v]) => v && String(v).trim() !== ''))
+      : {};
+    const products = await xmlParserService.parseXMLStream(
+      xmlStream,
+      Object.keys(cleanedMapping).length > 0 ? cleanedMapping : undefined
+    );
     const validation = xmlParserService.validateProducts(products);
 
     res.status(200).json({
@@ -300,19 +308,20 @@ router.post('/admin/xml/preview-url', authenticate, async (req: AuthenticatedReq
       invalidProducts: Object.keys(validation.errors).length,
       errors: validation.errors,
       rawProduct: products.length > 0 ? (products[0] as any)._rawProduct || {} : {},
+      // Parser'ın normalize ettiği (eşlemeye göre çözülmüş) alanları döndür
       preview: products.slice(0, 10).map((p: any) => {
-        const priceStr = String(p.fiyat || p.bayifiyat || '0');
-        const price = parseFloat(priceStr.replace(/[^0-9.]/g, '')) || 0;
-        
+        const priceStr = String(p.fiyat ?? '0');
+        const price = parseFloat(priceStr.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+
         return {
-          kategori: p.kategori_adi || p.kategori || 'N/A',
+          kategori: p.kategori || 'N/A',
           altKategori: p.altkategori || 'N/A',
-          urunAdi: p.urun_adi || p.urunAdi || 'Unknown',
-          barkodno: p.barkodno || p.urunKodu || 'N/A',
+          urunAdi: p.urunAdi || 'Eşleşmedi',
+          barkodno: p.urunKodu || 'N/A',
           fiyat: price,
-          bayiFiyati: p.bayifiyat || price,
+          bayiFiyati: price,
           resim: p.resim ? String(p.resim).substring(0, 50) + '...' : 'N/A',
-          stok: p.stok || 0,
+          stok: p.stok ?? 0,
           marka: p.marka || 'N/A',
         };
       }),
@@ -336,7 +345,15 @@ router.post('/admin/xml/import-url', authenticate, async (req: AuthenticatedRequ
   try {
     const xmlUrl = normalizeRemoteXmlUrl(req.body?.url);
     const xmlStream = await fetchRemoteXmlContent(xmlUrl);
-    const products = await xmlParserService.parseXMLStream(xmlStream);
+    // Kullanıcının seçtiği alan eşlemesi içe aktarımda da uygulanmalı
+    const rawMapping = req.body?.fieldMapping as Record<string, string> | undefined;
+    const cleanedMapping = rawMapping
+      ? Object.fromEntries(Object.entries(rawMapping).filter(([, v]) => v && String(v).trim() !== ''))
+      : {};
+    const products = await xmlParserService.parseXMLStream(
+      xmlStream,
+      Object.keys(cleanedMapping).length > 0 ? cleanedMapping : undefined
+    );
     const validation = xmlParserService.validateProducts(products);
 
     if (!validation.isValid) {

@@ -33,6 +33,20 @@ interface ImportResponse {
   };
 }
 
+// Hedef alanların Türkçe etiketleri + zorunluluk (dinamik eşleme UI'ı için)
+const FIELD_META: Record<string, { label: string; hint: string; required?: boolean }> = {
+  urunKodu: { label: "Ürün Kodu / Barkod", hint: "Benzersiz kimlik", required: true },
+  urunAdi: { label: "Ürün Adı", hint: "Başlık", required: true },
+  fiyat: { label: "Fiyat", hint: "Satış fiyatı", required: true },
+  stok: { label: "Stok", hint: "Adet" },
+  kategori: { label: "Kategori", hint: "Kategori adı" },
+  marka: { label: "Marka", hint: "Üretici" },
+  resim: { label: "Görsel URL", hint: "Ürün fotoğrafı" },
+  aciklama: { label: "Açıklama", hint: "Ürün detayı" },
+  tax: { label: "KDV Oranı", hint: "Vergi %" },
+  desi: { label: "Desi", hint: "Kargo desi" },
+};
+
 export const XMLUploadComponent: React.FC = () => {
   const [xmlUrl, setXmlUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -99,8 +113,15 @@ export const XMLUploadComponent: React.FC = () => {
     setError(null);
 
     try {
+      // Seçili alan eşlemesini de gönder → önizleme eşlemeyi yansıtsın
+      const cleanedMapping: Record<string, string> = {};
+      Object.entries(fieldMapping).forEach(([k, v]) => {
+        if (v && String(v).trim() !== "") cleanedMapping[k] = String(v).trim();
+      });
+
       const response = await apiClient.post("/products/admin/xml/preview-url", {
         url: xmlUrl.trim(),
+        ...(Object.keys(cleanedMapping).length > 0 ? { fieldMapping: cleanedMapping } : {}),
       });
 
       const data = response.data;
@@ -343,34 +364,78 @@ export const XMLUploadComponent: React.FC = () => {
             )}
           </div>
 
-          {preview.rawProduct && Object.keys(preview.rawProduct).length > 0 && (
-            <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg mt-4">
-              <p className="text-xs font-semibold text-blue-900 mb-2">📋 XML Dosyasında Bulunan Örnek Ürün Verisi (Kopyalayabilirsiniz):</p>
-              <div className="max-h-64 overflow-y-auto bg-white rounded border border-blue-200 p-3 shadow-inner text-xs font-mono space-y-1">
-                {Object.entries(preview.rawProduct).map(([k, v]) => (
-                  <div key={k} className="flex border-b border-slate-100 pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
-                    <span className="w-1/3 text-blue-800 font-semibold select-all break-all pr-2">{k}</span>
-                    <span className="w-2/3 text-slate-600 truncate" title={String(v)}>{String(v)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Dinamik Alan Eşleme — tespit edilen XML alanlarından seçim */}
+          {(() => {
+            const detected = preview.rawProduct ? Object.keys(preview.rawProduct) : [];
+            const sample = (k: string) => {
+              const v = (preview.rawProduct as any)?.[k];
+              const s = v === undefined || v === null ? "" : String(v);
+              return s.length > 40 ? s.slice(0, 40) + "…" : s;
+            };
+            const mappedCount = Object.keys(fieldMapping).filter((k) => (fieldMapping as any)[k]).length;
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 bg-slate-50 p-4 rounded-lg">
-            {Object.keys(fieldMapping).map((key) => (
-              <div key={key}>
-                <label className="block text-xs font-semibold text-slate-700 capitalize">{key}</label>
-                <input
-                  type="text"
-                  placeholder="XML etiketi (örn: price)"
-                  value={(fieldMapping as any)[key]}
-                  onChange={(e) => setFieldMapping({ ...fieldMapping, [key]: e.target.value })}
-                  className="mt-1 w-full rounded border px-2 py-1 text-sm outline-none focus:border-blue-500"
-                />
+            return (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-black text-slate-800">Alan Eşleme</p>
+                    <p className="text-xs text-slate-500">
+                      XML'inizde <span className="font-bold text-slate-700">{detected.length} alan</span> bulundu. Her biDünyam alanı için karşılığını seçin.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600 shadow-sm">
+                    {mappedCount}/{Object.keys(fieldMapping).length} eşleşti
+                  </span>
+                </div>
+
+                {detected.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-slate-300 bg-white py-6 text-center text-sm font-semibold text-slate-400">
+                    Alanları görebilmek için önce XML'i önizleyin.
+                  </p>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {Object.keys(fieldMapping).map((key) => {
+                      const meta = FIELD_META[key] || { label: key, hint: "" };
+                      const selected = (fieldMapping as any)[key] as string;
+                      return (
+                        <div key={key} className="rounded-lg border border-slate-200 bg-white p-3">
+                          <label className="mb-1 flex items-center gap-1 text-xs font-black text-slate-700">
+                            {meta.label}
+                            {meta.required && <span className="text-red-500">*</span>}
+                          </label>
+                          <select
+                            value={selected}
+                            onChange={(e) => setFieldMapping({ ...fieldMapping, [key]: e.target.value })}
+                            className={`w-full rounded border px-2 py-1.5 text-sm outline-none focus:border-[#ff6000] ${
+                              !selected && meta.required ? "border-red-200 bg-red-50/40" : "border-slate-200"
+                            }`}
+                          >
+                            <option value="">— Otomatik / Yok —</option>
+                            {detected.map((f) => (
+                              <option key={f} value={f}>{f}</option>
+                            ))}
+                          </select>
+                          <p className="mt-1 truncate text-[11px] text-slate-400" title={selected ? sample(selected) : meta.hint}>
+                            {selected ? <><span className="font-semibold text-emerald-600">örnek:</span> {sample(selected) || "(boş)"}</> : meta.hint}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {detected.length > 0 && (
+                  <button
+                    onClick={handlePreview}
+                    disabled={loading}
+                    className="mt-4 w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition-colors hover:border-[#ff6000] hover:text-[#ff6000] disabled:opacity-50"
+                  >
+                    {loading ? "⏳ Uygulanıyor…" : "🔄 Eşlemeyi Uygula ve Yeniden Önizle"}
+                  </button>
+                )}
               </div>
-            ))}
-          </div>
+            );
+          })()}
           
           <button
             onClick={handleCreateFeed}

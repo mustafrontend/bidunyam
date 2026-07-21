@@ -13,6 +13,8 @@ export interface CreateSellerInput {
   taxOffice?: string;
   acceptedKvkk?: boolean;
   acceptedSellerAgreement?: boolean;
+  contractAcceptedAt?: Date;
+  contractVersion?: string;
 }
 
 export const SellerRepository = {

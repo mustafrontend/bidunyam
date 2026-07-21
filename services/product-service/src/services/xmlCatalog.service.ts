@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 import { syncXmlProductsToSearch } from '../repositories/elasticsearch.client';
-import { normalizeKeys } from './xmlParser.service';
+import { normalizeKeys, parseDecimal } from './xmlParser.service';
 
 const prisma = new PrismaClient();
 
@@ -287,15 +287,27 @@ class XmlCatalogService {
 
     const name = String(normalized.urunadi || normalized.name || normalized.title || normalized.productname || 'Bilinmeyen Ürün').trim();
     const barcode = String(normalized.urunkodu || normalized.barkodno || normalized.barcode || normalized.sku || normalized.productcode || `XML-${requestId}-${index + 1}`).trim();
-    const fiyat = this.toNumber(normalized.fiyat || normalized.fiyati || normalized.price);
-    const bayi = this.toNumber(normalized.bayifiyat || normalized.bayifiyati);
-    const price = fiyat > 0 ? fiyat : (bayi > 0 ? bayi : 0);
-    const originalPrice = fiyat > 0 ? fiyat : price;
-    const discountPercent = originalPrice > price ? Math.max(0, Math.round(((originalPrice - price) / originalPrice) * 100)) : 0;
-    const stock = Math.max(0, Math.floor(this.toNumber(normalized.stok || normalized.stock || normalized.quantity || normalized.qty)));
+    // Fiyatlar: satış fiyatı esas, liste fiyatı varsa gerçek indirim hesaplanır
+    const satis = this.toNumber(normalized.fiyat ?? normalized.fiyati ?? normalized.price);
+    const liste = this.toNumber(normalized.listefiyati ?? normalized.listprice);
+    const alis = this.toNumber(normalized.alisfiyati ?? normalized.bayifiyat ?? normalized.bayifiyati);
+
+    const price = satis > 0 ? satis : liste > 0 ? liste : alis;
+    const originalPrice = liste > price ? liste : price;
+    const discountPercent =
+      originalPrice > price ? Math.max(0, Math.round(((originalPrice - price) / originalPrice) * 100)) : 0;
+
+    const stock = Math.max(0, Math.floor(this.toNumber(normalized.stok ?? normalized.stock ?? normalized.quantity ?? normalized.qty)));
     const imageUrl = String(normalized.resim || normalized.resim1 || normalized.image || normalized.imageurl || normalized.gorsel || '').trim();
     const brand = String(normalized.marka || normalized.brand || normalized.manufacturer || 'XML Market').trim() || 'XML Market';
-    const category = String(normalized.kategori || normalized.category || normalized.kategoriadi || normalized.kategori_adi || 'XML Katalog').trim() || 'XML Katalog';
+
+    // Kategori: "Ana > Alt" yolu kur; zaten yol içeriyorsa olduğu gibi kullan
+    const anaKat = String(normalized.kategori || normalized.category || normalized.kategoriadi || '').trim();
+    const altKat = String(normalized.altkategori || normalized.subcategory || '').trim();
+    let category = anaKat || 'XML Katalog';
+    if (altKat && !anaKat.includes('>') && altKat.toLowerCase() !== anaKat.toLowerCase()) {
+      category = anaKat ? `${anaKat} > ${altKat}` : altKat;
+    }
 
     return {
       _id: `${requestId}-${index + 1}`,
@@ -316,13 +328,10 @@ class XmlCatalogService {
     };
   }
 
+  // Türkçe/İngiliz sayı formatlarını doğru çözen ortak parser
+  // ("1.299,00" → 1299 ; "1,299.00" → 1299 ; "149,90" → 149.9)
   private toNumber(value: unknown): number {
-    if (typeof value === 'number') {
-      return Number.isFinite(value) ? value : 0;
-    }
-    const cleaned = String(value ?? '0').replace(/[^0-9.,-]/g, '').replace(',', '.');
-    const parsed = parseFloat(cleaned);
-    return Number.isFinite(parsed) ? parsed : 0;
+    return parseDecimal(value);
   }
 
   private pruneOldRequests(userId: string) {

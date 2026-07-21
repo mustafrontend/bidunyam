@@ -696,6 +696,59 @@ export const ProductService = {
     return { updated: result.count };
   },
 
+  // Toplu stok: sabitle / artır / azalt
+  async bulkUpdateStock(
+    productIds: string[],
+    operation: 'SET' | 'INCREASE' | 'DECREASE',
+    value: number,
+    userId?: string
+  ) {
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds }, ...(userId ? { userId } : {}) },
+      select: { id: true, stock: true },
+    });
+
+    const updates = products.map((p) => {
+      let next = p.stock;
+      if (operation === 'SET') next = value;
+      else if (operation === 'INCREASE') next = p.stock + value;
+      else if (operation === 'DECREASE') next = p.stock - value;
+      next = Math.max(0, Math.floor(next));
+      return prisma.product.update({ where: { id: p.id }, data: { stock: next } });
+    });
+
+    const results = await Promise.all(updates);
+    return { updated: results.length };
+  },
+
+  // Toplu ürün durumu / ilan tipi (Dolap için)
+  async bulkUpdateCondition(
+    productIds: string[],
+    condition?: string,
+    listingType?: string,
+    userId?: string
+  ) {
+    const data: Record<string, string> = {};
+    if (condition) data.condition = condition;
+    if (listingType) data.listingType = listingType;
+    if (Object.keys(data).length === 0) return { updated: 0 };
+
+    const result = await prisma.product.updateMany({
+      where: { id: { in: productIds }, ...(userId ? { userId } : {}) },
+      data,
+    });
+    return { updated: result.count };
+  },
+
+  // Toplu KDV oranı
+  async bulkUpdateVat(productIds: string[], vatRate: number, userId?: string) {
+    const result = await prisma.product.updateMany({
+      where: { id: { in: productIds }, ...(userId ? { userId } : {}) },
+      data: { vatRate },
+    });
+    return { updated: result.count };
+  },
+
   async bulkDelete(productIds: string[], userId?: string) {
     const result = await prisma.product.deleteMany({
       where: { id: { in: productIds }, ...(userId ? { userId } : {}) },

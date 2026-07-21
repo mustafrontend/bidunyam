@@ -10,7 +10,8 @@ export const Footer: React.FC = () => {
   const pathname = usePathname();
 
   // Yönetim ve Admin sayfalarında storefront footer'ını göstermiyoruz
-  if (pathname?.startsWith("/yonetim") || pathname?.startsWith("/admin")) {
+  // Bireysel mağaza sayfaları kendi bağımsız tasarımıyla görünür (marketplace chrome'u yok)
+  if (pathname?.startsWith("/yonetim") || pathname?.startsWith("/admin") || pathname?.startsWith("/magaza")) {
     return null;
   }
 

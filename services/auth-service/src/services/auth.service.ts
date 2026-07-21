@@ -168,6 +168,9 @@ export const AuthService = {
       taxOffice: input.taxOffice,
       acceptedKvkk: input.acceptedKvkk ?? false,
       acceptedSellerAgreement: input.acceptedSellerAgreement ?? false,
+      // Sözleşme onay anı — imzalı sözleşme belgesinde kullanılır
+      contractAcceptedAt: (input.acceptedKvkk || input.acceptedSellerAgreement) ? new Date() : undefined,
+      contractVersion: '1.0',
     });
 
     const displayName = accountType === 'TUZEL' ? seller.companyName! : seller.fullName!;

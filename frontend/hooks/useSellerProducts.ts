@@ -272,7 +272,13 @@ export function useSellerProducts() {
   const fetchProducts = useCallback(async () => {
     try {
       const res = await apiClient.get("/products?limit=500&includeAll=true");
-      const nextProducts: Product[] = res.data?.data?.products || [];
+      // API `id` döner, arayüz `_id` bekler → normalize et
+      // (aksi halde seçim/düzenleme/silme undefined id ile çalışır)
+      const rawProducts = (res.data?.data?.products || []) as Array<Record<string, unknown>>;
+      const nextProducts: Product[] = rawProducts.map((p) => ({
+        ...p,
+        _id: (p._id as string) || (p.id as string),
+      })) as Product[];
       setProducts(nextProducts);
       const metaRes = await apiClient.get("/products/meta/options");
       const metaCategories = metaRes.data?.data?.categories as Array<{ name: string; subCategories: string[] }> | undefined;

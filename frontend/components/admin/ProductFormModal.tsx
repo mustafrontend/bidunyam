@@ -82,6 +82,34 @@ export function ProductFormModal({
 }: ProductFormModalProps) {
   const activeSubCategories = categoryTree[form.categoryMain] || [];
 
+  // ─── Satıcı hesap tipi (bireysel/tüzel ürün girişi farklılaşır) ───
+  const [sellerType, setSellerType] = useState<"BIREYSEL" | "TUZEL" | null>(null);
+  const isBireysel = sellerType === "BIREYSEL";
+  const isTuzel = sellerType === "TUZEL";
+
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get("/auth/seller/profile")
+      .then((res) => {
+        if (cancelled) return;
+        const t = res.data?.data?.accountType;
+        if (t === "BIREYSEL" || t === "TUZEL") setSellerType(t);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // Yeni üründe ilan tipini hesap tipine göre otomatik ayarla
+  useEffect(() => {
+    if (!sellerType || editingProduct) return;
+    setForm((f) => ({
+      ...f,
+      listingType: sellerType === "BIREYSEL" ? "BIREYSEL" : "KURUMSAL",
+      condition: sellerType === "TUZEL" ? "SIFIR" : f.condition,
+    }));
+  }, [sellerType, editingProduct, setForm]);
+
   // ─── Dinamik kategori şablonu ───────────────────────────────
   const [template, setTemplate] = useState<TemplateAttr[]>([]);
   const [templateSource, setTemplateSource] = useState<string>("");
@@ -440,10 +468,48 @@ export function ProductFormModal({
           </div>
         </section>
 
-        {/* İlan Tipi & Ürün Durumu (Pazar / Bireysel) */}
-        <section className="rounded-2xl border border-slate-200 bg-slate-50/40 p-5">
-          <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">İlan Tipi ve Ürün Durumu</h4>
-          <div className="grid gap-4 md:grid-cols-2">
+        {/* İlan Tipi & Ürün Durumu — satıcı hesap tipine göre farklılaşır */}
+        <section className={`rounded-2xl border p-5 ${isBireysel ? "border-violet-200 bg-violet-50/40" : "border-slate-200 bg-slate-50/40"}`}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h4 className="text-sm font-black uppercase tracking-wide text-slate-700">İlan Tipi ve Ürün Durumu</h4>
+            {sellerType && (
+              <span className={`rounded-full px-3 py-1 text-[11px] font-black text-white ${isBireysel ? "bg-violet-600" : "bg-slate-700"}`}>
+                {isBireysel ? "Bireysel Satıcı — Pazar ilanı" : "Kurumsal Satıcı — Faturalı satış"}
+              </span>
+            )}
+          </div>
+
+          {isTuzel ? (
+            /* TÜZEL: yalnızca sıfır ürün, faturalı satış */
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-sm font-bold text-slate-700">Kurumsal ilan · Sıfır ürün</p>
+              <p className="mt-1 text-xs font-medium text-slate-500">
+                Tüzel kişi satıcılar yalnızca <strong>sıfır (yeni)</strong> ürün satabilir. Satışlarınız faturalı işlenir;
+                KDV oranını “Fiyat ve Stok” bölümünden belirleyin.
+              </p>
+            </div>
+          ) : isBireysel ? (
+            /* BİREYSEL: Pazar ilanı — ürün durumu zorunlu */
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
+                Ürün Durumu <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {([["SIFIR", "Sıfır"], ["AZ_KULLANILMIS", "Az Kullanılmış"], ["IKINCI_EL", "İkinci El"]] as const).map(([val, lbl]) => (
+                  <button key={val} type="button"
+                    onClick={() => setForm((f) => ({ ...f, condition: val }))}
+                    className={`rounded-lg border px-2 py-2.5 text-[11px] font-black transition-all ${form.condition === val ? "border-violet-500 bg-violet-100 text-violet-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs font-medium text-slate-500">
+                İlanınız <strong>Pazar</strong> bölümünde ve kendi mağaza sayfanızda yayınlanır. Durum bilgisi alıcıya rozet olarak gösterilir.
+              </p>
+            </div>
+          ) : (
+            /* Hesap tipi yüklenene kadar manuel seçim */
+            <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">İlan Tipi</label>
               <div className="grid grid-cols-2 gap-2">
@@ -471,7 +537,8 @@ export function ProductFormModal({
                 ))}
               </div>
             </div>
-          </div>
+            </div>
+          )}
         </section>
 
         {/* Durum */}

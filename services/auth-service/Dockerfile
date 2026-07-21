@@ -34,5 +34,9 @@ COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 3001
 
-# Prisma client requires the schema to be present
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/index.js"]
+# Prisma client requires the schema to be present.
+# ÖNEMLİ: --accept-data-loss KULLANMA. Bu flag, şema DB ile uyuşmadığında
+# tablo/kolonları sessizce DÜŞÜRÜR ve her deploy'da veri kaybına yol açar.
+# Flag'siz push yalnızca ekleyici (additive) değişiklikleri uygular;
+# yıkıcı bir değişiklik gerekiyorsa reddeder ve servis mevcut veriyle açılmaya devam eder.
+CMD ["sh", "-c", "npx prisma db push --skip-generate || echo '[Auth] UYARI: db push atlandi (yikici degisiklik reddedildi) - mevcut sema korunuyor'; node dist/index.js"]

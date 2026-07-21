@@ -69,6 +69,9 @@ app.get('/admin/products/all', authenticate, requireAdmin, ProductController.get
 app.patch('/admin/products/bulk/price', authenticate, ProductController.bulkUpdatePrice);
 app.patch('/admin/products/bulk/status', authenticate, ProductController.bulkUpdateStatus);
 app.patch('/admin/products/bulk/category', authenticate, ProductController.bulkUpdateCategory);
+app.patch('/admin/products/bulk/stock', authenticate, ProductController.bulkUpdateStock);
+app.patch('/admin/products/bulk/condition', authenticate, ProductController.bulkUpdateCondition);
+app.patch('/admin/products/bulk/vat', authenticate, ProductController.bulkUpdateVat);
 app.delete('/admin/products/bulk', authenticate, ProductController.bulkDelete);
 
 // Question & Answer endpoints

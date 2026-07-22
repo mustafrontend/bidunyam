@@ -7,6 +7,10 @@ const API_URL =
   process.env.GATEWAY_URL ||
   (process.env.NODE_ENV === "development" ? "http://localhost:8080" : "http://gateway:8080");
 
+// Build sırasında gateway ayakta olmadığı için ürünler prerender'da boş kalıyordu;
+// sitemap her istekte üretilsin ki yeni ürünler gecikmeden dizine girsin.
+export const dynamic = "force-dynamic";
+
 // Statik sayfalar + kategoriler + ürünler + bireysel mağazalar
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
@@ -51,7 +55,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Ürünler (API'den)
   let productRoutes: MetadataRoute.Sitemap = [];
   try {
-    const res = await fetch(`${API_URL}/products?limit=1000`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${API_URL}/products?limit=1000`, { next: { revalidate: 600 } });
     const json = await res.json();
     const products = json?.data?.products || [];
     productRoutes = products.map((p: { id: string; name?: string; updatedAt?: string }) => ({

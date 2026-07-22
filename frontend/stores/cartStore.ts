@@ -12,6 +12,10 @@ export interface CartItem {
   quantity: number;
   barcode?: string;
   category?: string;
+  // Komisyon kırılımı için gerekli alanlar (sipariş anında backend'e gider)
+  categoryPath?: string;
+  listingType?: string;
+  desi?: number;
   selectedVariant?: Record<string, string>;
   selectedServices?: Array<{ name: string; price: number; description?: string }>;
 }
@@ -72,6 +76,10 @@ export const useCartStore = create<CartState>()(
             quantity: 1,
             barcode: product.barcode,
             category: product.category,
+            // Sipariş anında komisyon oranını belirleyen alanlar
+            categoryPath: product.categoryPath,
+            listingType: product.listingType,
+            desi: product.desi,
             selectedVariant: product.selectedVariant,
             selectedServices: product.selectedServices,
           };

@@ -168,6 +168,8 @@ services:
       - PORT=3005
       - MONGO_URI=mongodb://mongo:27017/trendyol_orders
       - JWT_SECRET=${JWT_SECRET}
+      # Komisyon/kargo tarifesi product-service'te tutulur; sipariş anında oradan okunur
+      - PRODUCT_SERVICE_URL=http://product-service:3002
     depends_on:
       mongo:
         condition: service_healthy

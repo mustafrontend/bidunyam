@@ -1,14 +1,57 @@
 import Order, { IOrder } from '../models/order.model';
 import { NavlungoService } from './navlungo.service';
+import { PricingClient } from './pricingClient.service';
 
 export const OrderService = {
   async createOrder(userId: string, orderData: any): Promise<IOrder> {
+    // Komisyon/kargo kırılımını sipariş anında hesaplayıp sabitliyoruz;
+    // admin oranları sonradan değiştirse bile bu sipariş etkilenmez.
+    const items = (orderData?.items || []).map((i: any) => ({
+      price: Number(i.price) || 0,
+      quantity: Number(i.quantity) || 1,
+      categoryPath: i.categoryPath || i.categoryName || i.category,
+      listingType: i.listingType,
+      desi: Number(i.desi) || 1,
+    }));
+    const pricing = await PricingClient.quote(items, Number(orderData?.desi) || undefined);
+
     const order = new Order({
       userId,
       ...orderData,
+      pricing,
       status: 'PAID' // Payment simulation success
     });
     return await order.save();
+  },
+
+  /**
+   * Kırılımı alınamamış siparişleri güncel tarifeyle tamamlar.
+   * (product-service geçici olarak erişilemezse sipariş kırılımsız kaydolur.)
+   */
+  async backfillPricing(limit = 100): Promise<number> {
+    const pending = await Order.find({
+      $or: [{ pricing: { $exists: false } }, { 'pricing.resolved': false }],
+    })
+      .limit(limit)
+      .exec();
+
+    let fixed = 0;
+    for (const order of pending) {
+      const items = (order.items || []).map((i: any) => ({
+        price: Number(i.price) || 0,
+        quantity: Number(i.quantity) || 1,
+        categoryPath: (i as any).categoryPath || (i as any).categoryName,
+        listingType: (i as any).listingType,
+        desi: Number((i as any).desi) || 1,
+      }));
+      const pricing = await PricingClient.quote(items, order.shipment?.desi);
+      if (!pricing.resolved) continue; // servis hâlâ erişilemez
+      order.pricing = pricing;
+      await order.save();
+      fixed += 1;
+    }
+    if (fixed > 0) console.log(`[Pricing] ${fixed} siparişin kırılımı tamamlandı.`);
+    return fixed;
   },
 
   async getOrders(userId: string): Promise<IOrder[]> {

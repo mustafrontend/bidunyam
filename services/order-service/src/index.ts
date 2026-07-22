@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { OrderController } from './controllers/order.controller';
+import { OrderService } from './services/order.service';
 import { PaymentController } from './controllers/payment.controller';
 import { ReturnController } from './controllers/return.controller';
 import { startOrderWorker } from './queue/order.worker';
@@ -64,6 +65,17 @@ app.post('/returns/:id/approve', authenticate, requireSellerOrAdmin, ReturnContr
 app.post('/returns/:id/reject', authenticate, requireSellerOrAdmin, ReturnController.reject);
 app.post('/returns/:id/refund', authenticate, requireSellerOrAdmin, ReturnController.refund);
 
+// Kırılımı eksik kalmış siparişleri güncel tarifeyle tamamla (admin)
+// NOT: /:id kalıplarından ÖNCE tanımlanmalı.
+app.post('/admin/pricing/backfill', authenticate, requireAdmin, async (_req, res) => {
+  try {
+    const fixed = await OrderService.backfillPricing(500);
+    res.json({ success: true, message: `${fixed} siparişin komisyon kırılımı tamamlandı.`, fixed });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Kargo (Navlungo) — satıcı/admin gönderi oluşturur, takip ilerletir
 app.post('/:id/ship', authenticate, OrderController.ship);
 app.post('/:id/advance', authenticate, OrderController.advanceTracking);
@@ -78,6 +90,13 @@ const start = async () => {
 
     // 🚀 Start Queue Worker
     startOrderWorker();
+
+    // Fiyatlandırma servisi geçici erişilemezken kaydedilmiş siparişleri tamamla
+    setTimeout(() => {
+      OrderService.backfillPricing(200).catch((e) =>
+        console.error('[Pricing] Backfill hatası:', e.message)
+      );
+    }, 10000);
 
     app.listen(PORT, () => {
       console.log(`📦 Order Service running on http://localhost:${PORT}`);

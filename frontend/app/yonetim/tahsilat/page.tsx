@@ -35,14 +35,35 @@ export default function TahsilatPage() {
     Promise.all([
       apiClient.get("/auth/seller/profile", authHeaders),
       apiClient.get("/products?myProducts=true&limit=500", authHeaders).catch(() => null),
-    ]).then(([pRes, prRes]) => {
+      apiClient.get("/orders", authHeaders).catch(() => null),
+    ]).then(([pRes, prRes, oRes]) => {
       const p = pRes.data?.data || {};
       setProfile(p);
       setIban(p.accountType === "TUZEL" ? (p.companyIban || "") : (p.iban || ""));
       const list = prRes?.data?.data?.products || [];
       setProducts(list);
 
-      // Hakediş kırılımını yürürlükteki komisyon/kargo tarifesiyle hesaplat
+      // Öncelik: siparişlere yazılmış kırılım (sipariş anındaki oran sabittir)
+      const orders = (oRes?.data?.data || []).filter((o: any) => o?.pricing?.resolved);
+      if (orders.length > 0) {
+        const sum = (f: (p: any) => number) =>
+          orders.reduce((t: number, o: any) => t + (Number(f(o.pricing)) || 0), 0);
+        setQuote({
+          gross: sum((p) => p.gross),
+          commissionTotal: sum((p) => p.commissionTotal),
+          serviceFee: sum((p) => p.serviceFee),
+          transactionFee: sum((p) => p.transactionFee),
+          shippingCost: sum((p) => p.shippingCost),
+          sellerPayout: sum((p) => p.sellerPayout),
+          lines: orders.flatMap((o: any) => o.pricing.lines || []),
+        });
+        apiClient.get("/products/pricing/rates")
+          .then((r) => setPayoutHoldDays(r.data?.data?.settings?.payoutHoldDays ?? 14))
+          .catch(() => undefined);
+        return;
+      }
+
+      // Sipariş yoksa: ürünlerin satış verisinden güncel tarifeyle tahmin
       const sold = list.filter((x: any) => Number(x.sales) > 0);
       if (sold.length > 0) {
         apiClient.post("/products/pricing/quote", {

@@ -175,6 +175,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
         items: items.map((i) => ({
           productId: i._id, name: i.name, price: i.price, barcode: i.barcode,
           quantity: i.quantity, imageUrl: i.imageUrl,
+          // Komisyon oranı kategoriye ve satıcı tipine göre belirlenir
+          categoryPath: i.categoryPath || i.category,
+          listingType: i.listingType,
+          desi: i.desi,
           selectedVariant: i.selectedVariant, selectedServices: i.selectedServices,
         })),
         totalAmount: total,

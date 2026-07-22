@@ -29,6 +29,28 @@ export interface IShipment {
   events: ITrackingEvent[];
 }
 
+/**
+ * Siparis anindaki komisyon/kargo kirilimi.
+ * Oranlar admin panelinden degistirilebildigi icin, gecmis siparislerin
+ * hakedisi bozulmasin diye o anki tarife siparise "fotograflanir".
+ */
+export interface IPricingSnapshot {
+  gross: number;
+  commissionTotal: number;
+  serviceFee: number;
+  transactionFee: number;
+  shippingCost: number;
+  freeShippingApplied: boolean;
+  totalDesi: number;
+  sellerPayout: number;
+  buyerTotal: number;
+  lines: Array<{ categoryName: string; gross: number; commissionRate: number; commission: number }>;
+  /// Tarifenin uygulandigi an
+  calculatedAt: Date;
+  /// Fiyatlandirma servisine ulasilamadiysa false; hakedis sonradan hesaplanir
+  resolved: boolean;
+}
+
 export interface IOrder extends Document {
   userId: string;
   items: IOrderItem[];
@@ -45,6 +67,7 @@ export interface IOrder extends Document {
     authCode?: string;
   };
   shipment?: IShipment;
+  pricing?: IPricingSnapshot;
   xmlFileName?: string;  // XML import'undan gelen dosya adı
   createdAt: Date;
 }
@@ -87,6 +110,25 @@ const OrderSchema: Schema = new Schema({
     installment: { type: Number, default: 1 },
     paidPrice: { type: Number },
     authCode: { type: String },
+  },
+  pricing: {
+    gross: { type: Number },
+    commissionTotal: { type: Number },
+    serviceFee: { type: Number, default: 0 },
+    transactionFee: { type: Number, default: 0 },
+    shippingCost: { type: Number, default: 0 },
+    freeShippingApplied: { type: Boolean, default: false },
+    totalDesi: { type: Number },
+    sellerPayout: { type: Number },
+    buyerTotal: { type: Number },
+    lines: [{
+      categoryName: { type: String },
+      gross: { type: Number },
+      commissionRate: { type: Number },
+      commission: { type: Number },
+    }],
+    calculatedAt: { type: Date },
+    resolved: { type: Boolean, default: false },
   },
   xmlFileName: { type: String },  // XML import'undan gelen dosya adı
   createdAt: { type: Date, default: Date.now }

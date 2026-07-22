@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useFavoriteStore } from '@/stores/favoriteStore';
 import { useUiStore } from '@/stores/uiStore';
+import { productPath } from "@/lib/productUrl";
 
 interface Product {
   _id: string;
@@ -150,7 +151,7 @@ export default function FavoritesPage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {products.map((product) => (
             <div key={product._id} className="group overflow-hidden rounded-2xl border border-slate-100 bg-white">
-              <Link href={`/product/${product._id}`} className="block">
+              <Link href={productPath(product)} className="block">
                 <div className="aspect-square bg-slate-50">
                   {product.imageUrl ? (
                     <img

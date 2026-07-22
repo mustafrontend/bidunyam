@@ -14,6 +14,7 @@ import { DeliverySidebar } from "@/components/molecules/DeliverySidebar";
 import { ProductReviews } from "@/components/organisms/ProductReviews";
 import { ProductQuestions } from "@/components/organisms/ProductQuestions";
 import { ProductTabs } from "@/components/organisms/ProductTabs";
+import { extractProductId, productPath } from "@/lib/productUrl";
 
 interface VariantValue {
   label: string;
@@ -208,7 +209,9 @@ const getDecoForBought = (idx: number): DecorativeItem => {
 };
 
 export default function ProductDetail() {
-  const { id } = useParams();
+  const params = useParams();
+  // URL "<slug>-p-<id>" biçiminde; gerçek kimliği ayrıştırıyoruz
+  const id = extractProductId(String(params.id ?? ""));
   const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
@@ -771,7 +774,7 @@ export default function ProductDetail() {
                   return (
                     <div
                       key={item._id}
-                      onClick={() => router.push(`/product/${item._id}`)}
+                      onClick={() => router.push(productPath(item))}
                       className="bg-white border border-slate-200 rounded-2xl p-3 hover:shadow-lg transition-all group relative cursor-pointer flex flex-col justify-between min-w-[190px] max-w-[210px] select-none shrink-0"
                     >
                       <button 
@@ -882,7 +885,7 @@ export default function ProductDetail() {
                   return (
                     <div
                       key={`bought-${item._id}`}
-                      onClick={() => router.push(`/product/${item._id}`)}
+                      onClick={() => router.push(productPath(item))}
                       className="bg-white border border-slate-200 rounded-2xl p-3 hover:shadow-lg transition-all group relative cursor-pointer flex flex-col justify-between min-w-[190px] max-w-[210px] select-none shrink-0"
                     >
                       <button 

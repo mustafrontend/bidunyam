@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { permanentRedirect } from "next/navigation";
+import { extractProductId, productPathFrom } from "@/lib/productUrl";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://bidunyam.com";
 const API_URL =
@@ -25,7 +27,8 @@ const CONDITION_TR: Record<string, string> = {
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params;
+  const { id: raw } = await params;
+  const id = extractProductId(raw);
   const p = await fetchProduct(id);
 
   if (!p) {
@@ -38,7 +41,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const desc =
     p.shortDescription ||
     `${p.name} ${price} TL. ${brand} güvencesiyle hızlı kargo, taksit imkânı ve 14 gün ücretsiz iade.`;
-  const url = `${SITE_URL}/product/${id}`;
+  // Kanonik adres her zaman slug'lı biçimdir
+  const url = `${SITE_URL}${productPathFrom(id, p.name)}`;
 
   return {
     title,
@@ -69,8 +73,17 @@ export default async function ProductLayout({
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id: raw } = await params;
+  const id = extractProductId(raw);
   const p = await fetchProduct(id);
+
+  // Slug'sız eski linkler kalıcı olarak kanonik adrese yönlendirilir (link değeri korunur)
+  if (p?.name) {
+    const canonical = productPathFrom(id, p.name);
+    if (decodeURIComponent(raw) !== canonical.replace("/product/", "")) {
+      permanentRedirect(canonical);
+    }
+  }
 
   // Google zengin sonuçları için Product yapısal verisi
   const jsonLd = p
@@ -89,7 +102,7 @@ export default async function ProductLayout({
             : "https://schema.org/UsedCondition",
         offers: {
           "@type": "Offer",
-          url: `${SITE_URL}/product/${id}`,
+          url: `${SITE_URL}${productPathFrom(id, p.name)}`,
           priceCurrency: "TRY",
           price: Number(p.price || 0),
           availability:

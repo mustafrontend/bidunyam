@@ -22,12 +22,34 @@ const NAV = [
   { href: "/yonetim/destek", label: "Müşteri Talepleri" },
 ];
 
+/** Onay tamamlanmadan da erişilebilen tek sayfa */
+const ALWAYS_OPEN = ["/yonetim/sozlesmelerim"];
+
+const ONBOARDING_BANNER: Record<string, { title: string; detail: string; cls: string }> = {
+  CONTRACTS_PENDING: {
+    title: "Sözleşmeleriniz tamamlanmadı",
+    detail: "Panelin tamamını kullanabilmek için sözleşmeleri okuyup onaylayın ve belgelerinizi yükleyin.",
+    cls: "bg-amber-50 border-amber-200 text-amber-800",
+  },
+  REVIEW_PENDING: {
+    title: "Başvurunuz onay bekliyor",
+    detail: "Sözleşme ve belgeleriniz alındı. Onay ekibimiz incelemesini tamamladığında tüm menüler açılacaktır.",
+    cls: "bg-blue-50 border-blue-200 text-blue-800",
+  },
+  REJECTED: {
+    title: "Başvurunuz reddedildi",
+    detail: "Sözleşmelerim sayfasındaki gerekçeyi inceleyip belgelerinizi güncelleyerek tekrar gönderebilirsiniz.",
+    cls: "bg-red-50 border-red-200 text-red-800",
+  },
+};
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, logout } = useSellerAuthStore();
   const [mounted, setMounted] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [onboarding, setOnboarding] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -50,10 +72,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (authChecked && isAuthenticated() && pathname !== "/yonetim/giris") {
       apiClient.get("/auth/seller/profile")
         .then((res) => {
-          if (res.data?.data?.role !== "SELLER") {
+          const profile = res.data?.data;
+          if (profile?.role !== "SELLER") {
             logout();
             router.push("/yonetim/giris");
+            return;
           }
+          setOnboarding(profile?.onboardingStatus || "APPROVED");
         })
         .catch((err) => {
           console.error("Critical: Session verification or device binding mismatch:", err);
@@ -62,6 +87,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         });
     }
   }, [authChecked, isAuthenticated, pathname, router, logout]);
+
+  // Onay tamamlanmadan diğer menülere erişilemez — doğrudan URL denemesi de
+  // Sözleşmelerim sayfasına yönlendirilir.
+  const locked = onboarding !== null && onboarding !== "APPROVED";
+  useEffect(() => {
+    if (locked && pathname !== "/yonetim/giris" && !ALWAYS_OPEN.includes(pathname)) {
+      router.replace("/yonetim/sozlesmelerim");
+    }
+  }, [locked, pathname, router]);
 
   if (!mounted || !authChecked) return null;
 
@@ -90,6 +124,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="flex-1 px-2.5 py-4 space-y-0.5">
           {NAV.map((item) => {
             const active = isActive(item);
+            const itemLocked = locked && !ALWAYS_OPEN.includes(item.href);
+            if (itemLocked) {
+              return (
+                <div
+                  key={item.href}
+                  title="Sözleşme onayınız tamamlandığında açılacaktır"
+                  className="flex items-center justify-between px-4 py-2.5 text-xs font-black tracking-tight rounded-lg border-l-2 border-transparent text-slate-300 cursor-not-allowed select-none"
+                >
+                  {item.label}
+                  <span className="text-[11px]">🔒</span>
+                </div>
+              );
+            }
             return (
               <Link
                 key={item.href}
@@ -137,6 +184,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main dashboard content container */}
       <div className="ml-56 flex min-h-screen flex-1 flex-col">
+        {/* Sözleşmelerim sayfasının kendi durum kartı var, bandı tekrarlamıyoruz */}
+        {locked && !ALWAYS_OPEN.includes(pathname) && onboarding && ONBOARDING_BANNER[onboarding] && (
+          <div className={`border-b px-8 py-3.5 ${ONBOARDING_BANNER[onboarding].cls}`}>
+            <p className="text-xs font-black">{ONBOARDING_BANNER[onboarding].title}</p>
+            <p className="text-[11px] font-semibold opacity-90 mt-0.5">
+              {ONBOARDING_BANNER[onboarding].detail}
+            </p>
+          </div>
+        )}
         <main className="flex-1 p-8 bg-slate-50">{children}</main>
       </div>
     </div>

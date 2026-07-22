@@ -6,8 +6,18 @@ import Link from "next/link";
 import { apiClient } from "@/lib/api";
 import { useSellerAuthStore } from "@/stores/sellerAuthStore";
 import { useCartStore } from "@/stores/cartStore";
+import { ContractReaderModal } from "@/components/seller/ContractReaderModal";
+import { contractsFor, documentsFor, type SellerContract } from "@/lib/sellerContracts";
+import { fileToDataUrl, MAX_DOCUMENT_BYTES } from "@/lib/documentUpload";
 
 type Tab = "giris" | "kayit";
+
+interface AcceptedContract {
+  key: string;
+  title: string;
+  version: string;
+  acceptedAt: string;
+}
 
 export default function YonetimGirisPage() {
   const router = useRouter();
@@ -38,14 +48,50 @@ export default function YonetimGirisPage() {
   const [taxOffice, setTaxOffice] = useState("");
   const [companyIban, setCompanyIban] = useState("");
 
-  // Sözleşme onayları (bireysel/tüzel'e göre farklılaşır)
-  const [agreeTerms, setAgreeTerms] = useState(false);   // Üyelik & Kullanım Koşulları
-  const [agreeKvkk, setAgreeKvkk] = useState(false);     // KVKK Aydınlatma Metni
-  const [agreeSeller, setAgreeSeller] = useState(false); // Pazaryeri Satıcı Sözleşmesi (tüzel için zorunlu)
+  // Tüzel ek kimlik bilgileri
+  const [mersisNo, setMersisNo] = useState("");
+  const [tradeRegistryNo, setTradeRegistryNo] = useState("");
+  const [authorizedName, setAuthorizedName] = useState("");
+  const [kepAddress, setKepAddress] = useState("");
 
-  const contractsOk = accountType === "tüzel"
-    ? agreeTerms && agreeKvkk && agreeSeller
-    : agreeTerms && agreeKvkk;
+  // Sözleşmeler modalda okunup onaylanır; onay dökümü kayıt ile birlikte gider
+  const sellerType = accountType === "tüzel" ? "TUZEL" : "BIREYSEL";
+  const requiredContracts = contractsFor(sellerType);
+  const requiredDocs = documentsFor(sellerType);
+
+  const [accepted, setAccepted] = useState<Record<string, AcceptedContract>>({});
+  const [openContract, setOpenContract] = useState<SellerContract | null>(null);
+  const [docs, setDocs] = useState<Record<string, string>>({});
+  const [docNames, setDocNames] = useState<Record<string, string>>({});
+  const [docError, setDocError] = useState<string | null>(null);
+
+  const contractsOk = requiredContracts.every((c) => accepted[c.key]);
+  const docsOk = requiredDocs.filter((d) => d.required).every((d) => docs[d.key]);
+
+  const handleDocPick = async (key: string, file?: File | null) => {
+    if (!file) return;
+    setDocError(null);
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setDocs((p) => ({ ...p, [key]: dataUrl }));
+      setDocNames((p) => ({ ...p, [key]: file.name }));
+    } catch (err) {
+      setDocError(err instanceof Error ? err.message : "Dosya yüklenemedi.");
+    }
+  };
+
+  const removeDoc = (key: string) => {
+    setDocs((p) => {
+      const n = { ...p };
+      delete n[key];
+      return n;
+    });
+    setDocNames((p) => {
+      const n = { ...p };
+      delete n[key];
+      return n;
+    });
+  };
 
   useEffect(() => {
     if (isAuthenticated()) router.replace("/yonetim");
@@ -85,25 +131,43 @@ export default function YonetimGirisPage() {
       return;
     }
     if (!contractsOk) {
-      setError("Devam etmek için sözleşmeleri onaylamanız gerekmektedir.");
+      setError("Devam etmek için tüm sözleşmeleri okuyup onaylamanız gerekmektedir.");
+      return;
+    }
+    if (!docsOk) {
+      setError("Zorunlu belgeleri yüklemeniz gerekmektedir.");
       return;
     }
 
     setLoading(true);
     try {
-      const payload: Record<string, string | boolean> = {
-        accountType: accountType === "tüzel" ? "TUZEL" : "BIREYSEL",
+      const acceptedContracts = requiredContracts.map((c) => accepted[c.key]);
+      const payload: Record<string, unknown> = {
+        accountType: sellerType,
         email: regEmail,
         password: regPassword,
-        acceptedKvkk: agreeKvkk,
-        acceptedSellerAgreement: accountType === "tüzel" ? agreeSeller : agreeTerms,
+        acceptedKvkk: !!accepted["kvkk"],
+        acceptedSellerAgreement: !!accepted["uyelik"],
+        acceptedContracts,
+        documents: docs,
         ...(accountType === "bireysel"
           ? { fullName: regName, tcNo: regTc, iban: regIban }
-          : { companyName, taxNo, taxOffice, companyIban }),
+          : {
+              companyName,
+              taxNo,
+              taxOffice,
+              companyIban,
+              mersisNo: mersisNo || undefined,
+              tradeRegistryNo: tradeRegistryNo || undefined,
+              authorizedName: authorizedName || undefined,
+              kepAddress: kepAddress || undefined,
+            }),
       };
 
       await apiClient.post("/auth/seller/register", payload);
-      setSuccess("Hesabınız oluşturuldu! Şimdi giriş yapabilirsiniz.");
+      setSuccess(
+        "Hesabınız oluşturuldu ve başvurunuz admin onayına gönderildi. Giriş yapıp onay durumunuzu takip edebilirsiniz."
+      );
       setTab("giris");
       setLoginEmail(regEmail);
     } catch (err: any) {
@@ -320,6 +384,49 @@ export default function YonetimGirisPage() {
                       />
                       <p className="text-[9px] font-semibold text-slate-400">Faturalı satışlarınızın hakedişi 15 günlük vade ile bu hesaba aktarılır.</p>
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">MERSİS No</label>
+                        <input
+                          type="text"
+                          value={mersisNo}
+                          onChange={(e) => setMersisNo(e.target.value.replace(/\D/g, "").slice(0, 16))}
+                          placeholder="16 haneli"
+                          className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Ticaret Sicil No</label>
+                        <input
+                          type="text"
+                          value={tradeRegistryNo}
+                          onChange={(e) => setTradeRegistryNo(e.target.value.slice(0, 40))}
+                          placeholder="Sicil numarası"
+                          className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">İmza Yetkilisi (Ad Soyad)</label>
+                      <input
+                        type="text"
+                        value={authorizedName}
+                        onChange={(e) => setAuthorizedName(e.target.value.slice(0, 80))}
+                        placeholder="Sözleşmeyi onaylayan yetkili"
+                        className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
+                      />
+                      <p className="text-[9px] font-semibold text-slate-400">İmza sirkülerinde adı geçen, şirketi temsile yetkili kişi.</p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">KEP Adresi</label>
+                      <input
+                        type="text"
+                        value={kepAddress}
+                        onChange={(e) => setKepAddress(e.target.value.slice(0, 120))}
+                        placeholder="sirket@hs01.kep.tr"
+                        className="w-full rounded-xl border-[0.5px] border-slate-200 bg-slate-50/60 px-4 py-3 text-xs font-semibold outline-none focus:border-[#ff6000] focus:bg-white transition-all duration-200"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -393,39 +500,113 @@ export default function YonetimGirisPage() {
                   </div>
                 )}
 
-                {/* Sözleşme Onayları */}
-                <div className="space-y-2.5 rounded-xl border-[0.5px] border-slate-200 bg-slate-50/50 p-3.5">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    {accountType === "tüzel" ? "Kurumsal Satıcı Sözleşmeleri" : "Bireysel Satıcı Sözleşmeleri"}
+                {/* Sözleşmeler — her biri modalda sonuna kadar okunmadan onaylanamaz */}
+                <div className="space-y-2 rounded-xl border-[0.5px] border-slate-200 bg-slate-50/50 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      {accountType === "tüzel" ? "Kurumsal Satıcı Sözleşmeleri" : "Bireysel Satıcı Sözleşmeleri"}
+                    </p>
+                    <span className={`text-[10px] font-black ${contractsOk ? "text-emerald-600" : "text-amber-600"}`}>
+                      {Object.keys(accepted).length}/{requiredContracts.length}
+                    </span>
+                  </div>
+                  {requiredContracts.map((c) => {
+                    const ok = !!accepted[c.key];
+                    return (
+                      <button
+                        key={c.key}
+                        type="button"
+                        onClick={() => setOpenContract(c)}
+                        className={`w-full flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                          ok
+                            ? "border-emerald-200 bg-emerald-50/70 hover:bg-emerald-50"
+                            : "border-slate-200 bg-white hover:border-[#ff6000]"
+                        }`}
+                      >
+                        <span className={`text-sm shrink-0 ${ok ? "text-emerald-600" : "text-slate-300"}`}>
+                          {ok ? "✔" : "○"}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-[11px] font-black text-slate-700 truncate">{c.title}</span>
+                          <span className="block text-[9px] font-semibold text-slate-400">
+                            {ok ? "Okundu ve onaylandı" : "Okumak ve onaylamak için tıklayın"}
+                          </span>
+                        </span>
+                        {!ok && <span className="text-[9px] font-black text-[#ff6000] shrink-0">OKU →</span>}
+                      </button>
+                    );
+                  })}
+                  <p className="text-[9px] font-semibold text-slate-400 pt-1">
+                    Sözleşmeler açıldığında sonuna kadar okunmadan onay verilemez; onayınız kayıt altına alınır ve
+                    panelinizden PDF olarak indirilebilir.
                   </p>
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff6000]" />
-                    <span className="text-[11px] font-semibold leading-snug text-slate-600">
-                      <Link href="/sozlesmeler/kullanim-kosullari" target="_blank" className="text-[#ff6000] hover:underline">Üyelik ve Kullanım Koşulları</Link>'nı okudum, onaylıyorum.
+                </div>
+
+                {/* Zorunlu evraklar */}
+                <div className="space-y-2 rounded-xl border-[0.5px] border-slate-200 bg-slate-50/50 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      {accountType === "tüzel" ? "Şirket Evrakları" : "Kimlik Doğrulama"}
+                    </p>
+                    <span className={`text-[10px] font-black ${docsOk ? "text-emerald-600" : "text-amber-600"}`}>
+                      {requiredDocs.filter((d) => docs[d.key]).length}/{requiredDocs.length}
                     </span>
-                  </label>
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input type="checkbox" checked={agreeKvkk} onChange={(e) => setAgreeKvkk(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff6000]" />
-                    <span className="text-[11px] font-semibold leading-snug text-slate-600">
-                      <Link href="/sozlesmeler/kvkk" target="_blank" className="text-[#ff6000] hover:underline">KVKK Aydınlatma Metni</Link>'ni okudum, kişisel verilerimin işlenmesini kabul ediyorum.
-                    </span>
-                  </label>
-                  {accountType === "tüzel" && (
-                    <label className="flex items-start gap-2.5 cursor-pointer">
-                      <input type="checkbox" checked={agreeSeller} onChange={(e) => setAgreeSeller(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff6000]" />
-                      <span className="text-[11px] font-semibold leading-snug text-slate-600">
-                        <Link href="/sozlesmeler/mesafeli-satis-sozlesmesi" target="_blank" className="text-[#ff6000] hover:underline">Pazaryeri Satıcı Sözleşmesi</Link>'ni okudum, tüzel kişi olarak onaylıyorum.
-                      </span>
-                    </label>
-                  )}
+                  </div>
+                  {requiredDocs.map((d) => {
+                    const uploaded = !!docs[d.key];
+                    return (
+                      <div
+                        key={d.key}
+                        className={`rounded-lg border px-3 py-2.5 ${
+                          uploaded ? "border-emerald-200 bg-emerald-50/70" : "border-slate-200 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm shrink-0 ${uploaded ? "text-emerald-600" : "text-slate-300"}`}>
+                            {uploaded ? "✔" : "○"}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-black text-slate-700">
+                              {d.label}
+                              {d.required && <span className="text-red-500"> *</span>}
+                            </p>
+                            <p className="text-[9px] font-semibold text-slate-400 truncate">
+                              {uploaded ? docNames[d.key] : d.hint}
+                            </p>
+                          </div>
+                          {uploaded ? (
+                            <button
+                              type="button"
+                              onClick={() => removeDoc(d.key)}
+                              className="text-[9px] font-black text-red-500 hover:underline shrink-0"
+                            >
+                              KALDIR
+                            </button>
+                          ) : (
+                            <label className="text-[9px] font-black text-[#ff6000] hover:underline cursor-pointer shrink-0">
+                              YÜKLE
+                              <input
+                                type="file"
+                                accept="application/pdf,image/jpeg,image/png,image/webp"
+                                className="hidden"
+                                onChange={(e) => handleDocPick(d.key, e.target.files?.[0])}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {docError && <p className="text-[10px] font-bold text-red-600">{docError}</p>}
+                  <p className="text-[9px] font-semibold text-slate-400">
+                    PDF, JPG, PNG veya WEBP · dosya başına en fazla {MAX_DOCUMENT_BYTES / (1024 * 1024)} MB.
+                    Belgeleriniz yalnızca onay ekibi tarafından görüntülenir.
+                  </p>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={loading || !contractsOk}
+                  disabled={loading || !contractsOk || !docsOk}
                   className="w-full mt-2 rounded-xl bg-slate-800 py-3.5 text-xs font-black text-white hover:bg-slate-900 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed uppercase tracking-wider"
                 >
                   {loading ? "Kaydediliyor..." : "Partner Hesabı Oluştur"}
@@ -443,6 +624,21 @@ export default function YonetimGirisPage() {
           </p>
         </div>
       </div>
+
+      {openContract && (
+        <ContractReaderModal
+          contract={openContract}
+          alreadyAccepted={!!accepted[openContract.key]}
+          onClose={() => setOpenContract(null)}
+          onAccept={(c) => {
+            setAccepted((prev) => ({
+              ...prev,
+              [c.key]: { key: c.key, title: c.title, version: c.version, acceptedAt: new Date().toISOString() },
+            }));
+            setOpenContract(null);
+          }}
+        />
+      )}
     </div>
   );
 }

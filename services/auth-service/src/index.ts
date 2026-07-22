@@ -17,7 +17,8 @@ const PORT = Number(process.env.PORT) || 3001;
 app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
-app.use(express.json());
+// Satici evraklari (vergi levhasi, imza sirkuleri vb.) base64 olarak gonderiliyor
+app.use(express.json({ limit: '25mb' }));
 
 // ─── Health Check ──────────────────────────────────────────────
 app.get('/health', (_req, res) => {
@@ -35,6 +36,8 @@ app.post('/seller/register', AuthController.sellerRegister);
 app.post('/seller/login', AuthController.sellerLogin);
 app.get('/seller/profile', authenticate, AuthController.sellerProfile);
 app.put('/seller/profile', authenticate, AuthController.updateSellerProfile);
+// Sözleşme onayı + evrak yükleme (tamamlanınca kayıt admin onayına düşer)
+app.post('/seller/onboarding', authenticate, AuthController.submitSellerOnboarding);
 // Public mağaza (slug ile) — /seller/store/:slug
 app.get('/seller/store/:slug', AuthController.getStoreBySlug);
 
@@ -47,6 +50,9 @@ app.delete('/favorites/:productId', authenticate, requireCustomer, AuthControlle
 app.post('/admin/login', AuthController.adminLogin);
 app.get('/admin/users', authenticate, requireAdmin, AuthController.getAdminUsers);
 app.get('/admin/sellers', authenticate, requireAdmin, AuthController.getAdminSellers);
+// Satıcı başvuru inceleme: evrak görüntüleme ve onay/red
+app.get('/admin/sellers/:id/documents', authenticate, requireAdmin, AuthController.getSellerDocuments);
+app.post('/admin/sellers/:id/review', authenticate, requireAdmin, AuthController.reviewSeller);
 
 // ─── Error Handler ─────────────────────────────────────────────
 app.use(errorHandler);

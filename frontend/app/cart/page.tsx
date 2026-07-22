@@ -10,6 +10,7 @@ import { useFavoriteStore } from "@/stores/favoriteStore";
 import { apiClient } from "@/lib/api";
 import { CheckoutModal } from "@/components/molecules/CheckoutModal";
 import { LoginModal } from "@/components/molecules/LoginModal";
+import { productPath } from "@/lib/productUrl";
 
 // Tab enum
 const TABS = ["Önceden Eklediklerim", "Favorilerim"];
@@ -289,7 +290,7 @@ export default function CartPage() {
                 <h2 className="text-xl font-black text-slate-900 mb-4">Önerilen Ürünler</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {suggestedProducts.slice(0, 8).map((product) => (
-                    <Link key={product._id} href={`/product/${product._id}`}>
+                    <Link key={product._id} href={productPath(product)}>
                       <div className="bg-white rounded-2xl border border-slate-200 p-3 hover:shadow-md transition-all cursor-pointer">
                         <img src={product.imageUrl} alt={product.name} className="w-full aspect-square object-cover rounded-xl bg-slate-50 mb-2" />
                         <p className="text-xs font-black text-slate-400 uppercase tracking-wider truncate">{product.brand}</p>

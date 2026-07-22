@@ -9,6 +9,7 @@ import { useCartStore } from "@/stores/cartStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useFavoriteStore } from "@/stores/favoriteStore";
 import { useUiStore } from "@/stores/uiStore";
+import { productPath } from "@/lib/productUrl";
 
 interface Product {
   _id: string;
@@ -374,7 +375,7 @@ function SearchPageContent() {
                     const isFav = favs.includes(product._id);
                     return (
                       <div key={product._id} className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer relative">
-                        <Link href={`/product/${product._id}`}>
+                        <Link href={productPath(product)}>
                           <div className="aspect-square bg-slate-50 relative overflow-hidden">
                             {product.discountPercent > 0 && (
                               <span className="absolute top-2 left-2 z-10 bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">

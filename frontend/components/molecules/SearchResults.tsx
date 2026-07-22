@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useSearchSessionStore } from "@/stores/searchSessionStore";
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
+import { productPath } from "@/lib/productUrl";
 
 interface SearchProduct {
   id: string;
@@ -100,7 +101,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           </div>
           <div className="flex flex-col gap-3">
             {recentlyViewed.length > 0 ? recentlyViewed.map((prod, idx) => (
-              <Link href={`/product/${prod.id}`} key={prod.id || `rv-${idx}`} onClick={onClose}>
+              <Link href={productPath(prod)} key={prod.id || `rv-${idx}`} onClick={onClose}>
                 <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:shadow-md transition-shadow cursor-pointer bg-white group">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-slate-50 rounded-lg overflow-hidden shrink-0 p-1 flex items-center justify-center">
@@ -231,7 +232,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               {results.map((product) => (
                 <Link
                   key={product.id}
-                  href={`/product/${product.id}`}
+                  href={productPath(product)}
                   onClick={onClose}
                   className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50"
                 >

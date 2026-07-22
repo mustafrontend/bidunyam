@@ -7,6 +7,7 @@ import { useCartStore } from "@/stores/cartStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useFavoriteStore } from "@/stores/favoriteStore";
 import { useUiStore } from "@/stores/uiStore";
+import { productPath } from "@/lib/productUrl";
 
 export interface Product {
   _id: string;
@@ -89,7 +90,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   return (
     <Link
-      href={`/product/${product._id}`}
+      href={productPath(product)}
       className="group relative flex flex-col bg-white rounded-2xl overflow-hidden border border-slate-100 transition-all duration-500 hover:shadow-[0_16px_40px_rgba(0,0,0,0.04)] active:scale-[0.985]"
     >
       {/* 1. Image Container (image_257257.jpg'deki kırpılma p-5 ve bg-white ile tamamen çözüldü) */}

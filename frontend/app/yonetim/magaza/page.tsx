@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "@/lib/api";
 import { useSellerAuthStore } from "@/stores/sellerAuthStore";
-import { STORE_THEMES, getTheme } from "@/lib/storeThemes";
+import { STORE_TEMPLATES, getTemplate } from "@/components/store";
 import { Store as StoreIcon, ExternalLink, Copy, Check, Palette, Save, ShieldCheck } from "lucide-react";
 
 export default function MagazaPage() {
@@ -14,7 +14,7 @@ export default function MagazaPage() {
   const [storeSlug, setStoreSlug] = useState("");
   const [storeBio, setStoreBio] = useState("");
   const [storeColor, setStoreColor] = useState("#7c3aed");
-  const [storeTheme, setStoreTheme] = useState("minimal");
+  const [storeTheme, setStoreTheme] = useState("aurora");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ t: "ok" | "err"; m: string } | null>(null);
@@ -29,13 +29,13 @@ export default function MagazaPage() {
         setStoreSlug(d.storeSlug || "");
         setStoreBio(d.storeBio || "");
         setStoreColor(d.storeColor || "#7c3aed");
-        setStoreTheme(d.storeTheme || "minimal");
+        setStoreTheme(d.storeTheme || "aurora");
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line
   }, [token]);
 
-  const theme = useMemo(() => getTheme(storeTheme), [storeTheme]);
+  const template = useMemo(() => getTemplate(storeTheme), [storeTheme]);
   const slugPreview = storeSlug || "magaza-adiniz";
   const storeUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/magaza/${slugPreview}`;
 
@@ -104,21 +104,57 @@ export default function MagazaPage() {
             </div>
           </div>
 
-          {/* Tema seçici */}
+          {/* Tasarım şablonu seçici */}
           <div>
             <label className="mb-2 flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-slate-400">
-              <Palette size={13} /> Tema
+              <Palette size={13} /> Tasarım Şablonu
             </label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {STORE_THEMES.map((t) => (
-                <button key={t.id} onClick={() => setStoreTheme(t.id)}
-                  className={`rounded-xl border-2 p-3 text-left transition-all ${storeTheme === t.id ? "border-[#ff6000] bg-[#ff6000]/5" : "border-slate-200 hover:border-slate-300"}`}>
-                  <div className={`mb-2 h-8 w-full rounded ${t.page.split(" ")[0]} border border-slate-200`} />
-                  <p className="text-xs font-black text-slate-700">{t.name}</p>
-                  <p className="text-[10px] text-slate-400 leading-tight">{t.desc}</p>
-                </button>
-              ))}
+            <div className="grid gap-3 sm:grid-cols-3">
+              {STORE_TEMPLATES.map((t) => {
+                const selected = storeTheme === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setStoreTheme(t.id)}
+                    className={`overflow-hidden rounded-2xl border-2 text-left transition-all ${
+                      selected ? "border-[#ff6000] shadow-md" : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    {/* Minyatür: navbar + hero + kart ızgarası */}
+                    <div className="p-2.5" style={{ background: t.preview.bg }}>
+                      <div className="mb-1.5 flex items-center gap-1">
+                        <div className="h-2 w-2 rounded-sm" style={{ background: storeColor }} />
+                        <div className="h-1 w-8 rounded-full" style={{ background: t.preview.muted }} />
+                        <div className="ml-auto h-1.5 w-6 rounded-full" style={{ background: t.preview.surface }} />
+                      </div>
+                      <div
+                        className="mb-1.5 h-7 rounded"
+                        style={{ background: `linear-gradient(120deg, ${storeColor}, ${t.preview.surface})` }}
+                      />
+                      <div className="grid grid-cols-3 gap-1">
+                        {[0, 1, 2].map((i) => (
+                          <div key={i} className="rounded p-1" style={{ background: t.preview.surface }}>
+                            <div className="mb-0.5 aspect-square rounded" style={{ background: t.preview.bg }} />
+                            <div className="h-0.5 w-3/4 rounded-full" style={{ background: t.preview.muted }} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-white p-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-black text-slate-800">{t.name}</p>
+                        {selected && <span className="text-[9px] font-black text-[#ff6000]">SEÇİLİ</span>}
+                      </div>
+                      <p className="text-[10px] font-bold leading-tight text-slate-500">{t.tagline}</p>
+                      <p className="mt-1 text-[9px] leading-tight text-slate-400">{t.bestFor}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
+            <p className="mt-2 text-[11px] font-semibold text-slate-400">
+              {template.desc} Her şablonda mağaza navbar&apos;ı, kategori menüsü ve arama otomatik oluşur.
+            </p>
           </div>
 
           {msg && (
@@ -148,33 +184,78 @@ export default function MagazaPage() {
         {/* Canlı önizleme */}
         <div>
           <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400">Canlı Önizleme</p>
-          <div className={`overflow-hidden rounded-2xl border border-slate-200 ${theme.page} ${theme.font}`} style={{ ["--accent" as string]: storeColor } as React.CSSProperties}>
-            <div className={`${theme.hero} m-4 ${theme.rounded} p-5`}>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl text-white" style={{ background: storeColor }}>
-                  <StoreIcon size={22} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h3 className={`text-lg font-black ${theme.headerText}`}>{storeName || "Mağaza Adınız"}</h3>
-                    <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-black text-white" style={{ background: storeColor }}>
-                      <ShieldCheck size={8} /> Onaylı
-                    </span>
-                  </div>
-                  <p className={`text-[11px] ${theme.subText}`}>{storeBio || "Mağaza açıklamanız burada görünür"}</p>
-                </div>
+          <div
+            className="overflow-hidden rounded-2xl border border-slate-200"
+            style={{ background: template.preview.bg }}
+          >
+            {/* Navbar */}
+            <div
+              className="flex items-center gap-2 border-b px-4 py-2.5"
+              style={{ borderColor: template.preview.surface }}
+            >
+              <div
+                className="flex h-6 w-6 items-center justify-center rounded-md text-white"
+                style={{ background: storeColor }}
+              >
+                <StoreIcon size={12} />
+              </div>
+              <span className="text-xs font-black" style={{ color: template.preview.text }}>
+                {storeName || "Mağaza Adınız"}
+              </span>
+              <div className="ml-auto flex gap-1.5">
+                {["Tümü", "Kategori"].map((c, i) => (
+                  <span
+                    key={c}
+                    className="rounded-full px-2 py-0.5 text-[8px] font-black"
+                    style={
+                      i === 0
+                        ? { background: storeColor, color: "#fff" }
+                        : { color: template.preview.muted }
+                    }
+                  >
+                    {c}
+                  </span>
+                ))}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 px-4 pb-4">
+
+            {/* Hero */}
+            <div
+              className="m-3 rounded-xl p-4"
+              style={{ background: `linear-gradient(120deg, ${storeColor}22, ${template.preview.surface})` }}
+            >
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-base font-black" style={{ color: template.preview.text }}>
+                  {storeName || "Mağaza Adınız"}
+                </h3>
+                <span
+                  className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-black text-white"
+                  style={{ background: storeColor }}
+                >
+                  <ShieldCheck size={8} /> Onaylı
+                </span>
+              </div>
+              <p className="mt-1 text-[11px]" style={{ color: template.preview.muted }}>
+                {storeBio || "Mağaza açıklamanız burada görünür"}
+              </p>
+            </div>
+
+            {/* Ürün kartları */}
+            <div className="grid grid-cols-3 gap-2 px-3 pb-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className={`${theme.card} ${theme.rounded} p-2`}>
-                  <div className="mb-1.5 aspect-square rounded bg-slate-200/50" />
-                  <div className={`h-2 w-3/4 rounded ${theme.cardTitle.includes("text-white") ? "bg-slate-700" : "bg-slate-200"}`} />
-                  <p className={`mt-1.5 text-[10px] font-black ${theme.price}`} style={theme.price.includes("var(--accent)") ? { color: storeColor } : {}}>199 TL</p>
+                <div key={i} className="rounded-lg p-2" style={{ background: template.preview.surface }}>
+                  <div className="mb-1.5 aspect-square rounded" style={{ background: template.preview.bg }} />
+                  <div className="h-1.5 w-3/4 rounded-full" style={{ background: template.preview.muted }} />
+                  <p className="mt-1.5 text-[10px] font-black" style={{ color: storeColor }}>
+                    199 TL
+                  </p>
                 </div>
               ))}
             </div>
           </div>
+          <p className="mt-2 text-[11px] font-semibold text-slate-400">
+            Gerçek görünüm için &quot;Mağazamı Gör&quot; ile canlı sayfayı açın.
+          </p>
         </div>
       </div>
     </div>

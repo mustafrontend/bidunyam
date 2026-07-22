@@ -251,11 +251,32 @@ model SellerAccount {
   taxOffice               String?
   companyIban             String?
 
+  // Tüzel ek kimlik bilgileri
+  mersisNo                String?
+  tradeRegistryNo         String?
+  authorizedName          String?
+  kepAddress              String?
+
   // Sözleşme Onayları
   acceptedKvkk            Boolean     @default(false)
   acceptedSellerAgreement Boolean     @default(false)
   contractAcceptedAt      DateTime?
   contractVersion         String?     @default("1.0")
+  // Okunup onaylanan sözleşmelerin dökümü: [{ key, title, version, acceptedAt }]
+  acceptedContracts       Json        @default("[]")
+  // Yüklenen evraklar: { vergiLevhasi: "/uploads/...", imzaSirkuleri: "..." }
+  documents               Json        @default("{}")
+
+  // Onboarding / admin onayı
+  // CONTRACTS_PENDING -> REVIEW_PENDING -> APPROVED | REJECTED
+  // Varsayilan APPROVED yalnizca MEVCUT satici kayitlarini korumak icindir
+  // (db push eski satirlara bu degeri yazar). Yeni kayitlarda registerSeller
+  // durumu her zaman acikca belirler.
+  onboardingStatus        String      @default("APPROVED")
+  onboardingNote          String?
+  onboardingSubmittedAt   DateTime?
+  onboardingReviewedAt    DateTime?
+  onboardingReviewedBy    String?
 
   // Mağaza / Bireysel storefront (Shopier tarzı)
   storeSlug               String?     @unique

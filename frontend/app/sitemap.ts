@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { CATEGORY_TREE } from "@/lib/categories";
+import { productPathFrom } from "@/lib/productUrl";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://bidunyam.com";
 const API_URL =
@@ -53,8 +54,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const res = await fetch(`${API_URL}/products?limit=1000`, { next: { revalidate: 3600 } });
     const json = await res.json();
     const products = json?.data?.products || [];
-    productRoutes = products.map((p: { id: string; updatedAt?: string }) => ({
-      url: `${SITE_URL}/product/${p.id}`,
+    productRoutes = products.map((p: { id: string; name?: string; updatedAt?: string }) => ({
+      // Sitemap yalnızca kanonik (slug'lı) adresleri içerir
+      url: `${SITE_URL}${productPathFrom(p.id, p.name)}`,
       lastModified: p.updatedAt ? new Date(p.updatedAt) : now,
       changeFrequency: "weekly" as const,
       priority: 0.7,

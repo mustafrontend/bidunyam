@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Timer, Percent, Sparkles, Star } from "lucide-react";
 import { Product } from "@/components/molecules/ProductCard";
+import { productPath } from "@/lib/productUrl";
 
 interface FlashDealsGridProps {
   products: Product[];
@@ -44,7 +45,7 @@ export function FlashDealsGrid({ products, timeLeft }: FlashDealsGridProps) {
           return (
             <div
               key={p._id}
-              onClick={() => router.push(`/product/${p._id}`)}
+              onClick={() => router.push(productPath(p))}
               className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 hover:shadow-lg transition-all duration-300 group cursor-pointer flex flex-col justify-between w-[160px] md:w-[240px] shrink-0 snap-start"
             >
               <div>

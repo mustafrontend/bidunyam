@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Sparkles, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Product } from "@/components/molecules/ProductCard";
+import { productPath } from "@/lib/productUrl";
 
 interface DealsShowcaseProps {
   products: Product[];
@@ -75,7 +76,7 @@ export const DealsShowcase: React.FC<DealsShowcaseProps> = ({ products }) => {
       <div className="flex-1 p-5 flex flex-col justify-between min-h-0 bg-white">
         {currentProduct ? (
           <div 
-            onClick={() => router.push(`/product/${currentProduct._id}`)} 
+            onClick={() => router.push(productPath(currentProduct))} 
             className="flex-1 flex flex-col justify-between cursor-pointer group/item"
           >
             {/* Interactive Image */}
@@ -140,7 +141,7 @@ export const DealsShowcase: React.FC<DealsShowcaseProps> = ({ products }) => {
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push(`/product/${currentProduct._id}`);
+                  router.push(productPath(currentProduct));
                 }}
                 className="w-full py-2.5 bg-white border border-slate-200 text-slate-800 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 transition-colors shadow-sm text-center select-none active:scale-[0.98]"
               >

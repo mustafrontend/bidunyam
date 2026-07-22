@@ -14,6 +14,17 @@ const LoginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+// Kayıt sırasında modalda okunup onaylanan sözleşmelerin dökümü
+const AcceptedContractSchema = z.object({
+  key: z.string().min(1).max(60),
+  title: z.string().max(200).optional(),
+  version: z.string().max(20).optional(),
+  acceptedAt: z.string().optional(),
+});
+
+// Yüklenen evraklar: { vergiLevhasi: "data:application/pdf;base64,..." }
+const DocumentsSchema = z.record(z.string(), z.string()).optional();
+
 const SellerRegisterSchema = z.discriminatedUnion('accountType', [
   z.object({
     accountType: z.literal('BIREYSEL'),
@@ -24,6 +35,8 @@ const SellerRegisterSchema = z.discriminatedUnion('accountType', [
     iban: z.string().optional(),
     acceptedKvkk: z.boolean().optional(),
     acceptedSellerAgreement: z.boolean().optional(),
+    acceptedContracts: z.array(AcceptedContractSchema).optional(),
+    documents: DocumentsSchema,
   }),
   z.object({
     accountType: z.literal('TUZEL'),
@@ -32,8 +45,15 @@ const SellerRegisterSchema = z.discriminatedUnion('accountType', [
     companyName: z.string().min(2).max(120),
     taxNo: z.string().length(10, 'Vergi numarası 10 haneli olmalıdır'),
     taxOffice: z.string().min(2).max(80),
+    companyIban: z.string().optional(),
+    mersisNo: z.string().max(20).optional(),
+    tradeRegistryNo: z.string().max(40).optional(),
+    authorizedName: z.string().max(80).optional(),
+    kepAddress: z.string().max(120).optional(),
     acceptedKvkk: z.boolean().optional(),
     acceptedSellerAgreement: z.boolean().optional(),
+    acceptedContracts: z.array(AcceptedContractSchema).optional(),
+    documents: DocumentsSchema,
   }),
 ]);
 
@@ -115,6 +135,56 @@ export const AuthController = {
         return;
       }
       const seller = await AuthService.getSellerProfile(sellerId);
+      res.status(200).json({ success: true, data: seller });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async submitSellerOnboarding(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const sellerId = (req as Request & { user?: { id: string } }).user?.id;
+      if (!sellerId) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+      const result = await AuthService.submitSellerOnboarding(sellerId, req.body || {});
+      res.status(200).json({
+        success: true,
+        message:
+          result.status === 'REVIEW_PENDING'
+            ? 'Sözleşme ve belgeleriniz alındı. Başvurunuz admin onayına gönderildi.'
+            : 'Kaydedildi. Eksik sözleşme/belgeleri tamamladığınızda başvurunuz onaya gönderilecek.',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getSellerDocuments(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await AuthService.getSellerDocuments(req.params.id);
+      res.status(200).json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async reviewSeller(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const action = String(req.body?.action || '').toUpperCase();
+      if (action !== 'APPROVE' && action !== 'REJECT') {
+        res.status(400).json({ success: false, message: "action 'APPROVE' veya 'REJECT' olmalı" });
+        return;
+      }
+      const reviewer = (req as Request & { user?: { email?: string; id?: string } }).user;
+      const seller = await AuthService.reviewSeller(
+        req.params.id,
+        action,
+        req.body?.note,
+        reviewer?.email || reviewer?.id || 'admin'
+      );
       res.status(200).json({ success: true, data: seller });
     } catch (err) {
       next(err);

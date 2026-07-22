@@ -355,16 +355,41 @@ export default function UrunlerPage() {
               </select>
             </div>
 
-            {state.selectedIds.size > 0 && (
-              <div className="flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl">
-                <span className="text-sm font-black text-[#ff5000]">{state.selectedIds.size} ürün seçildi</span>
-                <button onClick={() => state.setBulkPriceModal(true)} disabled={bulkUpdating} className="px-3 py-1.5 bg-[#ff5000] text-white rounded-lg text-xs font-black hover:bg-[#e04800] transition-colors disabled:opacity-50">⚙️ Toplu İşlemler</button>
-                <button onClick={() => handleBulkStatus(true)} disabled={bulkUpdating} className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-emerald-600 hover:border-emerald-400 transition-colors disabled:opacity-50">✅ Aktif Yap</button>
-                <button onClick={() => handleBulkStatus(false)} disabled={bulkUpdating} className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-amber-600 hover:border-amber-400 transition-colors disabled:opacity-50">⏸️ Pasif Yap</button>
-                <button onClick={handleBulkDelete} disabled={bulkUpdating} className="px-3 py-1.5 bg-white border border-red-200 rounded-lg text-xs font-bold text-red-600 hover:border-red-400 transition-colors disabled:opacity-50">🗑️ Toplu Sil</button>
-                <button onClick={() => state.setSelectedIds(new Set())} disabled={bulkUpdating} className="ml-auto text-xs font-bold text-slate-500 hover:text-slate-700 disabled:opacity-50">Seçimi Kaldır</button>
-              </div>
-            )}
+            {/* Toplu islem cubugu her zaman gorunur: secim yokken ne yapilacagini anlatir */}
+            {(() => {
+              const selected = state.selectedIds.size;
+              const hasSelection = selected > 0;
+              const pageIds = state.paginated.map((p: { _id: string }) => p._id);
+              const allOnPageSelected = pageIds.length > 0 && pageIds.every((id: string) => state.selectedIds.has(id));
+              return (
+                <div
+                  className={`flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
+                    hasSelection ? "bg-orange-50 border-orange-200" : "bg-slate-50 border-slate-200"
+                  }`}
+                >
+                  <button
+                    onClick={() =>
+                      state.setSelectedIds(allOnPageSelected ? new Set<string>() : new Set<string>(pageIds))
+                    }
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:border-slate-400 transition-colors"
+                  >
+                    {allOnPageSelected ? "☑️ Seçimi Kaldır" : "⬜ Bu Sayfayı Seç"}
+                  </button>
+                  <span className={`text-sm font-black ${hasSelection ? "text-[#ff5000]" : "text-slate-400"}`}>
+                    {hasSelection ? `${selected} ürün seçildi` : "Toplu işlem için ürün seçin"}
+                  </span>
+
+                  <button onClick={() => state.setBulkPriceModal(true)} disabled={!hasSelection || bulkUpdating} title="Toplu fiyat / indirim, stok, kategori, ürün durumu ve KDV güncelleme" className="px-3 py-1.5 bg-[#ff5000] text-white rounded-lg text-xs font-black hover:bg-[#e04800] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">⚙️ Toplu İşlemler</button>
+                  <button onClick={() => handleBulkStatus(true)} disabled={!hasSelection || bulkUpdating} className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-emerald-600 hover:border-emerald-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">✅ Aktif Yap</button>
+                  <button onClick={() => handleBulkStatus(false)} disabled={!hasSelection || bulkUpdating} className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-amber-600 hover:border-amber-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">⏸️ Pasif Yap</button>
+                  <button onClick={handleBulkDelete} disabled={!hasSelection || bulkUpdating} className="px-3 py-1.5 bg-white border border-red-200 rounded-lg text-xs font-bold text-red-600 hover:border-red-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">🗑️ Toplu Sil</button>
+
+                  <span className="ml-auto text-[11px] font-semibold text-slate-400">
+                    Fiyat/indirim · Stok · Kategori · Ürün durumu · KDV
+                  </span>
+                </div>
+              );
+            })()}
 
             <InventoryTable
               products={state.paginated}

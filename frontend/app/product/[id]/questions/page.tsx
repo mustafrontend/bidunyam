@@ -21,6 +21,7 @@ import { useCartStore } from "@/stores/cartStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useFavoriteStore } from "@/stores/favoriteStore";
 import { useUiStore } from "@/stores/uiStore";
+import { productPath } from "@/lib/productUrl";
 
 interface Question {
   id: string;
@@ -203,7 +204,7 @@ export default function ProductQuestionsPage() {
         <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
           <span className="hover:text-[#ff5000] cursor-pointer" onClick={() => router.push("/")}>Ana Sayfa</span>
           <ChevronRight size={10} strokeWidth={3} />
-          <span className="hover:text-[#ff5000] cursor-pointer" onClick={() => router.push(`/product/${product._id}`)}>{product.name}</span>
+          <span className="hover:text-[#ff5000] cursor-pointer" onClick={() => router.push(productPath(product))}>{product.name}</span>
           <ChevronRight size={10} strokeWidth={3} />
           <span className="text-slate-800">Soru & Cevaplar</span>
         </nav>

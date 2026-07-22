@@ -8,6 +8,90 @@ import { AccountType } from '@prisma/client';
 
 const SALT_ROUNDS = 12;
 
+// ─── Satıcı sözleşmeleri / onboarding ───────────────────────────
+export const CONTRACT_VERSION = '1.1';
+
+export interface AcceptedContract {
+  key: string;
+  title: string;
+  version: string;
+  acceptedAt: string;
+}
+
+/** İstemciden gelen ham hâli: yalnızca `key` garanti edilir. */
+export type AcceptedContractInput = {
+  key: string;
+  title?: string;
+  version?: string;
+  acceptedAt?: string;
+};
+
+/** Her satıcı tipinin onaylamak zorunda olduğu sözleşme anahtarları */
+const REQUIRED_CONTRACTS: Record<string, string[]> = {
+  BIREYSEL: ['uyelik', 'kvkk', 'komisyon', 'mesafeli-satis'],
+  TUZEL: ['uyelik', 'kvkk', 'komisyon', 'mesafeli-satis', 'tuzel-taahhut'],
+};
+
+/** Tüzel kişiden zorunlu evraklar */
+const REQUIRED_DOCUMENTS: Record<string, string[]> = {
+  BIREYSEL: ['kimlik'],
+  TUZEL: ['vergiLevhasi', 'imzaSirkuleri', 'ticaretSicilGazetesi', 'yetkiliKimlik'],
+};
+
+const MAX_DOCUMENT_CHARS = 6_000_000; // ~4.5 MB base64
+
+function sanitizeAcceptedContracts(list?: AcceptedContractInput[]): AcceptedContract[] {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((c) => c && typeof c.key === 'string')
+    .map((c) => ({
+      key: String(c.key).slice(0, 60),
+      title: String(c.title ?? '').slice(0, 200),
+      version: String(c.version ?? CONTRACT_VERSION).slice(0, 20),
+      acceptedAt: c.acceptedAt ? String(c.acceptedAt) : new Date().toISOString(),
+    }));
+}
+
+function sanitizeDocuments(docs?: Record<string, string>): Record<string, string> {
+  if (!docs || typeof docs !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(docs)) {
+    if (typeof value !== 'string' || !value.startsWith('data:')) continue;
+    if (value.length > MAX_DOCUMENT_CHARS) {
+      const err = new Error(`"${key}" belgesi çok büyük. Lütfen 4 MB altında bir dosya yükleyin.`) as Error & { statusCode: number };
+      err.statusCode = 413;
+      throw err;
+    }
+    out[String(key).slice(0, 40)] = value;
+  }
+  return out;
+}
+
+export function missingOnboardingItems(
+  accountType: string,
+  contracts?: AcceptedContractInput[],
+  documents?: Record<string, string>
+): { contracts: string[]; documents: string[] } {
+  const acceptedKeys = new Set(sanitizeAcceptedContracts(contracts).map((c) => c.key));
+  const presentDocs = new Set(Object.keys(documents || {}));
+  return {
+    contracts: (REQUIRED_CONTRACTS[accountType] || REQUIRED_CONTRACTS.BIREYSEL).filter((k) => !acceptedKeys.has(k)),
+    documents: (REQUIRED_DOCUMENTS[accountType] || REQUIRED_DOCUMENTS.BIREYSEL).filter((k) => !presentDocs.has(k)),
+  };
+}
+
+/** Sözleşme + evrak tamamsa kayıt admin onayına düşer, değilse eksik kalır. */
+function onboardingStatusFor(
+  accountType: string,
+  contracts?: AcceptedContractInput[],
+  documents?: Record<string, string>
+): string {
+  const missing = missingOnboardingItems(accountType, contracts, documents);
+  return missing.contracts.length === 0 && missing.documents.length === 0
+    ? 'REVIEW_PENDING'
+    : 'CONTRACTS_PENDING';
+}
+
 export interface RegisterInput {
   email: string;
   password: string;
@@ -143,8 +227,17 @@ export const AuthService = {
     companyName?: string;
     taxNo?: string;
     taxOffice?: string;
+    companyIban?: string;
+    mersisNo?: string;
+    tradeRegistryNo?: string;
+    authorizedName?: string;
+    kepAddress?: string;
     acceptedKvkk?: boolean;
     acceptedSellerAgreement?: boolean;
+    /** [{ key, title, version, acceptedAt }] — modalda okunup onaylanan sözleşmeler */
+    acceptedContracts?: Array<{ key: string; title?: string; version?: string; acceptedAt?: string }>;
+    /** { vergiLevhasi: "data:...", ... } */
+    documents?: Record<string, string>;
   }, deviceId?: string) {
     const exists = await SellerRepository.existsByEmail(input.email);
     if (exists) {
@@ -166,11 +259,25 @@ export const AuthService = {
       companyName: input.companyName,
       taxNo: input.taxNo,
       taxOffice: input.taxOffice,
+      companyIban: input.companyIban,
+      mersisNo: input.mersisNo,
+      tradeRegistryNo: input.tradeRegistryNo,
+      authorizedName: input.authorizedName,
+      kepAddress: input.kepAddress,
       acceptedKvkk: input.acceptedKvkk ?? false,
       acceptedSellerAgreement: input.acceptedSellerAgreement ?? false,
       // Sözleşme onay anı — imzalı sözleşme belgesinde kullanılır
       contractAcceptedAt: (input.acceptedKvkk || input.acceptedSellerAgreement) ? new Date() : undefined,
-      contractVersion: '1.0',
+      contractVersion: CONTRACT_VERSION,
+      acceptedContracts: sanitizeAcceptedContracts(input.acceptedContracts),
+      documents: sanitizeDocuments(input.documents),
+      // Sözleşmeler eksikse satıcı yalnızca "Sözleşmelerim" ekranını görür;
+      // tamamlandığında kayıt admin onayına düşer.
+      onboardingStatus: onboardingStatusFor(accountType, input.acceptedContracts, input.documents),
+      onboardingSubmittedAt:
+        onboardingStatusFor(accountType, input.acceptedContracts, input.documents) === 'REVIEW_PENDING'
+          ? new Date()
+          : undefined,
     });
 
     const displayName = accountType === 'TUZEL' ? seller.companyName! : seller.fullName!;
@@ -226,7 +333,19 @@ export const AuthService = {
       err.statusCode = 404;
       throw err;
     }
-    return { ...seller, role: 'SELLER' };
+    // Evrakların base64 içeriği profil yanıtında taşınmaz; yalnızca hangi
+    // belgelerin yüklendiği ve neyin eksik olduğu bildirilir.
+    const documents = (seller.documents as Record<string, string>) || {};
+    const contracts = (seller.acceptedContracts as unknown as AcceptedContract[]) || [];
+    const { documents: _omitDocs, ...rest } = seller as Record<string, unknown> & { documents?: unknown };
+
+    return {
+      ...rest,
+      role: 'SELLER',
+      uploadedDocuments: Object.keys(documents),
+      missing: missingOnboardingItems(seller.accountType, contracts, documents),
+      contractVersionCurrent: CONTRACT_VERSION,
+    };
   },
 
   async updateSellerProfile(sellerId: string, input: Record<string, unknown>) {
@@ -328,6 +447,112 @@ export const AuthService = {
     });
   },
 
+  /**
+   * Satıcı, sözleşmeleri okuyup onayladığında ve evraklarını yüklediğinde
+   * çağrılır. Eksik yoksa kayıt admin onayına (REVIEW_PENDING) düşer.
+   */
+  async submitSellerOnboarding(
+    sellerId: string,
+    input: { acceptedContracts?: AcceptedContract[]; documents?: Record<string, string> }
+  ) {
+    const seller = await SellerRepository.findById(sellerId);
+    if (!seller) {
+      const err = new Error('Satıcı bulunamadı') as Error & { statusCode: number };
+      err.statusCode = 404;
+      throw err;
+    }
+
+    // Daha önce onaylananlarla birleştir (satıcı tek tek onaylayabilir)
+    const existingContracts = sanitizeAcceptedContracts(
+      seller.acceptedContracts as unknown as AcceptedContract[] | undefined
+    );
+    const incomingContracts = sanitizeAcceptedContracts(input.acceptedContracts);
+    const byKey = new Map(existingContracts.map((c) => [c.key, c]));
+    for (const c of incomingContracts) byKey.set(c.key, c);
+    const mergedContracts = [...byKey.values()];
+
+    const mergedDocuments = {
+      ...((seller.documents as Record<string, string>) || {}),
+      ...sanitizeDocuments(input.documents),
+    };
+
+    const missing = missingOnboardingItems(seller.accountType, mergedContracts, mergedDocuments);
+    const complete = missing.contracts.length === 0 && missing.documents.length === 0;
+
+    // Zaten onaylı bir satıcı yeni belge yüklerse onayı geri alınmaz
+    const alreadyApproved = seller.onboardingStatus === 'APPROVED';
+    const nextStatus = alreadyApproved ? 'APPROVED' : complete ? 'REVIEW_PENDING' : 'CONTRACTS_PENDING';
+
+    const updated = await SellerRepository.updateProfile(sellerId, {
+      acceptedContracts: mergedContracts,
+      documents: mergedDocuments,
+      acceptedKvkk: mergedContracts.some((c) => c.key === 'kvkk'),
+      acceptedSellerAgreement: mergedContracts.some((c) => c.key === 'uyelik'),
+      contractAcceptedAt: mergedContracts.length > 0 ? new Date() : null,
+      contractVersion: CONTRACT_VERSION,
+      onboardingStatus: nextStatus,
+      onboardingSubmittedAt: nextStatus === 'REVIEW_PENDING' ? new Date() : seller.onboardingSubmittedAt,
+      // Yeniden gönderimde eski red notu temizlenir
+      onboardingNote: nextStatus === 'REVIEW_PENDING' ? null : seller.onboardingNote,
+    });
+
+    const { documents, ...safe } = updated as Record<string, unknown> & { documents?: unknown };
+    return { seller: safe, missing, status: nextStatus };
+  },
+
+  /** Admin: satıcı başvurusunu onaylar veya reddeder. */
+  async reviewSeller(sellerId: string, action: 'APPROVE' | 'REJECT', note: string | undefined, reviewer: string) {
+    const seller = await SellerRepository.findById(sellerId);
+    if (!seller) {
+      const err = new Error('Satıcı bulunamadı') as Error & { statusCode: number };
+      err.statusCode = 404;
+      throw err;
+    }
+    if (action === 'REJECT' && !note?.trim()) {
+      const err = new Error('Red gerekçesi zorunludur') as Error & { statusCode: number };
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const updated = await SellerRepository.updateProfile(sellerId, {
+      onboardingStatus: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+      onboardingNote: note?.trim() ? note.trim().slice(0, 500) : null,
+      onboardingReviewedAt: new Date(),
+      onboardingReviewedBy: reviewer,
+    });
+
+    const { documents, ...safe } = updated as Record<string, unknown> & { documents?: unknown };
+    return safe;
+  },
+
+  /** Admin: satıcının yüklediği evrakları görüntüler. */
+  async getSellerDocuments(sellerId: string) {
+    const seller = await SellerRepository.findById(sellerId);
+    if (!seller) {
+      const err = new Error('Satıcı bulunamadı') as Error & { statusCode: number };
+      err.statusCode = 404;
+      throw err;
+    }
+    return {
+      id: seller.id,
+      email: seller.email,
+      accountType: seller.accountType,
+      companyName: seller.companyName,
+      fullName: seller.fullName,
+      taxNo: seller.taxNo,
+      taxOffice: seller.taxOffice,
+      mersisNo: seller.mersisNo,
+      tradeRegistryNo: seller.tradeRegistryNo,
+      authorizedName: seller.authorizedName,
+      kepAddress: seller.kepAddress,
+      onboardingStatus: seller.onboardingStatus,
+      onboardingNote: seller.onboardingNote,
+      onboardingSubmittedAt: seller.onboardingSubmittedAt,
+      acceptedContracts: seller.acceptedContracts,
+      documents: seller.documents,
+    };
+  },
+
   async getAllSellers() {
     const sellers = await prisma.sellerAccount.findMany({
       orderBy: { createdAt: 'desc' },
@@ -347,6 +572,13 @@ export const AuthService = {
         companyIban: true,
         acceptedSellerAgreement: true,
         contractAcceptedAt: true,
+        acceptedContracts: true,
+        onboardingStatus: true,
+        onboardingNote: true,
+        onboardingSubmittedAt: true,
+        onboardingReviewedAt: true,
+        mersisNo: true,
+        authorizedName: true,
       }
     });
 

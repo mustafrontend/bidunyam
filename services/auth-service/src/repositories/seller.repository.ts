@@ -15,6 +15,18 @@ export interface CreateSellerInput {
   acceptedSellerAgreement?: boolean;
   contractAcceptedAt?: Date;
   contractVersion?: string;
+  // Tüzel ek kimlik bilgileri
+  mersisNo?: string;
+  tradeRegistryNo?: string;
+  authorizedName?: string;
+  kepAddress?: string;
+  companyIban?: string;
+  // Onaylanan sözleşme dökümü ve yüklenen evraklar
+  acceptedContracts?: unknown;
+  documents?: unknown;
+  // Onboarding
+  onboardingStatus?: string;
+  onboardingSubmittedAt?: Date;
 }
 
 export const SellerRepository = {
@@ -30,7 +42,7 @@ export const SellerRepository = {
   },
 
   async create(data: CreateSellerInput): Promise<SellerAccount> {
-    return prisma.sellerAccount.create({ data });
+    return prisma.sellerAccount.create({ data: data as never });
   },
 
   async existsByEmail(email: string): Promise<boolean> {

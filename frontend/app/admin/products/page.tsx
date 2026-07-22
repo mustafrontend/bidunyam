@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { apiClient } from "@/lib/api";
 import { Eye, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { productPath } from "@/lib/productUrl";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -45,7 +46,7 @@ export default function AdminProductsPage() {
                   <tr 
                     key={p.id} 
                     className="hover:bg-slate-50/50 transition-colors cursor-pointer"
-                    onClick={() => router.push(`/product/${p.id}`)}
+                    onClick={() => router.push(productPath(p))}
                   >
                     <td className="px-6 py-4 text-sm font-bold text-slate-800 line-clamp-1 max-w-[200px]">{p.name}</td>
                     <td className="px-6 py-4 text-xs font-semibold text-slate-500">{p.category}</td>

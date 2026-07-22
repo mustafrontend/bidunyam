@@ -5,6 +5,7 @@ import { useSellerProducts } from "@/hooks/useSellerProducts";
 import { InventoryTable } from "@/components/admin/InventoryTable";
 import { ProductFormModal } from "@/components/admin/ProductFormModal";
 import { BulkActionsModal } from "@/components/admin/BulkActionsModal";
+import { XmlBulkActionsModal } from "@/components/admin/XmlBulkActionsModal";
 import { ErrorBoundary } from "@/components/atoms/ErrorBoundary";
 
 function DuplicateModal({ target, count, setCount, error, duplicating, onConfirm, onCancel }: {
@@ -69,7 +70,19 @@ function DeleteModal({ target, deleting, onConfirm, onCancel }: {
 }
 
 function XmlTab({ state }: { state: ReturnType<typeof useSellerProducts> }) {
-  const { xmlLoading, xmlData, xmlHistory, xmlFeeds, deleteXmlFeed, xmlSearch, setXmlSearch, filteredXmlProducts } = state;
+  const {
+    xmlLoading, xmlData, xmlHistory, xmlFeeds, deleteXmlFeed, xmlSearch, setXmlSearch, filteredXmlProducts,
+    selectedXmlIds, setSelectedXmlIds, xmlBulkModal, setXmlBulkModal, fetchXmlCatalog,
+  } = state;
+
+  // Kural barkodla eslesir; barkodu olmayan urun toplu isleme alinmaz
+  const barcodeOf = (p: { _id: string; barcode?: string }) => p.barcode || "";
+  const selectableIds = filteredXmlProducts.filter((p) => barcodeOf(p)).map((p) => p._id);
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedXmlIds.has(id));
+  const selectedBarcodes = filteredXmlProducts
+    .filter((p) => selectedXmlIds.has(p._id))
+    .map(barcodeOf)
+    .filter(Boolean);
 
   if (xmlLoading) {
     return (
@@ -191,10 +204,44 @@ function XmlTab({ state }: { state: ReturnType<typeof useSellerProducts> }) {
       <input type="text" value={xmlSearch} onChange={(e) => setXmlSearch(e.target.value)} placeholder="XML ürün veya barkod ara..."
         className="w-72 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-[#ff6000]" />
 
+      {/* XML urunleri icin toplu islem cubugu (envanterden ayri) */}
+      <div className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
+        selectedXmlIds.size > 0 ? "bg-orange-50 border-orange-200" : "bg-slate-50 border-slate-200"
+      }`}>
+        <button
+          onClick={() => setSelectedXmlIds(allSelected ? new Set<string>() : new Set<string>(selectableIds))}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:border-slate-400"
+        >
+          {allSelected ? "☑️ Seçimi Kaldır" : "⬜ Tümünü Seç"}
+        </button>
+        <span className={`text-sm font-black ${selectedXmlIds.size > 0 ? "text-[#ff5000]" : "text-slate-400"}`}>
+          {selectedXmlIds.size > 0 ? `${selectedXmlIds.size} XML ürünü seçildi` : "Toplu işlem için XML ürünü seçin"}
+        </span>
+        <button
+          onClick={() => setXmlBulkModal(true)}
+          disabled={selectedXmlIds.size === 0}
+          title="Toplu fiyat/kâr marjı, stok, kategori ve görünürlük kuralı"
+          className="rounded-lg bg-[#ff5000] px-3 py-1.5 text-xs font-black text-white transition-colors hover:bg-[#e04800] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          ⚙️ Toplu İşlemler
+        </button>
+        <span className="ml-auto text-[11px] font-semibold text-slate-400">
+          Fiyat/kâr marjı · Stok · Kategori · Görünürlük — kural senkronda korunur
+        </span>
+      </div>
+
       <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
+              <th className="w-10 px-4 py-3">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#ff5000]"
+                  checked={allSelected}
+                  onChange={() => setSelectedXmlIds(allSelected ? new Set<string>() : new Set<string>(selectableIds))}
+                />
+              </th>
               {["Ürün", "Barkod", "Marka", "Kategori", "Satış Fiyatı", "Stok"].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase text-slate-500">{h}</th>
               ))}
@@ -202,10 +249,24 @@ function XmlTab({ state }: { state: ReturnType<typeof useSellerProducts> }) {
           </thead>
           <tbody>
             {filteredXmlProducts.length === 0 ? (
-              <tr><td colSpan={6} className="py-16 text-center font-semibold text-slate-400">XML ürünü bulunamadı.</td></tr>
+              <tr><td colSpan={7} className="py-16 text-center font-semibold text-slate-400">XML ürünü bulunamadı.</td></tr>
             ) : (
               filteredXmlProducts.map((p) => (
                 <tr key={p._id} className="border-b border-slate-50 hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#ff5000] disabled:opacity-30"
+                      disabled={!barcodeOf(p)}
+                      title={barcodeOf(p) ? "" : "Barkodu olmayan ürüne toplu işlem uygulanamaz"}
+                      checked={selectedXmlIds.has(p._id)}
+                      onChange={() => setSelectedXmlIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(p._id)) next.delete(p._id); else next.add(p._id);
+                        return next;
+                      })}
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {p.imageUrl ? (
@@ -227,6 +288,17 @@ function XmlTab({ state }: { state: ReturnType<typeof useSellerProducts> }) {
           </tbody>
         </table>
       </div>
+
+      <XmlBulkActionsModal
+        isOpen={xmlBulkModal}
+        onClose={() => setXmlBulkModal(false)}
+        barcodes={selectedBarcodes}
+        selectedCount={selectedXmlIds.size}
+        onApplied={() => {
+          setSelectedXmlIds(new Set());
+          fetchXmlCatalog();
+        }}
+      />
     </div>
   );
 }

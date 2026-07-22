@@ -305,3 +305,27 @@ enum AccountType {
   BIREYSEL
   TUZEL
 }
+
+/// XML kataloğundan gelen ürünlere uygulanan toplu işlem kuralları.
+/// Feed yeniden senkronlandığında bu kurallar tekrar uygulanır; böylece
+/// satıcının yaptığı toplu fiyat/stok düzenlemeleri senkronda kaybolmaz.
+model XmlCatalogOverride {
+  id           String   @id @default(uuid())
+  userId       String
+  /// XML ürün kodu / barkod — senkron sonrası eşleşme anahtarı
+  barcode      String
+  /// PERCENT_DISCOUNT | AMOUNT_DISCOUNT | PERCENT_INCREASE | AMOUNT_INCREASE
+  priceMode    String?
+  priceValue   Float?
+  /// SET | INCREASE | DECREASE
+  stockMode    String?
+  stockValue   Int?
+  categoryPath String?
+  isHidden     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, barcode])
+  @@index([userId])
+  @@map("xml_catalog_overrides")
+}

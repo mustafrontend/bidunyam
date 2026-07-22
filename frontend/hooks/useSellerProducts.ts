@@ -260,6 +260,9 @@ export function useSellerProducts() {
   // Bulk operation states
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkPriceModal, setBulkPriceModal] = useState(false);
+  // XML kataloğu için ayrı seçim/toplu işlem durumu (envanterden bağımsız)
+  const [selectedXmlIds, setSelectedXmlIds] = useState<Set<string>>(new Set());
+  const [xmlBulkModal, setXmlBulkModal] = useState(false);
 
   // XML States
   const [activeTab, setActiveTab] = useState<"DB" | "XML">("DB");
@@ -660,5 +663,9 @@ export function useSellerProducts() {
     setSelectedIds,
     bulkPriceModal,
     setBulkPriceModal,
+    selectedXmlIds,
+    setSelectedXmlIds,
+    xmlBulkModal,
+    setXmlBulkModal,
   };
 }

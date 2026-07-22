@@ -624,6 +624,53 @@ router.post('/admin/xml/preview', authenticate, upload.single('file'), async (re
   }
 });
 
+/**
+ * POST /admin/xml/catalog/bulk
+ * XML kataloğundaki seçili ürünlere toplu fiyat/stok/kategori/görünürlük uygular.
+ * Kural DB'ye yazılır; feed her senkronlandığında tekrar uygulanır.
+ */
+router.post('/admin/xml/catalog/bulk', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const barcodes = Array.isArray(req.body?.barcodes) ? req.body.barcodes.map(String) : [];
+    if (barcodes.length === 0) {
+      return res.status(400).json({ success: false, message: 'En az bir ürün seçmelisiniz' });
+    }
+
+    const PRICE_MODES = ['PERCENT_DISCOUNT', 'AMOUNT_DISCOUNT', 'PERCENT_INCREASE', 'AMOUNT_INCREASE'];
+    const STOCK_MODES = ['SET', 'INCREASE', 'DECREASE'];
+    const { priceMode, priceValue, stockMode, stockValue, categoryPath, isHidden, reset } = req.body || {};
+
+    if (priceMode && !PRICE_MODES.includes(priceMode)) {
+      return res.status(400).json({ success: false, message: 'Geçersiz fiyat işlemi' });
+    }
+    if (stockMode && !STOCK_MODES.includes(stockMode)) {
+      return res.status(400).json({ success: false, message: 'Geçersiz stok işlemi' });
+    }
+
+    const result = await xmlCatalogService.applyBulkOverrides(userId, barcodes, {
+      priceMode,
+      priceValue: priceValue === undefined || priceValue === null ? undefined : Number(priceValue),
+      stockMode,
+      stockValue: stockValue === undefined || stockValue === null ? undefined : Number(stockValue),
+      categoryPath: categoryPath ? String(categoryPath).slice(0, 160) : undefined,
+      isHidden: typeof isHidden === 'boolean' ? isHidden : undefined,
+      reset: reset === true,
+    });
+
+    res.json({
+      success: true,
+      message: reset
+        ? `${result.updated} üründeki toplu işlem kuralı kaldırıldı.`
+        : `${result.affectedProducts} ürüne uygulandı. Kural, feed her güncellendiğinde korunacak.`,
+      ...result,
+    });
+  } catch (error: any) {
+    console.error('[XML Catalog Bulk Error]', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // --- XML FEED CRUD (Saatlik Otomatik Güncelleme için) ---
 
 import { xmlCronService } from '../services/xmlCron.service';

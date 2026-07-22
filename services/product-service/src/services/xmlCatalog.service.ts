@@ -36,7 +36,20 @@ export interface PublishRequestMeta {
 interface PersistedState {
   activeRequestIds: Record<string, string>; // userId -> activeRequestId
   requestsByUserId: Record<string, PublishRequestMeta[]>; // userId -> requests
-  productsByRequest: Record<string, XmlCatalogProduct[]>; // requestId -> products
+  productsByRequest: Record<string, XmlCatalogProduct[]>; // requestId -> yayindaki (kural uygulanmis) urunler
+  /// XML'den geldigi hâli — toplu islem kurallari her zaman bunun uzerine uygulanir
+  baseByRequest?: Record<string, XmlCatalogProduct[]>;
+}
+
+/// XML urunlerine uygulanan toplu islem kurali
+export interface XmlOverride {
+  barcode: string;
+  priceMode: string | null;
+  priceValue: number | null;
+  stockMode: string | null;
+  stockValue: number | null;
+  categoryPath: string | null;
+  isHidden: boolean;
 }
 
 interface CatalogQuery {
@@ -68,9 +81,13 @@ class XmlCatalogService {
   async publishProducts(input: { products: any[]; sourceUrl: string; xmlFileName: string; userId: string }): Promise<PublishRequestMeta> {
     const requestId = `xml-req-${Date.now()}`;
     const createdAt = new Date().toISOString();
-    const mappedProducts = input.products
+    const baseProducts = input.products
       .map((item: any, index: number) => this.toCatalogProduct(item, requestId, index))
       .filter((item) => item.stock >= 0 && item.price >= 0);
+
+    // Saticinin daha once uyguladigi toplu islem kurallari senkronda korunur
+    const overrides = await this.loadOverrides(input.userId);
+    const mappedProducts = baseProducts.map((p) => this.applyOverride(p, overrides.get(p.barcode)));
 
     const meta: PublishRequestMeta = {
       requestId,
@@ -91,6 +108,8 @@ class XmlCatalogService {
     }
     this.state.requestsByUserId[input.userId].unshift(meta);
     this.state.productsByRequest[requestId] = mappedProducts;
+    if (!this.state.baseByRequest) this.state.baseByRequest = {};
+    this.state.baseByRequest[requestId] = baseProducts;
     
     this.pruneOldRequests(input.userId);
     this.saveState();
@@ -332,6 +351,121 @@ class XmlCatalogService {
   // ("1.299,00" → 1299 ; "1,299.00" → 1299 ; "149,90" → 149.9)
   private toNumber(value: unknown): number {
     return parseDecimal(value);
+  }
+
+  // ─── Toplu işlem kuralları (override) ───────────────────────────
+  // Satıcının XML ürünlerine uyguladığı toplu fiyat/stok/kategori
+  // düzenlemeleri DB'de saklanır ve her senkronda yeniden uygulanır.
+
+  private async loadOverrides(userId: string): Promise<Map<string, XmlOverride>> {
+    try {
+      const rows = await prisma.xmlCatalogOverride.findMany({ where: { userId } });
+      return new Map(rows.map((r) => [r.barcode, r as unknown as XmlOverride]));
+    } catch (err) {
+      console.error('[XML Catalog] Override okunamadı:', err);
+      return new Map();
+    }
+  }
+
+  private applyOverride(product: XmlCatalogProduct, ov?: XmlOverride): XmlCatalogProduct {
+    if (!ov) return product;
+    const next = { ...product };
+
+    if (ov.priceMode && typeof ov.priceValue === 'number') {
+      const base = next.price;
+      const v = ov.priceValue;
+      let price = base;
+      if (ov.priceMode === 'PERCENT_DISCOUNT') price = base * (1 - v / 100);
+      else if (ov.priceMode === 'AMOUNT_DISCOUNT') price = base - v;
+      else if (ov.priceMode === 'PERCENT_INCREASE') price = base * (1 + v / 100);
+      else if (ov.priceMode === 'AMOUNT_INCREASE') price = base + v;
+      next.price = Math.max(0, Math.round(price * 100) / 100);
+      // Liste fiyatı XML'den geleni korur; indirim yüzdesi yeniden hesaplanır
+      next.originalPrice = Math.max(next.originalPrice, next.price);
+      next.discountPercent =
+        next.originalPrice > next.price
+          ? Math.max(0, Math.round(((next.originalPrice - next.price) / next.originalPrice) * 100))
+          : 0;
+    }
+
+    if (ov.stockMode && typeof ov.stockValue === 'number') {
+      if (ov.stockMode === 'SET') next.stock = ov.stockValue;
+      else if (ov.stockMode === 'INCREASE') next.stock = next.stock + ov.stockValue;
+      else if (ov.stockMode === 'DECREASE') next.stock = next.stock - ov.stockValue;
+      next.stock = Math.max(0, Math.floor(next.stock));
+    }
+
+    if (ov.categoryPath) next.category = ov.categoryPath;
+    // Gizlenen ürün stoksuz kalır; katalog listelerinde satın alınamaz
+    if (ov.isHidden) next.stock = 0;
+
+    return next;
+  }
+
+  /**
+   * Seçili XML ürünlerine toplu işlem uygular: kuralı kaydeder ve
+   * yayındaki katalogda anında etkili kılar.
+   */
+  async applyBulkOverrides(
+    userId: string,
+    barcodes: string[],
+    action: {
+      priceMode?: string;
+      priceValue?: number;
+      stockMode?: string;
+      stockValue?: number;
+      categoryPath?: string;
+      isHidden?: boolean;
+      reset?: boolean;
+    }
+  ): Promise<{ updated: number; affectedProducts: number }> {
+    const unique = [...new Set(barcodes.filter((b) => b && String(b).trim()))].map(String);
+    if (unique.length === 0) return { updated: 0, affectedProducts: 0 };
+
+    if (action.reset) {
+      await prisma.xmlCatalogOverride.deleteMany({ where: { userId, barcode: { in: unique } } });
+    } else {
+      const data = {
+        priceMode: action.priceMode ?? null,
+        priceValue: typeof action.priceValue === 'number' ? action.priceValue : null,
+        stockMode: action.stockMode ?? null,
+        stockValue: typeof action.stockValue === 'number' ? action.stockValue : null,
+        categoryPath: action.categoryPath ?? null,
+        isHidden: action.isHidden ?? false,
+      };
+      // Yalnızca gönderilen alanlar güncellenir, diğer kurallar korunur
+      const patch = Object.fromEntries(
+        Object.entries(data).filter(([k, v]) => v !== null || (k === 'isHidden' && action.isHidden !== undefined))
+      );
+      for (const barcode of unique) {
+        await prisma.xmlCatalogOverride.upsert({
+          where: { userId_barcode: { userId, barcode } },
+          create: { userId, barcode, ...data },
+          update: patch,
+        });
+      }
+    }
+
+    // Yayındaki katalogu yeniden hesapla
+    const overrides = await this.loadOverrides(userId);
+    let affected = 0;
+    const requestIds = (this.state.requestsByUserId?.[userId] || []).map((r) => r.requestId);
+    for (const requestId of requestIds) {
+      const list = this.state.productsByRequest[requestId];
+      if (!list) continue;
+      // Kural değiştiğinde eski kuralın etkisi birikmesin diye ham hâlden yeniden uygulanır
+      const baseList = this.state.baseByRequest?.[requestId] || list;
+      const baseById = new Map(baseList.map((b) => [b._id, b]));
+      this.state.productsByRequest[requestId] = list.map((p) => {
+        if (!unique.includes(p.barcode)) return p;
+        affected += 1;
+        const base = baseById.get(p._id) || p;
+        return this.applyOverride(base, overrides.get(p.barcode));
+      });
+    }
+    this.saveState();
+
+    return { updated: unique.length, affectedProducts: affected };
   }
 
   private pruneOldRequests(userId: string) {

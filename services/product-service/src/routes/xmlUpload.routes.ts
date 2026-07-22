@@ -194,7 +194,14 @@ router.get('/xml/catalog', optionalAuthenticate, (req: AuthenticatedRequest, res
   try {
     const query = parseCatalogQuery(req);
     const wantsMyProducts = req.query.includeAll === 'true' || req.query.myProducts === 'true';
-    const userId = (req.user?.id && wantsMyProducts) ? req.user.id : undefined;
+    if (wantsMyProducts && !req.user?.id) {
+      // Kimliksiz "kendi kataloğum" isteği başka satıcıların ürünlerini döndürmemeli
+      return res.status(401).json({
+        success: false,
+        message: 'XML kataloğunuzu görmek için satıcı oturumu gereklidir.',
+      });
+    }
+    const userId = wantsMyProducts ? req.user!.id : undefined;
     const data = xmlCatalogService.getCatalog({ ...query, userId });
 
     // Prevent browser/proxy caching so stale empty responses never block fresh data

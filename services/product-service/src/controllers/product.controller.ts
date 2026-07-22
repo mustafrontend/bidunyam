@@ -202,7 +202,17 @@ export const ProductController = {
 
       const filtersWithUser: any = { ...filters, attributes };
       const wantsMyProducts = query.includeAll || query.myProducts;
-      if (req.user?.id && (req.user.role === 'SELLER' || req.user.role === 'ADMIN') && wantsMyProducts) {
+      if (wantsMyProducts) {
+        const isSellerOrAdmin = req.user?.role === 'SELLER' || req.user?.role === 'ADMIN';
+        if (!req.user?.id || !isSellerOrAdmin) {
+          // "Kendi ürünlerim" isteği kimliksiz geldiğinde tüm katalog DÖNMEMELİ;
+          // aksi halde satıcı paneli başka satıcıların ürünlerini gösterir.
+          res.status(401).json({
+            success: false,
+            message: 'Ürünlerinizi görmek için satıcı oturumu gereklidir.',
+          });
+          return;
+        }
         filtersWithUser.userId = req.user.id;
       }
       // Public: belirli bir satıcının (mağaza) ürünlerini getir

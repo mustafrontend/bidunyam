@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/stores/authStore";
-import { LayoutDashboard, Users, Store, Package, ShoppingCart, CreditCard, LogOut, SlidersHorizontal, FileCode2 } from "lucide-react";
+import { LayoutDashboard, Users, Store, Package, ShoppingCart, CreditCard, LogOut, SlidersHorizontal, FileCode2, Percent } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, token, logout } = useAuthStore();
@@ -44,6 +44,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Ürünler", href: "/admin/products", icon: Package },
     { name: "Kategori Filtreleri", href: "/admin/category-filters", icon: SlidersHorizontal },
     { name: "XML Onayları", href: "/admin/xml-feeds", icon: FileCode2 },
+    { name: "Komisyon & Kargo", href: "/admin/komisyon", icon: Percent },
     { name: "Kampanyalar", href: "/admin/campaigns", icon: Package },
     { name: "Sepetler", href: "/admin/carts", icon: ShoppingCart },
     { name: "Siparişler", href: "/admin/orders", icon: CreditCard },

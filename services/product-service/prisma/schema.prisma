@@ -326,3 +326,51 @@ model XmlCatalogOverride {
   @@index([userId])
   @@map("xml_catalog_overrides")
 }
+
+/// Kategori bazlı platform komisyonu (kâr oranı) — /admin'den yönetilir.
+/// categoryName = "*" satırı, eşleşme bulunamazsa kullanılan varsayılandır.
+model CommissionRate {
+  id           String   @id @default(uuid())
+  categoryName String   @unique
+  /// Yüzde değer: 12.5 => %12,5
+  rate         Float    @default(10)
+  /// Bireysel (Dolap) satıcılar için farklı oran; boşsa `rate` geçerlidir
+  bireyselRate Float?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("commission_rates")
+}
+
+/// Desi aralığına göre kargo ücreti tarifesi — /admin'den yönetilir.
+model ShippingRate {
+  id        String   @id @default(uuid())
+  label     String   @default("")
+  minDesi   Float    @default(0)
+  maxDesi   Float    @default(1)
+  price     Float    @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("shipping_rates")
+}
+
+/// Tekil platform ayarları (tek satır: id = "default")
+model PlatformSetting {
+  id                String   @id @default("default")
+  /// Bu tutarın üzerindeki sepetlerde kargo ücretsiz (0 = kapalı)
+  freeShippingLimit Float    @default(500)
+  /// Desi aralığı tarifede yoksa desi başına uygulanacak ücret
+  perDesiPrice      Float    @default(25)
+  /// Hakedişin satıcıya aktarılması için beklenen gün
+  payoutHoldDays    Int      @default(14)
+  /// Komisyona ek sabit hizmet bedeli oranı (%)
+  serviceFeeRate    Float    @default(0)
+  /// Sipariş başına sabit işlem bedeli (TL)
+  transactionFee    Float    @default(0)
+  updatedAt         DateTime @updatedAt @default(now())
+
+  @@map("platform_settings")
+}

@@ -8,6 +8,8 @@ import { ProductController } from './controllers/product.controller';
 import prisma from './repositories/prisma.client';
 import { ZodError } from 'zod';
 import xmlUploadRoutes from './routes/xmlUpload.routes';
+import pricingRoutes from './routes/pricing.routes';
+import { PricingService } from './services/pricing.service';
 import { xmlCronService } from './services/xmlCron.service';
 import campaignRoutes from './routes/campaign.routes';
 import { authenticate, optionalAuthenticate, requireAdmin } from './middlewares/auth.middleware';
@@ -49,6 +51,8 @@ app.get('/health', async (_req, res) => {
 // ─── Routes ────────────────────────────────────────────────────
 // XML Upload Routes
 app.use('/', xmlUploadRoutes);
+// Komisyon (kâr oranı) ve kargo tarifesi — /admin'den parametrik yönetilir
+app.use('/', pricingRoutes);
 
 // Campaign Routes
 app.use('/campaigns', campaignRoutes);
@@ -117,6 +121,9 @@ const start = async (): Promise<void> => {
 
   // Seed kategori taksonomisi + dinamik filtre şablonları (idempotent)
   await ProductService.seedTaxonomy().catch((e) => console.error('[Taxonomy Seed] failed:', e));
+
+  // Komisyon ve kargo tarifesi varsayılanları (mevcut kayıtlar ezilmez)
+  await PricingService.seed().catch((e) => console.error('[Pricing Seed] failed:', e));
 
   // XML onay akışı öncesinde eklenmiş ve halihazırda senkron olan feed'leri
   // geriye dönük onaylı say (aksi halde deploy sonrası çalışan feed'ler durur).

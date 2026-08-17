@@ -91,7 +91,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   return (
     <Link
       href={productPath(product)}
-      className="group relative flex flex-col bg-white rounded-2xl overflow-hidden border border-slate-100 transition-all duration-500 hover:shadow-[0_16px_40px_rgba(0,0,0,0.04)] active:scale-[0.985]"
+      className="group/card relative flex flex-col bg-white rounded-2xl overflow-hidden border border-slate-100 transition-all duration-500 hover:shadow-[0_16px_40px_rgba(0,0,0,0.04)] active:scale-[0.985]"
     >
       {/* 1. Image Container (image_257257.jpg'deki kırpılma p-5 ve bg-white ile tamamen çözüldü) */}
       <div className="relative overflow-hidden bg-white aspect-square flex items-center justify-center p-5 select-none">
@@ -99,7 +99,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <img
             src={product.imageUrl}
             alt={product.name}
-            className="h-full w-full object-contain transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover:scale-105"
+            className="h-full w-full object-contain transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover/card:scale-105"
             loading="lazy"
           />
         ) : (
@@ -125,7 +125,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </button>
 
         {/* Absolute Action: Quick Add to Cart Button (Desktop Desktop Hover) */}
-        <div className="absolute inset-x-0 bottom-3 px-3 z-10 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 hidden md:block">
+        <div className="absolute inset-x-0 bottom-3 px-3 z-10 translate-y-4 opacity-0 group-hover/card:translate-y-0 group-hover/card:opacity-100 transition-all duration-300 hidden md:block">
           <button
             onClick={handleAddToCart}
             className={`w-full py-2 rounded-xl font-bold text-xs transition-all duration-300 flex items-center justify-center gap-2 shadow-sm border ${
@@ -164,7 +164,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
 
         {/* Title */}
-        <h3 className="line-clamp-2 text-xs font-medium text-slate-700 leading-relaxed group-hover:text-slate-900 transition-colors min-h-[36px]">
+        <h3 className="line-clamp-2 text-xs font-medium text-slate-700 leading-relaxed group-hover/card:text-slate-900 transition-colors min-h-[36px]">
           {product.name}
         </h3>
         

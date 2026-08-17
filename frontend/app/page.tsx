@@ -11,8 +11,9 @@ import { ProductFeed } from "@/components/organisms/ProductFeed";
 import { ErrorBoundary } from "@/components/atoms/ErrorBoundary";
 import { CampaignGrid } from "@/components/organisms/CampaignGrid";
 import { ProductCarouselSection } from "@/components/organisms/ProductCarouselSection";
-import { HeroSection } from "@/components/organisms/HeroSection";
-import { CategoryShowcase } from "@/components/organisms/CategoryShowcase";
+
+import { GlobalSourcesHero } from "@/components/organisms/GlobalSourcesHero";
+import { GlobalSourcesShowcaseGrid } from "@/components/organisms/GlobalSourcesShowcaseGrid";
 
 const PAGE_SIZE = 24;
 
@@ -172,7 +173,6 @@ function HomeContent() {
     [products]
   );
 
-  // Öne çıkanlarla çakışmasın diye farklı bir dilim (fiyatı yüksek premium ürünler)
   const premiumPicks = useMemo(() =>
     [...products]
       .sort((a, b) => b.price - a.price)
@@ -183,36 +183,36 @@ function HomeContent() {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-slate-50">
-        <div className="w-full max-w-[1600px] px-4 sm:px-6 md:px-10 xl:px-14 py-8 lg:py-12 space-y-16 lg:space-y-24 mx-auto">
+        <div className="w-full max-w-[1600px] px-4 md:px-10 xl:px-14 py-6 md:py-8 space-y-10 md:space-y-14 mx-auto">
 
-          {/* 1. Hero + yan kampanyalar */}
-          <HeroSection />
+          {/* 1. Global Sources 3-Sütunlu Hero Layout (Sol: Kategoriler, Orta: Slider + 4 Kart, Sağ: En Popüler) */}
+          <GlobalSourcesHero products={products} />
 
-          {/* 2. Kategori vitrini */}
-          <CategoryShowcase />
+          {/* 2. Global Sources 3 Kartlı Seçki Izgarası (Editörün Seçimi, Hızlı Teslimat, Orijinal & Sertifikalı) */}
+          <GlobalSourcesShowcaseGrid products={products} />
 
-          {/* 3. Güven barı */}
+          {/* 3. Güven Barı */}
           <TrustBar />
 
-          {/* 4. Flaş indirimler (geri sayımlı) */}
+          {/* 4. Flaş İndirimler (Geri Sayımlı) */}
           {flashDeals.length > 0 && <FlashDealsGrid products={flashDeals} timeLeft={timeLeft} />}
 
-          {/* 5. Çok satanlar */}
+          {/* 5. Çok Satanlar Karuseli */}
           {bestSellers.length > 0 && (
-            <ProductCarouselSection title="Çok satanlar" products={bestSellers} />
+            <ProductCarouselSection title="Çok Satanlar" products={bestSellers} />
           )}
 
-          {/* 6. Tek kampanya satırı */}
+          {/* 6. Kampanya Satırı */}
           <section className="w-full">
             <CampaignGrid startIndex={0} count={3} />
           </section>
 
-          {/* 7. Öne çıkan premium ürünler */}
+          {/* 7. Öne Çıkan Seçkiler */}
           {premiumPicks.length > 0 && (
-            <ProductCarouselSection title="Öne çıkan seçkiler" products={premiumPicks} />
+            <ProductCarouselSection title="Öne Çıkan Seçkiler" products={premiumPicks} />
           )}
 
-          {/* 8. Tüm ürün akışı */}
+          {/* 8. Tüm Ürün Akışı */}
           <ProductFeed
             products={filteredProducts}
             loading={loading}

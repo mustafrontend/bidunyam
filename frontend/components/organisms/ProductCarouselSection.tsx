@@ -25,7 +25,7 @@ export const ProductCarouselSection: React.FC<ProductCarouselSectionProps> = ({ 
   if (!products || products.length === 0) return null;
 
   return (
-    <section className="w-full space-y-4 select-none relative group mt-8">
+    <section className="w-full space-y-4 select-none relative group/carousel mt-8">
       <div className="flex items-center justify-between px-2">
         <h2 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">
           {title}
@@ -35,7 +35,7 @@ export const ProductCarouselSection: React.FC<ProductCarouselSectionProps> = ({ 
       <div className="relative">
         <button
           onClick={() => scroll("left")}
-          className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-slate-200 text-slate-600 rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all opacity-0 group-hover:opacity-100 hover:text-slate-900 disabled:opacity-0 cursor-pointer hidden md:flex"
+          className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-slate-200 text-slate-600 rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all opacity-0 group-hover/carousel:opacity-100 hover:text-slate-900 disabled:opacity-0 cursor-pointer hidden md:flex"
         >
           <ChevronLeft size={20} strokeWidth={3} />
         </button>
@@ -54,7 +54,7 @@ export const ProductCarouselSection: React.FC<ProductCarouselSectionProps> = ({ 
 
         <button
           onClick={() => scroll("right")}
-          className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-slate-200 text-slate-600 rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all opacity-0 group-hover:opacity-100 hover:text-slate-900 disabled:opacity-0 cursor-pointer hidden md:flex"
+          className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-slate-200 text-slate-600 rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all opacity-0 group-hover/carousel:opacity-100 hover:text-slate-900 disabled:opacity-0 cursor-pointer hidden md:flex"
         >
           <ChevronRight size={20} strokeWidth={3} />
         </button>

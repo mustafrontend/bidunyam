@@ -7,7 +7,15 @@ import {
   User, 
   ShoppingCart, 
   Search, 
-  Heart
+  Heart,
+  FileText,
+  Package,
+  MessageSquare,
+  Globe,
+  ChevronDown,
+  Sparkles,
+  Smartphone,
+  Store
 } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -18,7 +26,6 @@ import { Logo } from "../atoms/Logo";
 import { LoginModal } from "../molecules/LoginModal";
 import { UserMenu } from "../molecules/UserMenu";
 import { SearchResults } from "../molecules/SearchResults";
-import { CategoriesMegaMenu } from "./CategoriesMegaMenu";
 import { NavCategories } from "./NavCategories";
 import { useSearchSessionStore } from "@/stores/searchSessionStore";
 
@@ -29,6 +36,17 @@ interface Product {
   price: number;
   imageUrl: string;
 }
+
+const CATEGORY_OPTIONS = [
+  "Tüm Kategoriler",
+  "Elektronik",
+  "Moda & Giyim",
+  "Ev & Yaşam",
+  "Kozmetik",
+  "Yapı Market",
+  "Otomobil",
+  "Anne & Bebek",
+];
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
@@ -42,6 +60,9 @@ export const Navbar: React.FC = () => {
 
   const [isMounted, setIsMounted] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("Tüm Kategoriler");
+  const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false);
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchCategories, setSearchCategories] = useState<string[]>([]);
@@ -50,8 +71,10 @@ export const Navbar: React.FC = () => {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [recommended, setRecommended] = useState<Product[]>([]);
   const [showResults, setShowResults] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
   
+  const searchRef = useRef<HTMLDivElement>(null);
+  const catDropdownRef = useRef<HTMLDivElement>(null);
+
   const { lastSearchedCategory, lastSearchedSubCategory, clearSearchSession, addRecentSearch } = useSearchSessionStore();
 
   useEffect(() => {
@@ -59,6 +82,9 @@ export const Navbar: React.FC = () => {
     const clickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowResults(false);
+      }
+      if (catDropdownRef.current && !catDropdownRef.current.contains(e.target as Node)) {
+        setIsCatDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", clickOutside);
@@ -78,7 +104,8 @@ export const Navbar: React.FC = () => {
       if (searchQuery.length >= 0 && showResults) {
         try {
           const userIdParam = user?.id ? `&userId=${user.id}` : "";
-          const sessionParam = lastSearchedCategory ? `&category=${encodeURIComponent(lastSearchedCategory)}` : "";
+          const cat = selectedCategory !== "Tüm Kategoriler" ? selectedCategory : (lastSearchedCategory || "");
+          const sessionParam = cat ? `&category=${encodeURIComponent(cat)}` : "";
           const sessionSubParam = lastSearchedSubCategory ? `&subCategory=${encodeURIComponent(lastSearchedSubCategory)}` : "";
           const res = await apiClient.get(`/search?q=${searchQuery}${userIdParam}${sessionParam}${sessionSubParam}`);
           
@@ -112,192 +139,257 @@ export const Navbar: React.FC = () => {
       }
     }, 300);
     return () => clearTimeout(delayDebounce);
-  }, [searchQuery, showResults, user?.id]);
+  }, [searchQuery, showResults, user?.id, selectedCategory, lastSearchedCategory, lastSearchedSubCategory]);
 
-  // Bireysel mağaza sayfaları kendi bağımsız tasarımıyla görünür (marketplace chrome'u yok)
   if (pathname?.startsWith("/yonetim") || pathname?.startsWith("/admin") || pathname?.startsWith("/magaza")) return null;
+
+  const handleSearchSubmit = () => {
+    if (searchQuery.trim() || selectedCategory !== "Tüm Kategoriler") {
+      setShowResults(false);
+      if (searchQuery.trim()) addRecentSearch(searchQuery);
+      const catQuery = selectedCategory !== "Tüm Kategoriler" ? `&kategori=${encodeURIComponent(selectedCategory)}` : (lastSearchedCategory ? `&kategori=${encodeURIComponent(lastSearchedCategory)}` : "");
+      router.push(`/arama?q=${encodeURIComponent(searchQuery)}${catQuery}`);
+    }
+  };
 
   return (
     <>
-      {/* 1. Top Bar Notification (Can Alıcı Mikro Kampanya Alanı) */}
-      <div className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-slate-400 py-2 text-center text-[11px] font-medium tracking-wide select-none border-b border-slate-900">
-        Milyonlarca Ürün, Güvenli Teslimat, 24/7 Destek.{" "}
-        <span className="text-white font-semibold underline underline-offset-4 ml-1 cursor-pointer hover:text-[#ff5000] transition-colors duration-200">
-          Alışverişe Başla
-        </span>
-      </div>
-
-      {/* 2. Main Premium Wide Sticky Header */}
-      <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl text-slate-900 border-b border-slate-100 transition-all duration-300">
-        <div className="w-full max-w-full px-4 md:px-12 2xl:px-16 py-3.5 mx-auto">
-          <div className="flex items-center justify-between gap-8 lg:gap-16">
-            
-            {/* Left Section: Branding & Catalog Directory */}
-            <div className="flex items-center gap-8 shrink-0">
-              <Link href="/" className="transition-transform duration-300 hover:scale-[1.01] active:scale-[0.98]">
-                <Logo light={false} />
-              </Link>
-              <div className="hidden lg:block border-l border-slate-200 pl-6 transition-colors duration-300 hover:border-[#ff5000]/30">
-                <CategoriesMegaMenu />
-              </div>
+      {/* 1. Global Sources Style Top Utility Header Bar */}
+      <div className="w-full bg-slate-100/90 text-slate-600 text-xs border-b border-slate-200/60 select-none hidden md:block">
+        <div className="w-full max-w-[1600px] px-4 md:px-10 xl:px-14 py-1.5 mx-auto flex items-center justify-between">
+          
+          {/* Left Utility Links */}
+          <div className="flex items-center gap-5 text-[11px] font-medium text-slate-600">
+            <Link href="/arama?kampanya=flas" className="hover:text-[#ff5000] flex items-center gap-1 transition-colors">
+              <span>Fuarlar & Etkinlikler</span>
+            </Link>
+            <span className="text-slate-300">|</span>
+            <Link href="/sozlesmeler" className="hover:text-[#ff5000] transition-colors">
+              Hizmetler
+            </Link>
+            <span className="text-slate-300">|</span>
+            <div className="flex items-center gap-1 cursor-pointer hover:text-[#ff5000] transition-colors">
+              <Globe size={12} />
+              <span>Türkçe (TR)</span>
             </div>
-
-            {/* Middle Section: Fluid Ultra-Wide Search Bar */}
-            <div className="flex-1 hidden md:block" ref={searchRef}>
-              <div className="relative w-full group">
-                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#ff5000] transition-colors duration-300">
-                  <Search size={15} strokeWidth={2.2} />
-                </div>
-                {/* Active Session Badge */}
-                {(lastSearchedCategory || lastSearchedSubCategory) && (
-                  <div className="absolute inset-y-0 left-10 flex items-center">
-                    <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 text-[#ff5000] px-2 py-1 rounded-md text-[10px] font-bold">
-                      <span className="w-3 h-3">🏷️</span>
-                      {lastSearchedSubCategory || lastSearchedCategory} içinde ara
-                      <button 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          clearSearchSession();
-                        }}
-                        className="ml-1 hover:bg-orange-200 rounded-full p-0.5 transition-colors"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setShowResults(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && searchQuery.trim()) {
-                      setShowResults(false);
-                      addRecentSearch(searchQuery);
-                      const catQuery = lastSearchedCategory ? `&kategori=${encodeURIComponent(lastSearchedCategory)}` : "";
-                      const subCatQuery = lastSearchedSubCategory ? `&altkategori=${encodeURIComponent(lastSearchedSubCategory)}` : "";
-                      router.push(`/arama?q=${encodeURIComponent(searchQuery)}${catQuery}${subCatQuery}`);
-                    }
-                  }}
-                  placeholder={(lastSearchedCategory || lastSearchedSubCategory) ? "Ürün arayın..." : "Ürün, kategori veya marka ara..."}
-                  className={`w-full bg-slate-50 border border-slate-200 text-sm rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#ff5000]/20 focus:border-[#ff5000] transition-all duration-300 shadow-inner ${(lastSearchedCategory || lastSearchedSubCategory) ? 'pl-48' : 'pl-11'} pr-12 py-3.5 font-medium placeholder:text-slate-400`}
-                />
-                
-                {/* Search Button Indicator */}
-                <div className="absolute inset-y-0 right-3 flex items-center">
-                  <div className="w-8 h-8 rounded-xl bg-[#ff5000] text-white flex items-center justify-center shadow-md shadow-[#ff5000]/20 cursor-pointer hover:bg-orange-600 transition-colors"
-                    onClick={() => {
-                      if (searchQuery.trim()) {
-                        setShowResults(false);
-                        addRecentSearch(searchQuery);
-                        const catQuery = lastSearchedCategory ? `&kategori=${encodeURIComponent(lastSearchedCategory)}` : "";
-                        const subCatQuery = lastSearchedSubCategory ? `&altkategori=${encodeURIComponent(lastSearchedSubCategory)}` : "";
-                        router.push(`/arama?q=${encodeURIComponent(searchQuery)}${catQuery}${subCatQuery}`);
-                      }
-                    }}
-                  >
-                    <Search size={14} strokeWidth={2.5} />
-                  </div>
-                </div>
-
-                {/* Dropdown Results Area */}
-                {showResults && (
-                  <SearchResults 
-                    query={searchQuery}
-                    results={searchResults}
-                    categories={searchCategories}
-                    subCategories={searchSubCategories}
-                    brands={searchBrands}
-                    recentSearches={recentSearches}
-                    recommended={recommended}
-                    onClose={() => setShowResults(false)}
-                  />
-                )}
-              </div>
+            <span className="text-slate-300">|</span>
+            <div className="flex items-center gap-1 hover:text-[#ff5000] cursor-pointer transition-colors">
+              <Smartphone size={12} />
+              <span>Uygulamayı İndir</span>
             </div>
-
-            {/* Right Section: Core Interactive Profile & Cart Engine */}
-            <nav className="flex items-center gap-3.5 md:gap-5 shrink-0">
-              
-              {/* Identity Handler Module */}
-              {isMounted && !!token ? (
-                <div className="relative">
-                  <button
-                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center gap-2 rounded-xl px-4 py-2 bg-slate-950 hover:bg-[#ff5000] active:scale-[0.97] transition-all duration-300 text-xs font-medium cursor-pointer text-white shadow-md shadow-slate-950/10"
-                  >
-                    <User size={15} strokeWidth={2} />
-                    <span className="hidden lg:inline max-w-[90px] truncate tracking-wide">{user?.name}</span>
-                  </button>
-                  {isUserMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100/80 z-50">
-                      <UserMenu user={user} onClose={() => setIsUserMenuOpen(false)} onLogout={logout} />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <button
-                  onClick={() => setLoginModalOpen(true)}
-                  className="flex items-center gap-2 rounded-xl px-4 py-2 border border-slate-200 hover:border-[#ff5000]/40 hover:bg-[#ff5000]/5 active:scale-[0.97] transition-all duration-300 text-xs font-medium cursor-pointer text-slate-700 group"
-                >
-                  <User size={15} strokeWidth={2} className="text-slate-400 group-hover:text-[#ff5000] transition-colors duration-300" />
-                  <span className="hidden lg:inline group-hover:text-slate-900 transition-colors duration-300">Giriş Yap</span>
-                </button>
-              )}
-
-              {/* Wishlist Icon Button */}
-              <Link
-                href="/favorites"
-                className="relative flex items-center justify-center h-10 w-10 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100/70 active:scale-[0.96] transition-all duration-300 group"
-              >
-                <Heart size={18} strokeWidth={2} className="text-slate-600 group-hover:text-red-500 group-hover:fill-red-500 transition-all duration-300" />
-                {isMounted && favoriteCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-slate-950 px-1 text-[9px] font-bold text-white border-2 border-white leading-none">
-                    {favoriteCount}
-                  </span>
-                )}
-              </Link>
-
-              {/* Dynamic Basket Controller */}
-              <Link
-                href="/cart"
-                className="relative flex items-center justify-center h-10 w-10 rounded-xl bg-slate-50 hover:bg-[#ff5000]/5 active:scale-[0.96] transition-all duration-300 group border border-slate-100/40 hover:border-[#ff5000]/20"
-              >
-                <ShoppingCart size={17} strokeWidth={2} className="text-slate-700 group-hover:text-[#ff5000] transition-colors duration-300" />
-                {isMounted && totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-[#ff5000] px-1 text-[9px] font-bold text-white border-2 border-white leading-none shadow-sm shadow-[#ff5000]/20">
-                    {totalItems}
-                  </span>
-                )}
-              </Link>
-
-            </nav>
           </div>
 
-          {/* Mobile Search Viewport Node */}
-          <div className="mt-3 block md:hidden" ref={searchRef}>
-            <div className="relative w-full">
+          {/* Right Utility Links */}
+          <div className="flex items-center gap-4 text-[11px] font-medium text-slate-600">
+            <Link href="/arama?onayli=true" className="flex items-center gap-1 bg-amber-500/10 text-amber-700 px-2 py-0.5 rounded font-bold hover:bg-amber-500/20 transition-colors">
+              <Sparkles size={11} className="fill-current" />
+              <span>Sourcing Club</span>
+            </Link>
+
+            <Link href="/favorites" className="hover:text-[#ff5000] flex items-center gap-1 transition-colors">
+              <Heart size={12} />
+              <span>Favoriler</span>
+              {isMounted && favoriteCount > 0 && <span className="font-bold text-[#ff5000]">({favoriteCount})</span>}
+            </Link>
+
+            <Link href="/cart" className="hover:text-[#ff5000] flex items-center gap-1 transition-colors">
+              <ShoppingCart size={12} />
+              <span>Sepetim</span>
+              {isMounted && totalItems > 0 && <span className="font-bold text-[#ff5000]">({totalItems})</span>}
+            </Link>
+
+            <span className="text-slate-300">|</span>
+
+            <Link href="/magaza" className="hover:text-[#ff5000] flex items-center gap-1 transition-colors">
+              <Store size={12} />
+              <span>Satıcı Ol</span>
+            </Link>
+
+            <span className="text-slate-300">|</span>
+
+            {/* Auth / Account State */}
+            {isMounted && !!token ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-1.5 font-semibold text-slate-800 hover:text-[#ff5000] transition-colors"
+                >
+                  <User size={13} />
+                  <span>{user?.name || "Hesabım"}</span>
+                  <ChevronDown size={11} />
+                </button>
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50">
+                    <UserMenu user={user} onClose={() => setIsUserMenuOpen(false)} onLogout={logout} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setLoginModalOpen(true)}
+                className="flex items-center gap-1 font-semibold text-slate-800 hover:text-[#ff5000] transition-colors"
+              >
+                <User size={13} />
+                <span>Giriş Yap / Kaydol</span>
+              </button>
+            )}
+          </div>
+
+        </div>
+      </div>
+
+      {/* 2. Main Global Sources Header Navbar */}
+      <header className="sticky top-0 z-50 w-full bg-white text-slate-900 border-b border-slate-200/80 shadow-xs">
+        <div className="w-full max-w-[1600px] px-4 md:px-10 xl:px-14 py-3 mx-auto flex items-center justify-between gap-4 md:gap-8">
+          
+          {/* Logo Brand */}
+          <Link href="/" className="shrink-0 transition-transform hover:scale-[1.01] active:scale-[0.98]">
+            <Logo light={false} />
+          </Link>
+
+          {/* Global Sources Combined Search Bar (Integrated Category Dropdown + Input + Primary Red/Orange Button) */}
+          <div className="flex-1 max-w-3xl hidden sm:block" ref={searchRef}>
+            <div className="relative flex items-center w-full rounded-full border-2 border-[#ff5000] bg-white overflow-hidden shadow-xs focus-within:ring-2 focus-within:ring-[#ff5000]/20">
+              
+              {/* Category Selector Dropdown (Left side of search input) */}
+              <div className="relative shrink-0 border-r border-slate-200" ref={catDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsCatDropdownOpen(!isCatDropdownOpen)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors select-none"
+                >
+                  <span className="truncate max-w-[110px]">{selectedCategory}</span>
+                  <ChevronDown size={13} className="text-slate-400" />
+                </button>
+
+                {isCatDropdownOpen && (
+                  <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 text-xs">
+                    {CATEGORY_OPTIONS.map((cat, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setSelectedCategory(cat);
+                          setIsCatDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-[#ff5000] font-medium transition-colors ${
+                          selectedCategory === cat ? "text-[#ff5000] font-bold bg-orange-50/50" : "text-slate-700"
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Text Input */}
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setShowResults(true)}
-                placeholder="Ürün, marka veya kategori ara..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-4 pr-10 text-xs font-medium text-slate-800 outline-none"
+                onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
+                placeholder="Ürün, marka veya tedarikçi ara..."
+                className="w-full bg-white text-xs md:text-sm px-4 py-2.5 font-medium text-slate-900 focus:outline-none placeholder:text-slate-400"
               />
-              <button className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                <Search size={15} />
+
+              {/* Primary Search Button (Vibrant Red/Orange Action Button) */}
+              <button
+                type="button"
+                onClick={handleSearchSubmit}
+                className="bg-[#ff5000] hover:bg-[#e04500] text-white px-6 py-2.5 font-bold text-xs md:text-sm flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+              >
+                <Search size={16} strokeWidth={2.5} />
+                <span className="hidden md:inline">Ara</span>
               </button>
+
+              {/* Dropdown Results Area */}
+              {showResults && (
+                <SearchResults 
+                  query={searchQuery}
+                  results={searchResults}
+                  categories={searchCategories}
+                  subCategories={searchSubCategories}
+                  brands={searchBrands}
+                  recentSearches={recentSearches}
+                  recommended={recommended}
+                  onClose={() => setShowResults(false)}
+                />
+              )}
             </div>
           </div>
 
-          {/* 3. Fluid Sub-Navigation Layer (Yarı Opak Filtreli Premium Alan) */}
-          <NavCategories />
+          {/* Right Action Icons (RFQ / Teklif Al & Orders / Siparişler) */}
+          <div className="flex items-center gap-4 shrink-0">
+            
+            {/* Request for Quotation / Teklif Al */}
+            <Link
+              href="/sozlesmeler"
+              className="hidden lg:flex flex-col items-center justify-center text-slate-700 hover:text-[#ff5000] transition-colors group"
+            >
+              <div className="flex items-center gap-1.5 font-bold text-xs">
+                <FileText size={16} className="text-[#ff5000] group-hover:scale-110 transition-transform" />
+                <span>Teklif Al</span>
+              </div>
+              <span className="text-[10px] font-medium text-slate-400">RFQ İstekleri</span>
+            </Link>
+
+            {/* Orders / Siparişlerim */}
+            <Link
+              href="/account"
+              className="hidden lg:flex flex-col items-center justify-center text-slate-700 hover:text-[#ff5000] transition-colors group"
+            >
+              <div className="flex items-center gap-1.5 font-bold text-xs">
+                <Package size={16} className="text-[#ff5000] group-hover:scale-110 transition-transform" />
+                <span>Siparişler</span>
+              </div>
+              <span className="text-[10px] font-medium text-slate-400">Takip Et</span>
+            </Link>
+
+            {/* Mobile Actions: Basket & Favorites */}
+            <div className="flex items-center gap-2 sm:hidden">
+              <Link href="/favorites" className="p-2 text-slate-700 hover:text-[#ff5000]">
+                <Heart size={20} />
+              </Link>
+              <Link href="/cart" className="p-2 text-slate-700 hover:text-[#ff5000] relative">
+                <ShoppingCart size={20} />
+                {isMounted && totalItems > 0 && (
+                  <span className="absolute top-0 right-0 w-4 h-4 rounded-full bg-[#ff5000] text-white text-[9px] font-bold flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
+              </Link>
+            </div>
+
+          </div>
 
         </div>
+
+        {/* Mobile Search input */}
+        <div className="px-4 pb-3 sm:hidden" ref={searchRef}>
+          <div className="relative flex items-center w-full rounded-full border border-slate-300 bg-slate-50 overflow-hidden">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setShowResults(true)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
+              placeholder="Ürün, marka ara..."
+              className="w-full bg-slate-50 text-xs px-4 py-2 text-slate-900 outline-none"
+            />
+            <button onClick={handleSearchSubmit} className="bg-[#ff5000] text-white p-2">
+              <Search size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* Sub-Navigation Categories Line */}
+        <div className="w-full max-w-[1600px] px-4 md:px-10 xl:px-14 mx-auto">
+          <NavCategories />
+        </div>
+
       </header>
+
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setLoginModalOpen(false)} />
     </>
   );

@@ -122,6 +122,9 @@ const start = async (): Promise<void> => {
   // Seed kategori taksonomisi + dinamik filtre şablonları (idempotent)
   await ProductService.seedTaxonomy().catch((e) => console.error('[Taxonomy Seed] failed:', e));
 
+  // Kopya/çöp kategorileri kanonik ağaca birleştir (idempotent)
+  await ProductService.cleanupCategories().catch((e) => console.error('[Category Cleanup] failed:', e));
+
   // Komisyon ve kargo tarifesi varsayılanları (mevcut kayıtlar ezilmez)
   await PricingService.seed().catch((e) => console.error('[Pricing Seed] failed:', e));
 

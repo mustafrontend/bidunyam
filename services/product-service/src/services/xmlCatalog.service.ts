@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { syncXmlProductsToSearch } from '../repositories/elasticsearch.client';
 import { normalizeKeys, parseDecimal } from './xmlParser.service';
+import { normalizeCategoryPath } from '../data/categoryNormalize';
 
 const prisma = new PrismaClient();
 
@@ -327,6 +328,8 @@ class XmlCatalogService {
     if (altKat && !anaKat.includes('>') && altKat.toLowerCase() !== anaKat.toLowerCase()) {
       category = anaKat ? `${anaKat} > ${altKat}` : altKat;
     }
+    // Serbest metin kategoriyi kanonik ağaca indirge (çöp kategori üretmesin)
+    category = normalizeCategoryPath(category) || 'XML Katalog';
 
     return {
       _id: `${requestId}-${index + 1}`,

@@ -3,6 +3,7 @@ import { CatalogRepository } from '../repositories/catalog.repository';
 import prisma from '../repositories/prisma.client';
 import { initElasticsearch, indexProduct, syncXmlProductsToSearch } from '../repositories/elasticsearch.client';
 import { xmlCatalogService } from './xmlCatalog.service';
+import { normalizeCategoryPath } from '../data/categoryNormalize';
 
 export const ProductService = {
   async getProducts(filters: ProductFilters, page: number, limit: number) {
@@ -46,12 +47,18 @@ export const ProductService = {
     const fallbackImage = typeof input.imageUrl === 'string' ? input.imageUrl : '';
     const primaryImage = imageUrls[0] || fallbackImage;
 
+    // Kategori yolunu kanonik ağaca indirge (çöp/kopya kategori üretmesin)
+    const normalizedPath = normalizeCategoryPath(input.categoryPath as string) || (input.categoryPath as string) || '';
+    const normalizedMain = normalizedPath.split('>')[0]?.trim() || 'Genel';
+
     const payload = {
       ...input,
       userId,
       imageUrls,
       imageUrl: primaryImage,
-      category: (input.category as string) || String((input.categoryPath as string) || '').split('>').pop()?.trim() || 'Genel',
+      categoryPath: normalizedPath,
+      categoryName: normalizedMain,
+      category: normalizedMain,
       discountPercent:
         Number(input.originalPrice) > 0
           ? Math.max(0, Math.round(((Number(input.originalPrice) - Number(input.price)) / Number(input.originalPrice)) * 100))
@@ -232,6 +239,46 @@ export const ProductService = {
     return { deleted: true };
   },
 
+  /**
+   * Kategori temizliği — her açılışta idempotent çalışır.
+   * Kopya/çöp kategori adlarını kanonik ağaca birleştirir, ürün yollarını
+   * "Ana > Yaprak" biçimine indirir, boş/kanonik-olmayan kategorileri siler.
+   * (Yeni ürün girişi zaten normalize edildiği için bu birikimi de temizler.)
+   */
+  async cleanupCategories() {
+    const { normalizeMainCategory, normalizeCategoryPath, CANONICAL_CATEGORIES } = await import('../data/categoryNormalize');
+
+    // 1) Ürünlerin kategori yolu ve adını normalize et
+    const products = await prisma.product.findMany({ select: { id: true, categoryPath: true, categoryName: true } });
+    let fixed = 0;
+    for (const p of products) {
+      const path = normalizeCategoryPath(p.categoryPath || p.categoryName || '');
+      const main = path.split('>')[0]?.trim() || p.categoryName || '';
+      if (path && (path !== p.categoryPath || main !== p.categoryName)) {
+        await prisma.product.update({ where: { id: p.id }, data: { categoryPath: path, categoryName: main } }).catch(() => null);
+        fixed++;
+      }
+    }
+
+    // 2) Kopya ana kategorileri (alias) sil — normalize sonrası ürün bunlara bakmıyor
+    const cats = await prisma.category.findMany({ include: { subCategories: true } });
+    let removed = 0;
+    for (const c of cats) {
+      const canon = normalizeMainCategory(c.name);
+      const isCanonical = (CANONICAL_CATEGORIES as readonly string[]).includes(c.name);
+      if (isCanonical) continue;
+      // Kanonik değilse ve bu ada bağlı ürün yoksa sil (alias/çöp)
+      const usedByProduct = await prisma.product.count({ where: { categoryName: c.name } });
+      if (usedByProduct === 0 && (canon !== c.name || c.subCategories.length === 0)) {
+        await prisma.subCategory.deleteMany({ where: { categoryId: c.id } }).catch(() => null);
+        await prisma.category.delete({ where: { id: c.id } }).catch(() => null);
+        removed++;
+      }
+    }
+
+    if (fixed || removed) console.log(`[Category Cleanup] ${fixed} ürün yolu düzeltildi, ${removed} çöp kategori silindi`);
+  },
+
   // Taksonomi + filtre şablonlarını seed'ler (kategori/alt kategori tabloları + şablonlar)
   async seedTaxonomy() {
     const { TAXONOMY, flattenTemplates } = await import('../data/taxonomy');
@@ -407,7 +454,7 @@ export const ProductService = {
         shortDescription: "A17 Pro çip. Titanyum tasarım. Pro kamera sistemi.",
         bulletPoints: ["Güçlü Titanyum gövde", "A17 Pro üstün performanslı çip", "5x Optik zoom kamera", "USB-C destekli hızlı veri aktarımı"],
         description: "Karşınızda havacılık ve uzay endüstrisi standartlarında titanyum tasarıma sahip ilk iPhone olan iPhone 15 Pro Max. A17 Pro çip ile oyunlarda ve günlük kullanımda devrim yaratıyor. Bugüne kadarki en güçlü iPhone kamera sistemi ile her detayı yakalayın.",
-        categoryPath: "Elektronik > Telefon > Cep Telefonu",
+        categoryPath: "Elektronik > Cep Telefonu",
         category: "Elektronik",
         brand: "Apple",
         price: 72999,
@@ -432,7 +479,7 @@ export const ProductService = {
         shortDescription: "M3 Max çip. Liquid Retina XDR ekran. Pro performans.",
         bulletPoints: ["14 inç Liquid Retina XDR", "M3 Max 14 CPU, 30 GPU çekirdeği", "36 GB Birleşik Bellek", "Tüm gün süren pil ömrü"],
         description: "MacBook Pro, M3 Max çipin getirdiği devasa performans ile sınırları aşıyor. En zorlu iş akışları, 3D çizimler, render işlemleri ve yazılım geliştirme süreçleri için mükemmel bir canavar. Eşsiz Liquid Retina XDR ekran ile görselleriniz hiç olmadığı kadar canlı.",
-        categoryPath: "Elektronik > Bilgisayar > Laptop",
+        categoryPath: "Elektronik > Laptop",
         category: "Elektronik",
         brand: "Apple",
         price: 104999,
@@ -457,7 +504,7 @@ export const ProductService = {
         shortDescription: "%100 Pamuk, yumuşacık şardonlu içi, rahat kesim.",
         bulletPoints: ["Organik sürdürülebilir pamuk", "Yumuşacık şardonlu iç yüzey", "Modern oversize kalıp", "Dayanıklı çift kat dikişler"],
         description: "Günün her saati rahatlığı ve şıklığı bir arada yaşamak isteyenler için tasarlandı. %100 birinci sınıf organik pamuk kumaştan üretilen bu kapüşonlu sweatshirt, dökümlü duruşu ve yumuşacık içiyle favori giysiniz olacak.",
-        categoryPath: "Giyim > Üst Giyim > Sweatshirt",
+        categoryPath: "Moda > Sweatshirt",
         category: "Giyim",
         brand: "BasicWear",
         price: 499,
@@ -482,7 +529,7 @@ export const ProductService = {
         shortDescription: "4200 Pa emiş gücü. LiDAR navigasyon. Akıllı temizlik.",
         bulletPoints: ["4200 Pa ultra yüksek emiş gücü", "3D LiDAR haritalama navigasyonu", "Süpürme ve paspaslama bir arada", "Büyük toz ve su haznesi"],
         description: "Roborock Q7 Max, evinizi zahmetsizce temizlemeniz için geliştirildi. 4200 Pa emiş gücü halılardaki en dip kirleri bile çekerken, hassas su pompalı paspas sistemi zeminlerinizi pırıl pırıl yapar. LiDAR navigasyonu sayesinde hiçbir engeli kaçırmaz.",
-        categoryPath: "Ev & Yaşam > Elektrikli Ev Aletleri > Robot Süpürge",
+        categoryPath: "Ev & Yaşam > Robot Süpürge",
         category: "Ev & Yaşam",
         brand: "Roborock",
         price: 14499,
@@ -507,7 +554,7 @@ export const ProductService = {
         shortDescription: "Asil, özgür ve çekici bir erkeğin imza kokusu.",
         bulletPoints: ["Eau De Parfum (Kalıcı koku)", "Odunsu ve aromatik esintiler", "100 ml şık cam şişe", "Tüm cilt tiplerine uygun"],
         description: "Bleu De Chanel, sınır tanımayan, özgürlüğüne düşkün ve karizmatik erkeklerin kokusu. Taze narenciye akorları, kuru sedir ağacı ve kremsi sandal ağacının muhteşem harmanı ile teninizde gün boyu süren asil ve kalıcı bir iz bırakır.",
-        categoryPath: "Kozmetik > Parfüm > Erkek Parfüm",
+        categoryPath: "Kozmetik > Erkek Parfüm",
         category: "Kozmetik",
         brand: "Chanel",
         price: 4850,
@@ -532,7 +579,7 @@ export const ProductService = {
         shortDescription: "Ortopedik bel ve boyun desteği. Fileli nefes alan sırt.",
         bulletPoints: ["Çift kollu amortisörlü mekanizma", "Ergonomik sırt ve bel desteği", "360 derece dönebilen sessiz tekerler", "Nefes alan terletmez file kumaş"],
         description: "Uzun saatler bilgisayar başında çalışanlar için ideal ortopedik yönetici koltuğu. Bel ve boyun ağrılarını azaltan ergonomik tasarımı, amortisörlü yükseklik ayarı ve sırt eğim kilitleme mekanizması ile ofisinize veya çalışma odanıza konfor getirir.",
-        categoryPath: "Ev & Yaşam > Mobilya > Ofis Mobilyaları",
+        categoryPath: "Ev & Yaşam > Mobilya",
         category: "Ev & Yaşam",
         brand: "OfisLine",
         price: 2499,

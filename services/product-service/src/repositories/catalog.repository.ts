@@ -1,4 +1,5 @@
 import prisma from './prisma.client';
+import { normalizeMainCategory, normalizeSubCategory } from '../data/categoryNormalize';
 
 export const CatalogRepository = {
 
@@ -13,17 +14,21 @@ export const CatalogRepository = {
   },
 
   async upsertCategory(mainCategory?: string, subCategory?: string): Promise<any> {
-    if (!mainCategory) return null;
+    // Serbest metin kategori adlarını kanonik ağaca eşle (çöp/kopya birikmesin)
+    const mainName = normalizeMainCategory(mainCategory);
+    if (!mainName) return null;
     // Ana kategori varsa bul, yoksa oluştur
-    let category = await prisma.category.findUnique({ where: { name: mainCategory } });
+    let category = await prisma.category.findUnique({ where: { name: mainName } });
     if (!category) {
-      category = await prisma.category.create({ data: { name: mainCategory } });
+      category = await prisma.category.create({ data: { name: mainName } });
     }
     let subCat = null;
-    if (subCategory) {
-      subCat = await prisma.subCategory.findFirst({ where: { name: subCategory, categoryId: category.id } });
+    const subName = normalizeSubCategory(subCategory);
+    // Boş/ara kademe alt kategorileri (ör. "Üst Giyim") oluşturma
+    if (subName && subName.toLocaleLowerCase('tr') !== mainName.toLocaleLowerCase('tr')) {
+      subCat = await prisma.subCategory.findFirst({ where: { name: subName, categoryId: category.id } });
       if (!subCat) {
-        subCat = await prisma.subCategory.create({ data: { name: subCategory, categoryId: category.id } });
+        subCat = await prisma.subCategory.create({ data: { name: subName, categoryId: category.id } });
       }
     }
     return { category, subCategory: subCat };

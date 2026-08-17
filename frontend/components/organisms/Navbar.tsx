@@ -248,36 +248,42 @@ export const Navbar: React.FC = () => {
           </Link>
 
           {/* Global Sources Combined Search Bar (Integrated Category Dropdown + Input + Primary Red/Orange Button) */}
-          <div className="flex-1 max-w-3xl hidden sm:block" ref={searchRef}>
-            <div className="relative flex items-center w-full rounded-full border-2 border-[#ff5000] bg-white overflow-hidden shadow-xs focus-within:ring-2 focus-within:ring-[#ff5000]/20">
+          <div className="flex-1 max-w-3xl hidden sm:block relative" ref={searchRef}>
+            <div className="relative flex items-center w-full rounded-full border-2 border-[#ff5000] bg-white shadow-xs focus-within:ring-2 focus-within:ring-[#ff5000]/20">
               
               {/* Category Selector Dropdown (Left side of search input) */}
               <div className="relative shrink-0 border-r border-slate-200" ref={catDropdownRef}>
                 <button
                   type="button"
                   onClick={() => setIsCatDropdownOpen(!isCatDropdownOpen)}
-                  className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors select-none"
+                  className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors select-none rounded-l-full"
                 >
                   <span className="truncate max-w-[110px]">{selectedCategory}</span>
                   <ChevronDown size={13} className="text-slate-400" />
                 </button>
 
                 {isCatDropdownOpen && (
-                  <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 text-xs">
-                    {CATEGORY_OPTIONS.map((cat, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setSelectedCategory(cat);
-                          setIsCatDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-[#ff5000] font-medium transition-colors ${
-                          selectedCategory === cat ? "text-[#ff5000] font-bold bg-orange-50/50" : "text-slate-700"
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
+                  <div className="absolute left-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 py-2 text-xs divide-y divide-slate-100 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="px-3 py-1.5 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                      Kategori Seçin
+                    </div>
+                    <div className="py-1 max-h-[300px] overflow-y-auto">
+                      {CATEGORY_OPTIONS.map((cat, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setSelectedCategory(cat);
+                            setIsCatDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-[#ff5000] font-bold transition-colors flex items-center justify-between ${
+                            selectedCategory === cat ? "text-[#ff5000] bg-orange-50/60" : "text-slate-700"
+                          }`}
+                        >
+                          <span>{cat}</span>
+                          {selectedCategory === cat && <span className="text-xs">✓</span>}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -297,26 +303,26 @@ export const Navbar: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSearchSubmit}
-                className="bg-[#ff5000] hover:bg-[#e04500] text-white px-6 py-2.5 font-bold text-xs md:text-sm flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+                className="bg-[#ff5000] hover:bg-[#e04500] text-white px-6 py-2.5 font-bold text-xs md:text-sm flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer rounded-r-full"
               >
                 <Search size={16} strokeWidth={2.5} />
                 <span className="hidden md:inline">Ara</span>
               </button>
-
-              {/* Dropdown Results Area */}
-              {showResults && (
-                <SearchResults 
-                  query={searchQuery}
-                  results={searchResults}
-                  categories={searchCategories}
-                  subCategories={searchSubCategories}
-                  brands={searchBrands}
-                  recentSearches={recentSearches}
-                  recommended={recommended}
-                  onClose={() => setShowResults(false)}
-                />
-              )}
             </div>
+
+            {/* Dropdown Results Area (Positioned relative to search bar wrapper) */}
+            {showResults && (
+              <SearchResults 
+                query={searchQuery}
+                results={searchResults}
+                categories={searchCategories}
+                subCategories={searchSubCategories}
+                brands={searchBrands}
+                recentSearches={recentSearches}
+                recommended={recommended}
+                onClose={() => setShowResults(false)}
+              />
+            )}
           </div>
 
           {/* Right Action Icons (RFQ / Teklif Al & Orders / Siparişler) */}

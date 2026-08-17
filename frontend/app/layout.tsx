@@ -45,10 +45,12 @@ export const metadata: Metadata = {
     description: "Binlerce üründe uygun fiyat, taksit imkânı, hızlı kargo ve kolay iade.",
     images: ["/logo.jpeg"],
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+  icons: {
+    icon: [
+      { url: "/logo.jpeg", type: "image/jpeg" },
+    ],
+    shortcut: ["/logo.jpeg"],
+    apple: ["/logo.jpeg"],
   },
   category: "shopping",
 };

@@ -39,6 +39,7 @@ interface ProductFormModalProps {
   brandDraft: string;
   setBrandDraft: Dispatch<SetStateAction<string>>;
   error: string | null;
+  errorField?: string | null;
   saving: boolean;
   onSave: () => void;
   onCancel: () => void;
@@ -106,10 +107,44 @@ export function ProductFormModal({
   categoryOptions, setCategoryOptions, categoryTree, setCategoryTree,
   brandOptions, setBrandOptions, categoryMainDraft, setCategoryMainDraft,
   categorySubDraft, setCategorySubDraft, brandDraft, setBrandDraft,
-  error, saving, onSave, onCancel, onImageChange,
+  error, errorField, saving, onSave, onCancel, onImageChange,
   addCategoryMain, addCategorySub, addBrand,
 }: ProductFormModalProps) {
   const activeSubCategories = categoryTree[form.categoryMain] || [];
+
+  // Doğrulama hatasında ilgili alana kaydır + kısa süre vurgula
+  useEffect(() => {
+    if (!errorField) return;
+    const el = document.getElementById(`pf-${errorField}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("pf-flash");
+    const t = setTimeout(() => el.classList.remove("pf-flash"), 1600);
+    return () => clearTimeout(t);
+  }, [errorField]);
+
+  // Kaydedilmemiş değişiklik var mı? (yeni üründe içerik girildiyse)
+  const isDirty =
+    !!form.name.trim() || !!form.price || !!form.originalPrice || !!form.description.trim() ||
+    imageSlots.some(Boolean);
+
+  const handleCancel = () => {
+    if (isDirty && !window.confirm("Kaydedilmemiş değişiklikler kaybolacak. Çıkmak istediğinize emin misiniz?")) {
+      return;
+    }
+    onCancel();
+  };
+
+  // Sekme/pencere kapatılırken de uyar (form açık ve doldurulmuşsa)
+  useEffect(() => {
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [isDirty]);
 
   // ─── Satıcı hesap tipi (bireysel/tüzel ürün girişi farklılaşır) ───
   const [sellerType, setSellerType] = useState<"BIREYSEL" | "TUZEL" | null>(null);
@@ -197,6 +232,11 @@ export function ProductFormModal({
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <style>{`
+        @keyframes pfFlash { 0%,100% { box-shadow: 0 0 0 0 rgba(255,96,0,0); } 30% { box-shadow: 0 0 0 3px rgba(255,96,0,.35); } }
+        .pf-flash { animation: pfFlash 1.4s ease; border-radius: 12px; }
+        @media (prefers-reduced-motion: reduce) { .pf-flash { animation: none; outline: 2px solid #ff6000; } }
+      `}</style>
       <h3 className="mb-5 text-base font-black text-slate-700">
         {editingProduct ? `Ürün Düzenle — ${editingProduct.name}` : "Yeni Ürün Ekle"}
       </h3>
@@ -212,7 +252,7 @@ export function ProductFormModal({
         <section>
           <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">Temel Bilgiler</h4>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="lg:col-span-3">
+            <div id="pf-name" className="lg:col-span-3">
               <InputField
                 label="Ürün Adı"
                 required
@@ -224,7 +264,7 @@ export function ProductFormModal({
             </div>
 
             {/* Kategori */}
-            <div>
+            <div id="pf-category">
               <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Kategori <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
                 <select
@@ -272,12 +312,16 @@ export function ProductFormModal({
             </div>
 
             {/* Marka */}
-            <div>
+            <div id="pf-brand">
               <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Marka <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
                 <select value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
                   className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#ff6000]">
                   <option value="" disabled>Marka seç</option>
+                  {/* Düzenlenen ürünün markası listede yoksa yine de görünsün */}
+                  {form.brand && !brandOptions.includes(form.brand) && (
+                    <option value={form.brand}>{form.brand}</option>
+                  )}
                   {brandOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
                 <input value={brandDraft} onChange={(e) => setBrandDraft(e.target.value)} placeholder="Yeni marka"
@@ -290,7 +334,7 @@ export function ProductFormModal({
         </section>
 
         {/* Fotoğraflar */}
-        <section>
+        <section id="pf-images">
           <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">Fotoğraflar</h4>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             {imageSlots.map((src, idx) => (
@@ -317,7 +361,7 @@ export function ProductFormModal({
         </section>
 
         {/* Fiyat ve Stok */}
-        <section>
+        <section id="pf-price">
           <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">Fiyat ve Stok</h4>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <InputField type="number" label="Piyasa Fiyatı" required suffix="TL" value={form.originalPrice}
@@ -516,7 +560,7 @@ export function ProductFormModal({
         />
 
         {/* İçerik */}
-        <section>
+        <section id="pf-description">
           <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">İçerik</h4>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -643,7 +687,7 @@ export function ProductFormModal({
           className="rounded-lg bg-[#ff6000] px-5 py-2 text-sm font-black text-white disabled:opacity-60">
           {saving ? "Kaydediliyor..." : editingProduct ? "Güncelle" : "Kaydet"}
         </button>
-        <button onClick={onCancel}
+        <button onClick={handleCancel}
           className="rounded-lg border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
           Vazgeç
         </button>

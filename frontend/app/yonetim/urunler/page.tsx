@@ -7,6 +7,7 @@ import { ProductFormModal } from "@/components/admin/ProductFormModal";
 import { BulkActionsModal } from "@/components/admin/BulkActionsModal";
 import { XmlBulkActionsModal } from "@/components/admin/XmlBulkActionsModal";
 import { ErrorBoundary } from "@/components/atoms/ErrorBoundary";
+import { productPath } from "@/lib/productUrl";
 
 function DuplicateModal({ target, count, setCount, error, duplicating, onConfirm, onCancel }: {
   target: { name: string } | null;
@@ -346,6 +347,33 @@ export default function UrunlerPage() {
   return (
     <ErrorBoundary>
       <div className="space-y-6">
+        {/* Ürün eklendi/güncellendi onayı — linkiyle birlikte */}
+        {state.lastSaved && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+            <span className="text-lg">✅</span>
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-sm font-black text-emerald-900">
+                {state.lastSaved.isNew ? "Ürün eklendi ve yayında" : "Ürün güncellendi"}
+              </p>
+              <p className="text-xs font-semibold text-emerald-700 truncate">{state.lastSaved.name}</p>
+            </div>
+            <a
+              href={productPath({ _id: state.lastSaved.id, name: state.lastSaved.name })}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white hover:bg-emerald-700"
+            >
+              Ürünü Gör →
+            </a>
+            <button
+              onClick={() => state.setLastSaved(null)}
+              className="rounded-xl border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+            >
+              Kapat
+            </button>
+          </div>
+        )}
+
         {/* Modals */}
         <DuplicateModal
           target={state.duplicateTarget}
@@ -412,9 +440,9 @@ export default function UrunlerPage() {
             categoryMainDraft={state.categoryMainDraft} setCategoryMainDraft={state.setCategoryMainDraft}
             categorySubDraft={state.categorySubDraft} setCategorySubDraft={state.setCategorySubDraft}
             brandDraft={state.brandDraft} setBrandDraft={state.setBrandDraft}
-            error={state.error} saving={state.saving}
+            error={state.error} errorField={state.errorField} saving={state.saving}
             onSave={state.handleSave}
-            onCancel={() => { state.setShowForm(false); state.resetForm(); }}
+            onCancel={() => { state.setShowForm(false); state.resetForm(); state.setErrorField(null); }}
             onImageChange={state.handleImageChange}
             addCategoryMain={state.addCategoryMain}
             addCategorySub={state.addCategorySub}

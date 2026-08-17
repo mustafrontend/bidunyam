@@ -246,6 +246,10 @@ export function useSellerProducts() {
   const [categoryAttributes, setCategoryAttributes] = useState<CategoryAttribute[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Doğrulama hatasında ilgili alana kaydırmak için (id anahtarı)
+  const [errorField, setErrorField] = useState<string | null>(null);
+  // Kayıt başarılıysa satıcıya "ürün eklendi + linki" onayı göstermek için
+  const [lastSaved, setLastSaved] = useState<{ name: string; id: string; isNew: boolean } | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 12;
   const [duplicateTarget, setDuplicateTarget] = useState<Product | null>(null);
@@ -389,7 +393,8 @@ export function useSellerProducts() {
         name: p.name,
         categoryMain: main,
         categorySub: sub,
-        brand: p.brand,
+        // Backend bazen brandName döndürüyor; düzenlemede marka boş kalmasın
+        brand: (p.brand as string) || (p.brandName as string) || "",
         originalPrice: String(p.originalPrice ?? ""),
         price: String(p.price ?? ""),
         vatRate: (String((p.vatRate as number) ?? "20") as FormState["vatRate"]) || "20",
@@ -576,6 +581,12 @@ export function useSellerProducts() {
 
   const handleSave = useCallback(async () => {
     setError(null);
+    setErrorField(null);
+    // Hatayı hem metinle hem de kaydırılacak alan anahtarıyla bildirir
+    const fail = (field: string, message: string) => {
+      setErrorField(field);
+      setError(message);
+    };
     const imageUrls = imageSlots.filter(Boolean).slice(0, 5);
     const variants = parseVariants(variantGroups);
     const services = parseExtraServices(extraServices);
@@ -595,18 +606,18 @@ export function useSellerProducts() {
     const sku = form.sku.trim() || `${nameSlug}-${uniq.slice(-6)}`;
 
     // Zorunlu alanlar — satıcının gerçekten girmesi gerekenler
-    if (!form.name || form.name.trim().length < 3) { setError("Ürün adı en az 3 karakter olmalı."); return; }
-    if (!form.categoryMain || !form.categorySub) { setError("Kategori ve alt kategori seçin."); return; }
-    if (!form.brand) { setError("Marka seçin veya yazın."); return; }
-    if (imageUrls.length === 0) { setError("En az 1 fotoğraf yükleyin."); return; }
+    if (!form.name || form.name.trim().length < 3) { fail("name", "Ürün adı en az 3 karakter olmalı."); return; }
+    if (!form.categoryMain || !form.categorySub) { fail("category", "Kategori ve alt kategori seçin."); return; }
+    if (!form.brand) { fail("brand", "Marka seçin veya yazın."); return; }
+    if (imageUrls.length === 0) { fail("images", "En az 1 fotoğraf yükleyin."); return; }
     if (imageUrls.reduce((sum, item) => sum + item.length, 0) > MAX_IMAGE_PAYLOAD_CHARS) {
-      setError("Fotoğraf boyutu çok büyük. Daha düşük çözünürlükte görsel yükleyin."); return;
+      fail("images", "Fotoğraf boyutu çok büyük. Daha düşük çözünürlükte görsel yükleyin."); return;
     }
-    if (!form.price || Number(form.price) <= 0) { setError("Satış fiyatı 0'dan büyük olmalı."); return; }
-    if (!form.originalPrice || Number(form.originalPrice) <= 0) { setError("Piyasa fiyatı 0'dan büyük olmalı."); return; }
-    if (Number(form.price) > Number(form.originalPrice)) { setError("Satış fiyatı piyasa fiyatından yüksek olamaz."); return; }
-    if (form.stock === "" || Number(form.stock) < 0) { setError("Stok sayısı en az 0 olmalı."); return; }
-    if (!form.description || form.description.trim().length < 5) { setError("Ürün açıklaması en az 5 karakter olmalı."); return; }
+    if (!form.price || Number(form.price) <= 0) { fail("price", "Satış fiyatı 0'dan büyük olmalı."); return; }
+    if (!form.originalPrice || Number(form.originalPrice) <= 0) { fail("price", "Piyasa fiyatı 0'dan büyük olmalı."); return; }
+    if (Number(form.price) > Number(form.originalPrice)) { fail("price", "Satış fiyatı piyasa fiyatından yüksek olamaz."); return; }
+    if (form.stock === "" || Number(form.stock) < 0) { fail("price", "Stok sayısı en az 0 olmalı."); return; }
+    if (!form.description || form.description.trim().length < 5) { fail("description", "Ürün açıklaması en az 5 karakter olmalı."); return; }
     setSaving(true);
     try {
       const payload = {
@@ -626,14 +637,22 @@ export function useSellerProducts() {
         condition: form.condition, listingType: form.listingType,
         categoryAttributes: attributesObj,
       };
+      let savedId = editingProduct?._id || "";
+      let savedName = payload.name;
       if (editingProduct) {
-        await apiClient.patch(`/products/${editingProduct._id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await apiClient.patch(`/products/${editingProduct._id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+        savedId = res.data?.data?.id || res.data?.data?._id || savedId;
       } else {
-        await apiClient.post("/products", payload, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await apiClient.post("/products", payload, { headers: { Authorization: `Bearer ${token}` } });
+        savedId = res.data?.data?.id || res.data?.data?._id || "";
+        savedName = res.data?.data?.name || savedName;
       }
+      const wasNew = !editingProduct;
       resetForm();
       setShowForm(false);
       await fetchProducts();
+      // Satıcıya "ürün eklendi + linki" onayı göster
+      if (savedId) setLastSaved({ name: savedName, id: savedId, isNew: wasNew });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Kayıt sırasında hata oluştu.";
       setError(msg);
@@ -659,7 +678,8 @@ export function useSellerProducts() {
     categoryTree, setCategoryTree, brandOptions, setBrandOptions,
     categoryMainDraft, setCategoryMainDraft, categorySubDraft, setCategorySubDraft,
     brandDraft, setBrandDraft, imageSlots, setImageSlots, variantGroups, setVariantGroups,
-    extraServices, setExtraServices, categoryAttributes, setCategoryAttributes, saving, error, setError, page, setPage,
+    extraServices, setExtraServices, categoryAttributes, setCategoryAttributes, saving, error, setError,
+    errorField, setErrorField, lastSaved, setLastSaved, page, setPage,
     PAGE_SIZE, duplicateTarget, setDuplicateTarget, duplicateCount, setDuplicateCount,
     duplicating, duplicateError, setDuplicateError, editingProduct, setEditingProduct,
     deleteTarget, setDeleteTarget, deleting, togglingId, activeTab, setActiveTab,

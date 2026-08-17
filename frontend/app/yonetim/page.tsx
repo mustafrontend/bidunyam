@@ -52,6 +52,13 @@ export default function AdminDashboard() {
   });
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  // Bireysel satıcıya özel hızlı işlemler için profil
+  const [profile, setProfile] = useState<{ accountType?: string; storeSlug?: string; storeName?: string; fullName?: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    apiClient.get("/auth/seller/profile").then((r) => setProfile(r.data?.data)).catch(() => {});
+  }, [token]);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -124,13 +131,71 @@ export default function AdminDashboard() {
     );
   }
 
+  const isBireysel = profile?.accountType === "BIREYSEL";
+  const storeUrl = profile?.storeSlug ? `https://bidunyam.com/magaza/${profile.storeSlug}` : "";
+  const shareStore = async () => {
+    if (!storeUrl) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: profile?.storeName || "Mağazam", url: storeUrl });
+      } else {
+        await navigator.clipboard.writeText(storeUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch { /* kullanıcı iptal etti */ }
+  };
+
   return (
     <div className="space-y-7 antialiased font-sans">
       {/* Title */}
       <div>
         <h2 className="text-2xl font-black tracking-tight text-slate-800">Genel Bakış</h2>
-        <p className="mt-1 text-xs font-semibold text-slate-400">Mağazanızın güncel operasyonel durumu</p>
+        <p className="mt-1 text-xs font-semibold text-slate-400">
+          {isBireysel ? "Bireysel satıcı paneli — ilanlarını ve satışlarını buradan yönet" : "Mağazanızın güncel operasyonel durumu"}
+        </p>
       </div>
+
+      {/* Bireysel satıcıya özel hızlı işlemler */}
+      {isBireysel && (
+        <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">Bireysel</span>
+            <h3 className="text-sm font-black text-slate-800">Hızlı İşlemler</h3>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Link href="/yonetim/urunler" className="group flex items-center gap-3 rounded-xl border border-violet-200 bg-white p-4 transition-all hover:border-violet-400 hover:shadow-sm active:scale-[0.98]">
+              <span className="text-xl">⚡</span>
+              <div>
+                <p className="text-sm font-black text-slate-800">Hızlı İlan Ver</p>
+                <p className="text-[10px] font-bold text-slate-400">Fotoğraf + fiyat, dakikalar içinde</p>
+              </div>
+            </Link>
+            <button onClick={shareStore} disabled={!storeUrl}
+              className="group flex items-center gap-3 rounded-xl border border-violet-200 bg-white p-4 text-left transition-all hover:border-violet-400 hover:shadow-sm active:scale-[0.98] disabled:opacity-50">
+              <span className="text-xl">🔗</span>
+              <div className="min-w-0">
+                <p className="text-sm font-black text-slate-800">{copied ? "Kopyalandı ✓" : "Mağazamı Paylaş"}</p>
+                <p className="truncate text-[10px] font-bold text-slate-400">{profile?.storeSlug ? `/magaza/${profile.storeSlug}` : "Önce Mağazam'dan link belirleyin"}</p>
+              </div>
+            </button>
+            <Link href="/yonetim/magaza" className="group flex items-center gap-3 rounded-xl border border-violet-200 bg-white p-4 transition-all hover:border-violet-400 hover:shadow-sm active:scale-[0.98]">
+              <span className="text-xl">🏪</span>
+              <div>
+                <p className="text-sm font-black text-slate-800">Mağazamı Düzenle</p>
+                <p className="text-[10px] font-bold text-slate-400">Tema, renk, açıklama</p>
+              </div>
+            </Link>
+            <Link href="/yonetim/tahsilat" className="group flex items-center gap-3 rounded-xl border border-violet-200 bg-white p-4 transition-all hover:border-violet-400 hover:shadow-sm active:scale-[0.98]">
+              <span className="text-xl">💰</span>
+              <div>
+                <p className="text-sm font-black text-slate-800">Tahsilatım</p>
+                <p className="text-[10px] font-bold text-slate-400">Hakediş ve IBAN</p>
+              </div>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

@@ -14,6 +14,21 @@ type TemplateAttr = {
   required?: boolean;
 };
 
+// Türkçe renk adı → görsel örnek (renk seçici için)
+const COLOR_HEX: Record<string, string> = {
+  siyah: "#111827", beyaz: "#ffffff", gri: "#9ca3af", mavi: "#2563eb",
+  kırmızı: "#dc2626", kirmizi: "#dc2626", yeşil: "#16a34a", yesil: "#16a34a",
+  pembe: "#ec4899", mor: "#7c3aed", sarı: "#eab308", sari: "#eab308",
+  kahverengi: "#92400e", turuncu: "#f97316", lacivert: "#1e3a8a",
+  bej: "#e7d8b1", altın: "#d4af37", altin: "#d4af37", gümüş: "#c0c0c0", gumus: "#c0c0c0",
+  "çok renkli": "conic-gradient(from 0deg, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7, #ef4444)",
+  "cok renkli": "conic-gradient(from 0deg, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7, #ef4444)",
+};
+
+function colorSwatch(name: string): string | null {
+  return COLOR_HEX[name.toLocaleLowerCase("tr")] ?? null;
+}
+
 interface ProductFormModalProps {
   editingProduct: Product | null;
   form: FormState;
@@ -311,6 +326,15 @@ export function ProductFormModal({
               </div>
             </div>
 
+            {/* Kategori bulunamazsa yönlendirme */}
+            <div className="lg:col-span-3 -mt-1">
+              <p className="rounded-lg bg-blue-50 px-3 py-2 text-[11px] font-semibold text-blue-700">
+                💡 Kategorinizi listede bulamadıysanız: sağdaki kutuya yazıp <b>+</b> ile ekleyin —
+                anında seçilir. Önce ana kategoriyi ekleyin, sonra alt kategori kutusu açılır.
+                (Renk, beden gibi özellikler kategoriye göre otomatik gelir.)
+              </p>
+            </div>
+
             {/* Marka */}
             <div id="pf-brand">
               <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Marka <span className="text-red-500">*</span></label>
@@ -457,6 +481,66 @@ export function ProductFormModal({
                       const label = (attr.label || attr.name) + (attr.unit ? ` (${attr.unit})` : "");
                       const value = getAttr(attr.name);
                       if (attr.type === "select" && attr.options?.length) {
+                        const nameLower = (attr.name + " " + (attr.label || "")).toLocaleLowerCase("tr");
+                        const isColor = nameLower.includes("renk") || nameLower.includes("color");
+                        // Renk → renk örnekli tıklanabilir seçim
+                        if (isColor) {
+                          return (
+                            <div key={attr.name} className="md:col-span-2 lg:col-span-3">
+                              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
+                                {label} {attr.required && <span className="text-red-500">*</span>}
+                                {value && <span className="ml-2 font-black text-slate-700 normal-case">{value}</span>}
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {attr.options.map((o) => {
+                                  const sw = colorSwatch(o);
+                                  const selected = value === o;
+                                  return (
+                                    <button
+                                      key={o}
+                                      type="button"
+                                      title={o}
+                                      onClick={() => setAttr(attr.name, selected ? "" : o)}
+                                      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-bold transition-all ${selected ? "border-[#ff6000] bg-[#ff6000]/5 text-[#ff6000]" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
+                                    >
+                                      <span
+                                        className="h-4 w-4 shrink-0 rounded-full border border-slate-300"
+                                        style={{ background: sw || "#e5e7eb" }}
+                                      />
+                                      {o}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        }
+                        // Beden ve kısa seçenekli özellikler → chip seçim; uzun listeler açılır menü
+                        const asChips = attr.options.length <= 14 && attr.options.every((o) => o.length <= 22);
+                        if (asChips) {
+                          return (
+                            <div key={attr.name} className="md:col-span-2 lg:col-span-3">
+                              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
+                                {label} {attr.required && <span className="text-red-500">*</span>}
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {attr.options.map((o) => {
+                                  const selected = value === o;
+                                  return (
+                                    <button
+                                      key={o}
+                                      type="button"
+                                      onClick={() => setAttr(attr.name, selected ? "" : o)}
+                                      className={`min-w-[44px] rounded-lg border px-3 py-1.5 text-xs font-black transition-all ${selected ? "border-[#ff6000] bg-[#ff6000]/5 text-[#ff6000]" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
+                                    >
+                                      {o}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        }
                         return (
                           <div key={attr.name}>
                             <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">

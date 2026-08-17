@@ -48,23 +48,52 @@ interface ProductFormModalProps {
   addBrand: () => void;
 }
 
-function InputField({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+function InputField({
+  label, value, onChange, type = "text", required, hint, suffix, placeholder,
+}: {
+  label: string; value: string; onChange: (v: string) => void; type?: string;
+  required?: boolean; hint?: string; suffix?: string; placeholder?: string;
+}) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition-colors focus:border-[#ff6000]" />
+      <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="relative">
+        <input
+          type={type}
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition-colors focus:border-[#ff6000] ${suffix ? "pr-10" : ""}`}
+        />
+        {suffix && (
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+            {suffix}
+          </span>
+        )}
+      </div>
+      {hint && <p className="mt-1 text-[11px] text-slate-400">{hint}</p>}
     </div>
   );
 }
 
-function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+function SelectField({
+  label, value, onChange, options,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  // Etiket/değer ayrı olabilir: ["value", "Görünen Etiket"]
+  options: Array<string | [string, string]>;
+}) {
   return (
     <div>
       <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">{label}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition-colors focus:border-[#ff6000]">
-        {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+        {options.map((opt) => {
+          const [val, lbl] = Array.isArray(opt) ? opt : [opt, opt];
+          return <option key={val} value={val}>{lbl}</option>;
+        })}
       </select>
     </div>
   );
@@ -169,7 +198,7 @@ export function ProductFormModal({
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h3 className="mb-5 text-base font-black text-slate-700">
-        {editingProduct ? `Ürün Düzenle — ${editingProduct.name}` : "Sade Ürün Kartı"}
+        {editingProduct ? `Ürün Düzenle — ${editingProduct.name}` : "Yeni Ürün Ekle"}
       </h3>
 
       {error && (
@@ -183,14 +212,20 @@ export function ProductFormModal({
         <section>
           <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">Temel Bilgiler</h4>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <InputField label="Ürün Adı" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
-            <InputField label="Barkod" value={form.barcode} onChange={(v) => setForm((f) => ({ ...f, barcode: v }))} />
-            <InputField label="Model Kodu" value={form.modelCode} onChange={(v) => setForm((f) => ({ ...f, modelCode: v }))} />
-            <InputField label="SKU" value={form.sku} onChange={(v) => setForm((f) => ({ ...f, sku: v }))} />
+            <div className="lg:col-span-3">
+              <InputField
+                label="Ürün Adı"
+                required
+                value={form.name}
+                onChange={(v) => setForm((f) => ({ ...f, name: v }))}
+                placeholder="Örn: Apple iPhone 14 128 GB Yıldız Işığı"
+                hint={`${form.name.length}/120 — marka, model ve öne çıkan özelliği yazın (aramada bulunmayı artırır).`}
+              />
+            </div>
 
             {/* Kategori */}
             <div>
-              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Kategori</label>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Kategori <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
                 <select
                   value={form.categoryMain}
@@ -220,7 +255,7 @@ export function ProductFormModal({
 
             {/* Alt Kategori */}
             <div>
-              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Alt Kategori</label>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Alt Kategori <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
                 <select value={form.categorySub} onChange={(e) => setForm((f) => ({ ...f, categorySub: e.target.value }))}
                   disabled={!form.categoryMain}
@@ -238,7 +273,7 @@ export function ProductFormModal({
 
             {/* Marka */}
             <div>
-              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Marka</label>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Marka <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
                 <select value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
                   className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#ff6000]">
@@ -285,15 +320,50 @@ export function ProductFormModal({
         <section>
           <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">Fiyat ve Stok</h4>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <InputField type="number" label="Piyasa Fiyatı" value={form.originalPrice} onChange={(v) => setForm((f) => ({ ...f, originalPrice: v }))} />
-            <InputField type="number" label="Satış Fiyatı" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} />
-            <InputField type="number" label="Alış Fiyatı" value={form.purchasePrice} onChange={(v) => setForm((f) => ({ ...f, purchasePrice: v }))} />
-            <SelectField label="KDV" value={form.vatRate} onChange={(v) => setForm((f) => ({ ...f, vatRate: v as FormState["vatRate"] }))} options={["1", "10", "20"]} />
-            <InputField type="number" label="Stok" value={form.stock} onChange={(v) => setForm((f) => ({ ...f, stock: v }))} />
-            <InputField type="number" label="Desi" value={form.desi} onChange={(v) => setForm((f) => ({ ...f, desi: v }))} />
-            <InputField type="number" label="Hazırlık Süresi (gün)" value={form.preparationDays} onChange={(v) => setForm((f) => ({ ...f, preparationDays: v }))} />
-            <SelectField label="Gönderim Tipi" value={form.shippingType} onChange={(v) => setForm((f) => ({ ...f, shippingType: v as FormState["shippingType"] }))} options={["MARKETPLACE_LOGISTICS", "SELF_SHIPPING"]} />
+            <InputField type="number" label="Piyasa Fiyatı" required suffix="TL" value={form.originalPrice}
+              onChange={(v) => setForm((f) => ({ ...f, originalPrice: v }))} hint="Ürünün üstü çizili etiket fiyatı" />
+            <InputField type="number" label="Satış Fiyatı" required suffix="TL" value={form.price}
+              onChange={(v) => setForm((f) => ({ ...f, price: v }))} hint="Alıcının ödeyeceği fiyat" />
+            <InputField type="number" label="Alış Fiyatı" suffix="TL" value={form.purchasePrice}
+              onChange={(v) => setForm((f) => ({ ...f, purchasePrice: v }))} hint="Maliyetiniz (yalnız kâr hesabı için)" />
+            <SelectField label="KDV Oranı" value={form.vatRate}
+              onChange={(v) => setForm((f) => ({ ...f, vatRate: v as FormState["vatRate"] }))}
+              options={[["1", "%1"], ["10", "%10"], ["20", "%20"]]} />
+            <InputField type="number" label="Stok" required value={form.stock} onChange={(v) => setForm((f) => ({ ...f, stock: v }))} />
+            <InputField type="number" label="Desi" suffix="desi" value={form.desi}
+              onChange={(v) => setForm((f) => ({ ...f, desi: v }))} hint="Kargo ücreti buna göre hesaplanır" />
+            <InputField type="number" label="Hazırlık Süresi" suffix="gün" value={form.preparationDays}
+              onChange={(v) => setForm((f) => ({ ...f, preparationDays: v }))} />
+            <SelectField label="Gönderim Tipi" value={form.shippingType}
+              onChange={(v) => setForm((f) => ({ ...f, shippingType: v as FormState["shippingType"] }))}
+              options={[["MARKETPLACE_LOGISTICS", "Pazaryeri Lojistiği"], ["SELF_SHIPPING", "Kendi Kargom"]]} />
           </div>
+
+          {/* Canlı kâr / indirim özeti — satıcı fiyatı yazarken anında görür */}
+          {(() => {
+            const satis = Number(form.price) || 0;
+            const piyasa = Number(form.originalPrice) || 0;
+            const alis = Number(form.purchasePrice) || 0;
+            const indirim = piyasa > satis ? Math.round(((piyasa - satis) / piyasa) * 100) : 0;
+            const kar = alis > 0 && satis > 0 ? satis - alis : null;
+            const marj = kar !== null && satis > 0 ? Math.round((kar / satis) * 100) : null;
+            if (satis <= 0 && piyasa <= 0) return null;
+            return (
+              <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
+                {indirim > 0 && (
+                  <span className="rounded-lg bg-rose-50 px-3 py-1.5 text-rose-600">%{indirim} indirimli görünecek</span>
+                )}
+                {kar !== null && (
+                  <span className={`rounded-lg px-3 py-1.5 ${kar >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>
+                    {kar >= 0 ? "Kârınız" : "Zarar"}: {kar.toLocaleString("tr-TR")} TL{marj !== null ? ` (marj %${marj})` : ""}
+                  </span>
+                )}
+                <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-slate-500">
+                  Platform komisyonu kesildikten sonraki net hakediş Tahsilat sayfasında görünür
+                </span>
+              </div>
+            );
+          })()}
         </section>
 
         {/* Kategori Özellikleri (Dinamik / Kategoriye Özel Filtreler) */}
@@ -541,12 +611,29 @@ export function ProductFormModal({
           )}
         </section>
 
-        {/* Durum */}
+        {/* Gelişmiş — barkod/SKU/model kodu (boş bırakılırsa otomatik üretilir) */}
+        <details className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+          <summary className="cursor-pointer text-sm font-black text-slate-700">
+            Gelişmiş: Barkod / SKU / Model kodu (opsiyonel)
+          </summary>
+          <p className="mt-2 mb-3 text-xs text-slate-500">
+            Boş bırakırsanız sistem otomatik oluşturur. Kendi stok kodunuz varsa buraya yazın.
+          </p>
+          <div className="grid gap-4 md:grid-cols-3">
+            <InputField label="Barkod" value={form.barcode} onChange={(v) => setForm((f) => ({ ...f, barcode: v }))}
+              placeholder="Otomatik" hint="En az 8 hane" />
+            <InputField label="Model Kodu" value={form.modelCode} onChange={(v) => setForm((f) => ({ ...f, modelCode: v }))} placeholder="Otomatik" />
+            <InputField label="SKU" value={form.sku} onChange={(v) => setForm((f) => ({ ...f, sku: v }))} placeholder="Otomatik" />
+          </div>
+        </details>
+
+        {/* Yayın Durumu — yalnızca satıcının kararı (aktif/pasif). Onay sistemindir. */}
         <section>
           <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-700">Yayın Durumu</h4>
           <div className="grid gap-4 md:grid-cols-3">
-            <SelectField label="Satış Durumu" value={form.saleStatus} onChange={(v) => setForm((f) => ({ ...f, saleStatus: v as FormState["saleStatus"] }))} options={["ACTIVE", "PASSIVE"]} />
-            <SelectField label="Onay Durumu" value={form.approvalStatus} onChange={(v) => setForm((f) => ({ ...f, approvalStatus: v as FormState["approvalStatus"] }))} options={["PENDING", "APPROVED", "REJECTED"]} />
+            <SelectField label="Satış Durumu" value={form.saleStatus}
+              onChange={(v) => setForm((f) => ({ ...f, saleStatus: v as FormState["saleStatus"] }))}
+              options={[["ACTIVE", "Satışta (aktif)"], ["PASSIVE", "Vitrinden gizli (pasif)"]]} />
           </div>
         </section>
       </div>

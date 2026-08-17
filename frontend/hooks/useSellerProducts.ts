@@ -582,24 +582,35 @@ export function useSellerProducts() {
     const attributesObj = Object.fromEntries(
       categoryAttributes.filter((a) => a.key.trim() && a.value.trim()).map((a) => [a.key.trim(), a.value.trim()])
     );
+
+    // Barkod / SKU / Model kodu satıcı için gereksiz sürtünme; boşsa otomatik üretilir.
+    // (Backend barkod ≥8 hane ve SKU/model kodu zorunlu bekliyor.)
+    const uniq = Date.now().toString().slice(-9) + Math.floor(Math.random() * 900 + 100);
+    const nameSlug = (form.name || "urun")
+      .toLocaleUpperCase("tr")
+      .replace(/[^A-Z0-9]+/g, "")
+      .slice(0, 8) || "URUN";
+    const barcode = form.barcode.trim().length >= 8 ? form.barcode.trim() : `99${uniq}`;
+    const modelCode = form.modelCode.trim() || `${nameSlug}-${uniq.slice(-4)}`;
+    const sku = form.sku.trim() || `${nameSlug}-${uniq.slice(-6)}`;
+
+    // Zorunlu alanlar — satıcının gerçekten girmesi gerekenler
+    if (!form.name || form.name.trim().length < 3) { setError("Ürün adı en az 3 karakter olmalı."); return; }
+    if (!form.categoryMain || !form.categorySub) { setError("Kategori ve alt kategori seçin."); return; }
+    if (!form.brand) { setError("Marka seçin veya yazın."); return; }
     if (imageUrls.length === 0) { setError("En az 1 fotoğraf yükleyin."); return; }
     if (imageUrls.reduce((sum, item) => sum + item.length, 0) > MAX_IMAGE_PAYLOAD_CHARS) {
-      setError("Fotoğraf boyutu cok buyuk. Daha dusuk cozunurlukte gorsel yukleyin."); return;
+      setError("Fotoğraf boyutu çok büyük. Daha düşük çözünürlükte görsel yükleyin."); return;
     }
-    if (!form.name || form.name.trim().length < 3) { setError("Ürün adı en az 3 karakter olmalı."); return; }
-    if (!form.barcode || form.barcode.trim().length < 8) { setError("Barkod en az 8 karakter olmalı."); return; }
-    if (!form.modelCode || form.modelCode.trim().length < 1) { setError("Model kodu zorunlu."); return; }
-    if (!form.sku || form.sku.trim().length < 1) { setError("SKU zorunlu."); return; }
-    if (!form.categoryMain || !form.categorySub) { setError("Kategori ve alt kategori zorunlu."); return; }
-    if (!form.brand) { setError("Marka zorunlu."); return; }
-    if (!form.description || form.description.trim().length < 5) { setError("Ürün açıklaması en az 5 karakter olmalı."); return; }
     if (!form.price || Number(form.price) <= 0) { setError("Satış fiyatı 0'dan büyük olmalı."); return; }
-    if (!form.originalPrice || Number(form.originalPrice) <= 0) { setError("Normal fiyat 0'dan büyük olmalı."); return; }
-    if (!form.stock || Number(form.stock) < 0) { setError("Stok sayısı en az 0 olmalı."); return; }
+    if (!form.originalPrice || Number(form.originalPrice) <= 0) { setError("Piyasa fiyatı 0'dan büyük olmalı."); return; }
+    if (Number(form.price) > Number(form.originalPrice)) { setError("Satış fiyatı piyasa fiyatından yüksek olamaz."); return; }
+    if (form.stock === "" || Number(form.stock) < 0) { setError("Stok sayısı en az 0 olmalı."); return; }
+    if (!form.description || form.description.trim().length < 5) { setError("Ürün açıklaması en az 5 karakter olmalı."); return; }
     setSaving(true);
     try {
       const payload = {
-        barcode: form.barcode.trim(), modelCode: form.modelCode.trim(), sku: form.sku.trim(),
+        barcode, modelCode, sku,
         name: form.name.trim(),
         categoryPath: `${form.categoryMain.trim()} > ${form.categorySub.trim()}`,
         brand: form.brand.trim(), category: form.categoryMain.trim() || "Genel",
@@ -610,7 +621,8 @@ export function useSellerProducts() {
         bulletPoints: parseBullets(form.bulletPoints),
         desi: Number(form.desi), preparationDays: Number(form.preparationDays),
         shippingType: form.shippingType, saleStatus: form.saleStatus,
-        approvalStatus: form.approvalStatus, variants, extraServices: services,
+        // Onay durumunu satıcı belirlemez; sistem varsayılanı uygulanır
+        approvalStatus: "APPROVED", variants, extraServices: services,
         condition: form.condition, listingType: form.listingType,
         categoryAttributes: attributesObj,
       };

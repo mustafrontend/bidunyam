@@ -234,36 +234,60 @@ export const XMLUploadComponent: React.FC = () => {
     setFieldMapping(newMapping);
   };
 
+  const priceTL = (n: number) =>
+    Number(n || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
+
+  // Akış durumu: hangi adımdayız?
+  const urlValid = validateXmlUrl(xmlUrl);
+  const step = success ? 4 : preview ? 2 : 1;
+
   return (
-    <div className="space-y-6">
-      {/* Title */}
+    <div className="mx-auto max-w-4xl space-y-6">
+      {/* Başlık + adım göstergesi */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">XML ile Ürün İçeri Aktar</h1>
-        <p className="mt-2 text-slate-500">
-          XML linki kullanarak toplu ürün yüklemeleri yapabilirsiniz.
+        <h1 className="text-2xl font-black text-slate-900">XML ile Toplu Ürün Ekle</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Tedarikçinizin XML linkini yapıştırın; ürünler otomatik okunur, onaydan sonra mağazanıza eklenir.
         </p>
+
+        <ol className="mt-5 flex flex-wrap items-center gap-2 text-xs font-black">
+          {[
+            { n: 1, label: "Linki Yapıştır" },
+            { n: 2, label: "Önizle & Kontrol Et" },
+            { n: 3, label: "Kaydet" },
+          ].map((s, i) => (
+            <li key={s.n} className="flex items-center gap-2">
+              <span
+                className={`flex h-7 w-7 items-center justify-center rounded-full ${
+                  step > s.n || step === 4
+                    ? "bg-emerald-500 text-white"
+                    : step === s.n
+                      ? "bg-[#ff6000] text-white"
+                      : "bg-slate-200 text-slate-500"
+                }`}
+              >
+                {step > s.n || step === 4 ? "✓" : s.n}
+              </span>
+              <span className={step >= s.n ? "text-slate-800" : "text-slate-400"}>{s.label}</span>
+              {i < 2 && <span className="mx-1 h-px w-6 bg-slate-200" />}
+            </li>
+          ))}
+        </ol>
       </div>
 
-      {/* Sample XML Download */}
-      <div className="rounded-lg border border-slate-200 bg-blue-50 p-4">
-        <p className="text-sm text-blue-900 font-medium mb-2">📋 XML Format Örneği</p>
-        <p className="text-xs text-blue-700 mb-3">
-          Doğru formatı kullanmak için örnek XML dosyasını indirebilirsiniz.
-        </p>
-        <button
-          onClick={handleDownloadSample}
-          className="inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-        >
-          📥 Örnek XML İndir
-        </button>
-      </div>
+      {/* ADIM 1 — XML linki + büyük Önizle butonu */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6">
+        <div className="mb-3 flex items-center justify-between">
+          <label className="flex items-center gap-2 text-sm font-black text-slate-900">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ff6000] text-xs text-white">1</span>
+            XML Linkini Yapıştırın
+          </label>
+          <button onClick={handleDownloadSample} className="text-xs font-bold text-blue-600 hover:underline">
+            📥 Örnek XML indir
+          </button>
+        </div>
 
-      {/* XML URL Section */}
-      <div className="rounded-lg border border-slate-200 p-6">
-        <label className="block text-sm font-semibold text-slate-900 mb-3">
-          XML Linki
-        </label>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <input
             ref={inputRef}
             type="url"
@@ -272,136 +296,150 @@ export const XMLUploadComponent: React.FC = () => {
               setXmlUrl(e.target.value);
               setError(null);
               setPreview(null);
+              setSuccess(null);
             }}
-            placeholder="https://www.dropsepetim.com/012546xml.php?mid=91"
+            placeholder="https://tedarikci.com/xml.php?id=91"
             disabled={loading}
-            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition-colors focus:border-[#ff6000]"
+            className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition-colors focus:border-[#ff6000] focus:bg-white"
           />
+          <button
+            onClick={handlePreview}
+            disabled={!urlValid || loading}
+            className="shrink-0 rounded-xl bg-[#ff6000] px-6 py-3 text-sm font-black text-white transition-colors hover:bg-[#e05500] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {loading && !preview ? "⏳ Okunuyor…" : "👁️ Ürünleri Önizle"}
+          </button>
         </div>
-        <p className="mt-2 text-xs text-slate-500">
-          Örnek: https://www.dropsepetim.com/012546xml.php?mid=91
+        <p className="mt-2 text-xs text-slate-400">
+          {xmlUrl && !urlValid
+            ? "⚠️ Geçerli, herkese açık bir http/https linki girin (localhost olmaz)."
+            : "Linki yapıştırıp “Ürünleri Önizle”ye basın — hiçbir şey kaydedilmez, önce görürsünüz."}
         </p>
       </div>
 
-      {/* Preview Section */}
+      {/* ADIM 2 — Önizleme */}
       {preview && (
-        <div className="rounded-lg border border-slate-200 p-6 space-y-4">
-          <h3 className="font-semibold text-slate-900">📊 XML Özeti</h3>
+        <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ff6000] text-xs text-white">2</span>
+            <h3 className="text-sm font-black text-slate-900">Ürünleri Kontrol Edin</h3>
+          </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-lg bg-slate-50 p-4">
-              <p className="text-xs text-slate-600">Toplam Ürün</p>
-              <p className="text-2xl font-bold text-slate-900">{preview.totalProducts}</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl bg-slate-50 p-4">
+              <p className="text-xs font-bold text-slate-500">Toplam Ürün</p>
+              <p className="text-2xl font-black text-slate-900">{preview.totalProducts}</p>
             </div>
-            <div className="rounded-lg bg-green-50 p-4">
-              <p className="text-xs text-green-600">Geçerli Ürün</p>
-              <p className="text-2xl font-bold text-green-600">{preview.validProducts}</p>
+            <div className="rounded-xl bg-emerald-50 p-4">
+              <p className="text-xs font-bold text-emerald-600">Geçerli</p>
+              <p className="text-2xl font-black text-emerald-600">{preview.validProducts}</p>
             </div>
-            <div className={`rounded-lg p-4 ${preview.invalidProducts > 0 ? "bg-red-50" : "bg-green-50"}`}>
-              <p className={`text-xs ${preview.invalidProducts > 0 ? "text-red-600" : "text-green-600"}`}>
-                Hatalı Ürün
-              </p>
-              <p className={`text-2xl font-bold ${preview.invalidProducts > 0 ? "text-red-600" : "text-green-600"}`}>
+            <div className={`rounded-xl p-4 ${preview.invalidProducts > 0 ? "bg-red-50" : "bg-slate-50"}`}>
+              <p className={`text-xs font-bold ${preview.invalidProducts > 0 ? "text-red-600" : "text-slate-500"}`}>Hatalı</p>
+              <p className={`text-2xl font-black ${preview.invalidProducts > 0 ? "text-red-600" : "text-slate-400"}`}>
                 {preview.invalidProducts}
               </p>
             </div>
           </div>
 
-          {/* Errors */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800">
+            💡 Aşağıdaki <b>fiyatların doğru</b> geldiğini kontrol edin. Yanlışsa “Alan eşleştirme”den fiyat alanını düzeltin.
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-100">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  {["", "Ürün", "Barkod", "Kategori", "Fiyat", "Stok"].map((h) => (
+                    <th key={h} className="px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-slate-500">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {preview.preview.map((p: any, idx: number) => (
+                  <tr key={idx} className="hover:bg-slate-50/60">
+                    <td className="px-3 py-2.5">
+                      {p.resim ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.resim} alt="" className="h-10 w-10 rounded-lg bg-slate-100 object-cover" />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400">📦</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <p className="max-w-[220px] truncate font-bold text-slate-800">{p.urunAdi}</p>
+                      {p.marka && p.marka !== "N/A" && <p className="text-[11px] text-slate-400">{p.marka}</p>}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-xs text-slate-500">{p.barkodno}</td>
+                    <td className="px-3 py-2.5 text-xs text-slate-600">
+                      {p.kategori}
+                      {p.altKategori && p.altKategori !== "N/A" ? ` › ${p.altKategori}` : ""}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2.5">
+                      <span className="font-black text-slate-900">{priceTL(p.fiyat)}</span>
+                      {p.listeFiyati > 0 && (
+                        <span className="ml-1 text-[11px] text-slate-400 line-through">{priceTL(p.listeFiyati)}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className={`font-bold ${p.stok < 5 ? "text-red-500" : "text-slate-700"}`}>{p.stok}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-slate-400">
+            İlk {preview.preview.length} ürün gösteriliyor. Kaydettiğinizde tüm {preview.totalProducts} ürün aktarılır.
+          </p>
+
           {Object.keys(preview.errors).length > 0 && (
-            <div className="rounded-lg bg-red-50 p-4">
-              <p className="font-medium text-red-900 mb-2">⚠️ Hatalı Ürünler</p>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {Object.entries(preview.errors).map(([index, errors]) => (
+            <details className="rounded-xl bg-red-50 p-4">
+              <summary className="cursor-pointer text-sm font-black text-red-800">
+                ⚠️ {Object.keys(preview.errors).length} hatalı ürün (tıklayıp görün)
+              </summary>
+              <div className="mt-2 max-h-40 space-y-1.5 overflow-y-auto">
+                {Object.entries(preview.errors).map(([index, errs]) => (
                   <div key={index} className="text-xs text-red-700">
-                    <p className="font-semibold">Ürün {parseInt(index) + 1}:</p>
-                    <ul className="list-disc list-inside ml-2">
-                      {errors.map((error, i) => (
-                        <li key={i}>{error}</li>
-                      ))}
-                    </ul>
+                    <b>Ürün {parseInt(index) + 1}:</b> {(errs as string[]).join(", ")}
                   </div>
                 ))}
               </div>
-            </div>
+            </details>
           )}
 
-          {/* Preview Products */}
-          <div>
-            <p className="text-sm font-semibold text-slate-900 mb-3">Ürün Önizlemesi (İlk 10)</p>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {preview.preview.map((product, idx) => (
-                <div key={idx} className="rounded-lg bg-slate-50 p-3 text-sm">
-                  <p className="font-semibold text-slate-900">{product.urunAdi}</p>
-                  <p className="text-xs text-slate-600">
-                    Barkod: {product.barkodno} • Fiyat: {product.fiyat} TL • Stok: {product.stok}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Dynamic Mapping Section */}
-      {preview && (
-        <div className="rounded-lg border border-slate-200 p-6 space-y-4">
-          <h3 className="font-semibold text-slate-900">⚙️ XML Alan Eşleştirme & Otomatik Güncelleme (Opsiyonel)</h3>
-          <p className="text-xs text-slate-500">
-            Eğer XML dosyanız varsayılan alan adlarını kullanmıyorsa, aşağıdaki alanlara XML etiketlerinizi yazarak eşleştirebilirsiniz. Saatlik otomatik senkronizasyon başlatmak için entegrasyon adı belirleyip "Otomatik Görev Oluştur" butonuna basınız.
-          </p>
-
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex-1">
-              <label className="block text-xs font-semibold text-slate-700">Entegrasyon Adı (Örn: Tedarikçi A)</label>
-              <input type="text" value={feedName} onChange={(e) => setFeedName(e.target.value)} className="mt-1 w-1/2 rounded border px-2 py-1 text-sm outline-none" />
-            </div>
+          <details className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <summary className="cursor-pointer text-sm font-black text-slate-800">
+              ⚙️ Fiyat/kategori yanlış mı geliyor? Alan eşleştirmeyi aç
+            </summary>
+            <p className="mt-2 text-xs text-slate-500">
+              XML’iniz farklı etiket adları kullanıyorsa (örn. fiyat yerine <code>satis</code>), doğru XML alanını seçip
+              yeniden önizleyin.
+            </p>
             {preview.rawProduct && Object.keys(preview.rawProduct).length > 0 && (
               <button
                 onClick={handleAutoMatch}
-                className="ml-4 inline-flex items-center gap-2 rounded-lg bg-[#ff6000] px-4 py-2 text-sm font-semibold text-white hover:bg-[#e05500] transition-colors"
+                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#ff6000] px-4 py-2 text-sm font-bold text-white hover:bg-[#e05500]"
               >
-                ✨ Akıllı Eşleştir
+                ✨ Otomatik Eşleştir
               </button>
             )}
-          </div>
-
-          {/* Dinamik Alan Eşleme — tespit edilen XML alanlarından seçim */}
-          {(() => {
-            const detected = preview.rawProduct ? Object.keys(preview.rawProduct) : [];
-            const sample = (k: string) => {
-              const v = (preview.rawProduct as any)?.[k];
-              const s = v === undefined || v === null ? "" : String(v);
-              return s.length > 40 ? s.slice(0, 40) + "…" : s;
-            };
-            const mappedCount = Object.keys(fieldMapping).filter((k) => (fieldMapping as any)[k]).length;
-
-            return (
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-black text-slate-800">Alan Eşleme</p>
-                    <p className="text-xs text-slate-500">
-                      XML'inizde <span className="font-bold text-slate-700">{detected.length} alan</span> bulundu. Her biDünyam alanı için karşılığını seçin.
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600 shadow-sm">
-                    {mappedCount}/{Object.keys(fieldMapping).length} eşleşti
-                  </span>
-                </div>
-
-                {detected.length === 0 ? (
-                  <p className="rounded-lg border border-dashed border-slate-300 bg-white py-6 text-center text-sm font-semibold text-slate-400">
-                    Alanları görebilmek için önce XML'i önizleyin.
-                  </p>
-                ) : (
-                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {(() => {
+              const detected = preview.rawProduct ? Object.keys(preview.rawProduct) : [];
+              const sample = (k: string) => {
+                const v = (preview.rawProduct as any)?.[k];
+                const str = v === undefined || v === null ? "" : String(v);
+                return str.length > 40 ? str.slice(0, 40) + "…" : str;
+              };
+              if (detected.length === 0) return null;
+              return (
+                <>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {Object.keys(fieldMapping).map((key) => {
                       const meta = FIELD_META[key] || { label: key, hint: "" };
                       const selected = (fieldMapping as any)[key] as string;
                       return (
-                        <div key={key} className="rounded-lg border border-slate-200 bg-white p-3">
+                        <div key={key} className="rounded-lg border border-slate-200 bg-white p-2.5">
                           <label className="mb-1 flex items-center gap-1 text-xs font-black text-slate-700">
                             {meta.label}
                             {meta.required && <span className="text-red-500">*</span>}
@@ -415,89 +453,134 @@ export const XMLUploadComponent: React.FC = () => {
                           >
                             <option value="">— Otomatik / Yok —</option>
                             {detected.map((f) => (
-                              <option key={f} value={f}>{f}</option>
+                              <option key={f} value={f}>
+                                {f}
+                              </option>
                             ))}
                           </select>
                           <p className="mt-1 truncate text-[11px] text-slate-400" title={selected ? sample(selected) : meta.hint}>
-                            {selected ? <><span className="font-semibold text-emerald-600">örnek:</span> {sample(selected) || "(boş)"}</> : meta.hint}
+                            {selected ? (
+                              <>
+                                <span className="font-semibold text-emerald-600">örnek:</span> {sample(selected) || "(boş)"}
+                              </>
+                            ) : (
+                              meta.hint
+                            )}
                           </p>
                         </div>
                       );
                     })}
                   </div>
-                )}
-
-                {detected.length > 0 && (
                   <button
                     onClick={handlePreview}
                     disabled={loading}
-                    className="mt-4 w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition-colors hover:border-[#ff6000] hover:text-[#ff6000] disabled:opacity-50"
+                    className="mt-3 w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition-colors hover:border-[#ff6000] hover:text-[#ff6000] disabled:opacity-50"
                   >
                     {loading ? "⏳ Uygulanıyor…" : "🔄 Eşlemeyi Uygula ve Yeniden Önizle"}
                   </button>
-                )}
-              </div>
-            );
-          })()}
-          
+                </>
+              );
+            })()}
+          </details>
+        </div>
+      )}
+
+      {/* ADIM 3 — Kaydet */}
+      {preview && !success && (
+        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ff6000] text-xs text-white">3</span>
+            <h3 className="text-sm font-black text-slate-900">Kaydet ve Otomatik Güncellemeyi Başlat</h3>
+          </div>
+          <div>
+            <label className="block text-xs font-black text-slate-700">Bu entegrasyona bir ad verin</label>
+            <input
+              type="text"
+              value={feedName}
+              onChange={(e) => setFeedName(e.target.value)}
+              placeholder="Örn: Tedarikçi A — Elektronik"
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#ff6000] focus:bg-white sm:w-2/3"
+            />
+            <p className="mt-1.5 text-xs text-slate-400">
+              Kaydedince bu XML her saat otomatik kontrol edilir; fiyat ve stok kendiliğinden güncellenir.
+            </p>
+          </div>
           <button
             onClick={handleCreateFeed}
             disabled={loading || !feedName.trim()}
-            className="w-full rounded-lg bg-[#ff6000] px-6 py-3 text-sm font-black text-white hover:bg-[#e05500] disabled:opacity-50 transition-colors"
+            className="w-full rounded-xl bg-[#ff6000] px-6 py-3.5 text-sm font-black text-white transition-colors hover:bg-[#e05500] disabled:opacity-50"
           >
-            {loading ? "⏳ İşleniyor..." : "🚀 Kaydet & Otomatik Güncellemeyi Başlat"}
+            {loading ? "⏳ Kaydediliyor..." : "🚀 Kaydet & Ürünleri Aktar"}
           </button>
         </div>
       )}
 
-      {/* Error Message */}
+      {/* Hata */}
       {error && (
-        <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-semibold mb-1">❌ Hata</p>
+        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
+          <p className="mb-0.5 font-bold">❌ Bir sorun oldu</p>
           <p>{error}</p>
         </div>
       )}
 
-      {/* Success Message */}
+      {/* BAŞARILI — toplu işleme yönlendir */}
       {success && (
-        <div className="rounded-lg bg-green-50 p-6 space-y-4 border border-green-200">
+        <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
           <div>
-            <p className="font-semibold mb-1 text-green-900">✅ {success.message}</p>
-            <p className="text-xs text-green-700">
-              XML Adı: <strong>{success.xmlFileName}</strong> • Tarihi: <strong>{new Date(success.importedAt).toLocaleString('tr-TR')}</strong>
+            <p className="text-base font-black text-emerald-900">✅ {success.message}</p>
+            <p className="mt-1 text-xs text-emerald-700">
+              Entegrasyon: <strong>{success.xmlFileName}</strong>
+              {success.data?.publication && (
+                <>
+                  {" "}
+                  • Aktarılan ürün: <strong>{success.data.publication.totalProducts}</strong>
+                </>
+              )}
             </p>
-            {success.data?.publication && (
-              <p className="mt-1 text-xs text-green-800">
-                Yayın İsteği: <strong>{success.data.publication.requestId}</strong> • Durum: <strong>{success.data.publication.status}</strong> • Satışa Açılan Ürün: <strong>{success.data.publication.totalProducts}</strong>
-              </p>
-            )}
           </div>
+
+          <div className="rounded-xl border border-emerald-200 bg-white p-4">
+            <p className="text-sm font-black text-slate-800">💰 Şimdi toplu fiyat işlemi yapın</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Bu XML’den gelen tüm ürünlere tek seferde kâr marjı ekleyebilir, indirim uygulayabilir veya fiyatları
+              toptan güncelleyebilirsiniz. Kurallarınız her senkronda korunur.
+            </p>
+            <a
+              href="/yonetim/urunler?tab=xml"
+              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800"
+            >
+              ⚙️ Ürünleri Gör & Toplu Fiyat Uygula →
+            </a>
+          </div>
+
+          <button
+            onClick={() => {
+              setSuccess(null);
+              setPreview(null);
+              setXmlUrl("");
+              setFeedName("");
+            }}
+            className="text-xs font-bold text-emerald-700 hover:underline"
+          >
+            + Yeni bir XML daha ekle
+          </button>
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex gap-3">
-        <button
-          onClick={handlePreview}
-          disabled={!validateXmlUrl(xmlUrl) || loading}
-          className="flex-1 rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-black text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
-        >
-          {loading ? "⏳ Yükleniyor..." : "👁️ XML Bağlantısını Önizle"}
-        </button>
-      </div>
-
-      {/* Info Box */}
-      <div className="rounded-lg bg-slate-50 p-4 text-xs text-slate-600 space-y-1">
-        <p>📝 <strong>XML Format Gereksinimleri:</strong></p>
-        <ul className="list-disc list-inside space-y-1 ml-2">
-          <li>Tüm ürünler &lt;urunler&gt; tag'ı altında &lt;urun&gt; elemanları olmalıdır</li>
-          <li>Gerekli alanlar: urunKodu, urunAdi, fiyat, stok</li>
-          <li>Opsiyonel alanlar: kategori, aciklama, resim, marka</li>
-          <li>Link https/http olmalı ve XML döndürmelidir</li>
-          <li>Maksimum dosya boyutu: 10MB</li>
-          <li>Fiyat ve stok sayısal değerler olmalıdır</li>
-        </ul>
-      </div>
+      {/* Yardım kutusu */}
+      {!preview && !success && (
+        <div className="space-y-1.5 rounded-xl bg-slate-50 p-4 text-xs text-slate-500">
+          <p className="font-bold text-slate-700">📝 Nasıl çalışır?</p>
+          <ul className="ml-1 list-inside list-disc space-y-1">
+            <li>Tedarikçinizin verdiği XML linkini yukarı yapıştırın.</li>
+            <li>“Ürünleri Önizle” ile fiyat, stok ve kategorilerin doğru geldiğini görün.</li>
+            <li>Doğruysa bir ad verip kaydedin — ürünler onaydan sonra mağazanıza eklenir.</li>
+            <li>
+              Sonra tüm ürünlere <b>toptan fiyat/kâr işlemi</b> uygulayabilirsiniz.
+            </li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 };

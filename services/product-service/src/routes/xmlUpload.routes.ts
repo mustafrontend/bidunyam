@@ -315,20 +315,22 @@ router.post('/admin/xml/preview-url', authenticate, async (req: AuthenticatedReq
       invalidProducts: Object.keys(validation.errors).length,
       errors: validation.errors,
       rawProduct: products.length > 0 ? (products[0] as any)._rawProduct || {} : {},
-      // Parser'ın normalize ettiği (eşlemeye göre çözülmüş) alanları döndür
-      preview: products.slice(0, 10).map((p: any) => {
-        const priceStr = String(p.fiyat ?? '0');
-        const price = parseFloat(priceStr.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-
+      // Parser'ın normalize ettiği (eşlemeye göre çözülmüş) alanları döndür.
+      // Fiyat, Türkçe biçimi ("1.299,00") doğru çözen parseDecimal ile okunur;
+      // naive .replace(',', '.') "1.299,00"u 1,30'a düşürüyordu.
+      preview: products.slice(0, 12).map((p: any) => {
+        const price = parseDecimal(p.fiyat);
+        const liste = parseDecimal(p.listeFiyati);
         return {
           kategori: p.kategori || 'N/A',
           altKategori: p.altkategori || 'N/A',
           urunAdi: p.urunAdi || 'Eşleşmedi',
           barkodno: p.urunKodu || 'N/A',
           fiyat: price,
-          bayiFiyati: price,
-          resim: p.resim ? String(p.resim).substring(0, 50) + '...' : 'N/A',
-          stok: p.stok ?? 0,
+          listeFiyati: liste > price ? liste : 0,
+          bayiFiyati: parseDecimal(p.alisFiyati) || price,
+          resim: p.resim ? String(p.resim) : '',
+          stok: Number(p.stok ?? 0) || 0,
           marka: p.marka || 'N/A',
         };
       }),

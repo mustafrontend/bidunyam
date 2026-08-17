@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSellerProducts } from "@/hooks/useSellerProducts";
 import { InventoryTable } from "@/components/admin/InventoryTable";
 import { ProductFormModal } from "@/components/admin/ProductFormModal";
@@ -306,6 +306,14 @@ function XmlTab({ state }: { state: ReturnType<typeof useSellerProducts> }) {
 export default function UrunlerPage() {
   const state = useSellerProducts();
   const [bulkUpdating, setBulkUpdating] = useState(false);
+
+  // XML import ekranından "toplu fiyat uygula" ile gelinince XML sekmesi açılsın
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "xml") {
+      state.setActiveTab("XML");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   const handleBulkStatus = async (isActive: boolean) => {

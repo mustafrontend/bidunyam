@@ -182,8 +182,25 @@ function HomeContent() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-slate-50">
-        <div className="w-full max-w-[1600px] px-4 md:px-10 xl:px-14 py-6 md:py-8 space-y-10 md:space-y-14 mx-auto">
+      <div className="relative min-h-screen bg-slate-50 overflow-hidden">
+
+        {/* Ambient Subtle Light White-Orange Wave Background */}
+        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden select-none">
+          {/* Radial Glow 1 - Top Left Orange Wave Aura */}
+          <div className="absolute -top-40 -left-40 w-[700px] h-[700px] rounded-full bg-gradient-to-br from-[#ff5000]/12 via-orange-300/8 to-transparent blur-[140px]" />
+          
+          {/* Radial Glow 2 - Top Right Soft Amber Wave Aura */}
+          <div className="absolute top-32 -right-40 w-[750px] h-[750px] rounded-full bg-gradient-to-bl from-amber-400/10 via-[#ff5000]/6 to-transparent blur-[160px]" />
+
+          {/* Radial Glow 3 - Mid Page Glow */}
+          <div className="absolute top-[40%] left-1/2 -translate-x-1/2 w-[900px] h-[550px] rounded-full bg-gradient-to-r from-orange-200/12 via-amber-100/15 to-orange-100/6 blur-[170px]" />
+
+          {/* Subtle Ambient Radial Pattern Overlay */}
+          <div className="absolute inset-0 bg-[radial-gradient(#ff5000_0.75px,transparent_0.75px)] [background-size:28px_28px] opacity-[0.035]" />
+        </div>
+
+        {/* Content Container */}
+        <div className="relative z-10 w-full max-w-[1600px] px-4 md:px-10 xl:px-14 py-6 md:py-8 space-y-10 md:space-y-14 mx-auto">
 
           {/* 1. Global Sources 3-Sütunlu Hero Layout (Sol: Kategoriler, Orta: Slider + 4 Kart, Sağ: En Popüler) */}
           <GlobalSourcesHero products={products} />

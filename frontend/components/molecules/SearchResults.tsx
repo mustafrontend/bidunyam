@@ -149,18 +149,32 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     );
   }
 
+  const displayCategories = Array.from(
+    new Set([
+      ...(categories || []),
+      ...results.map((r) => r.category).filter(Boolean),
+    ])
+  );
+
+  const displayBrands = Array.from(
+    new Set([
+      ...(brands || []),
+      ...results.map((r) => r.brand).filter(Boolean),
+    ])
+  );
+
   return (
     <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border-[0.5px] border-slate-200 bg-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 select-none">
-      {(results.length > 0 || categories.length > 0 || subCategories.length > 0 || brands.length > 0) ? (
+      {(results.length > 0 || displayCategories.length > 0 || subCategories.length > 0 || displayBrands.length > 0) ? (
         <div className="py-2 max-h-[400px] overflow-y-auto divide-y divide-slate-100">
           
           {/* Categories Section */}
-          {categories.length > 0 && (
+          {displayCategories.length > 0 && (
             <div className="pb-2">
               <div className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50/50">
                 Kategoriler
               </div>
-              {categories.map((cat, idx) => (
+              {displayCategories.map((cat, idx) => (
                 <Link
                   key={`cat-${idx}`}
                   href={`/arama?kategori=${encodeURIComponent(cat)}`}
@@ -204,15 +218,15 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           )}
 
           {/* Brands Section */}
-          {brands.length > 0 && (
+          {displayBrands.length > 0 && (
             <div className="pb-2">
               <div className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50/50">
                 Markalar
               </div>
-              {brands.map((brand, idx) => (
+              {displayBrands.map((brand, idx) => (
                 <Link
                   key={`brand-${idx}`}
-                  href={`/?brand=${encodeURIComponent(brand)}`}
+                  href={`/arama?brand=${encodeURIComponent(brand)}`}
                   onClick={onClose}
                   className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50 text-xs font-bold text-slate-700"
                 >

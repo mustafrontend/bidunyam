@@ -255,7 +255,10 @@ export const Navbar: React.FC = () => {
               <div className="relative shrink-0 border-r border-slate-200" ref={catDropdownRef}>
                 <button
                   type="button"
-                  onClick={() => setIsCatDropdownOpen(!isCatDropdownOpen)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCatDropdownOpen((prev) => !prev);
+                  }}
                   className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors select-none rounded-l-full"
                 >
                   <span className="truncate max-w-[110px]">{selectedCategory}</span>

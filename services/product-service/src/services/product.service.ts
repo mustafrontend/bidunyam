@@ -276,7 +276,34 @@ export const ProductService = {
       }
     }
 
-    if (fixed || removed) console.log(`[Category Cleanup] ${fixed} ürün yolu düzeltildi, ${removed} çöp kategori silindi`);
+    // 3) Kanonik kategorilerin altında biriken taksonomi gürültüsünü buda:
+    //    taksonomide olmayan VE hiç ürünü olmayan alt kategorileri sil.
+    //    (XML feed'i "Elektronik" altına yüzlerce Google alt kategorisi
+    //     eklemişti; kanonik olduğu için ana kategori silinmedi.)
+    const { TAXONOMY } = await import('../data/taxonomy');
+    const allowedSubs = new Set<string>();
+    for (const cat of TAXONOMY) for (const sub of cat.subCategories) allowedSubs.add(sub.name.toLocaleLowerCase('tr'));
+
+    let prunedSubs = 0;
+    const canonicalCats = await prisma.category.findMany({
+      where: { name: { in: CANONICAL_CATEGORIES as unknown as string[] } },
+      include: { subCategories: true },
+    });
+    for (const cat of canonicalCats) {
+      for (const sub of cat.subCategories) {
+        if (allowedSubs.has(sub.name.toLocaleLowerCase('tr'))) continue;
+        const used = await prisma.product.count({
+          where: { categoryPath: `${cat.name} > ${sub.name}` },
+        });
+        if (used === 0) {
+          await prisma.subCategory.delete({ where: { id: sub.id } }).catch(() => null);
+          prunedSubs++;
+        }
+      }
+    }
+
+    if (fixed || removed || prunedSubs)
+      console.log(`[Category Cleanup] ${fixed} ürün yolu düzeltildi, ${removed} çöp kategori, ${prunedSubs} çöp alt kategori silindi`);
   },
 
   // Taksonomi + filtre şablonlarını seed'ler (kategori/alt kategori tabloları + şablonlar)

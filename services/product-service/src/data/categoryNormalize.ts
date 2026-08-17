@@ -76,6 +76,20 @@ const SUB_ALIASES: Record<string, string> = {
 
 const canonSet = new Set(CANONICAL_CATEGORIES.map((c) => c.toLocaleLowerCase('tr')));
 
+// Anahtar kelime → kanonik (alias'ta birebir eşleşme yoksa devreye girer).
+// Sıra önemli: en ayırt edici anahtarlar önce. Google taksonomisinden gelen
+// serbest kategori adlarını 8 kanonik kovaya indirger.
+const KEYWORD_RULES: Array<[RegExp, string]> = [
+  [/telefon|tablet|bilgisayar|laptop|kamera|elektronik|yazılım|optik|fotoğraf|kulaklık|konsol/, 'Elektronik'],
+  [/bebek|çocuk|oyuncak|\banne\b/, 'Anne & Bebek'],
+  [/spor|outdoor|fitness|kamp|bisiklet/, 'Spor & Outdoor'],
+  [/kozmetik|güzellik|sağlık|makyaj|parfüm|cilt|kişisel bakım/, 'Kozmetik'],
+  [/kitap|kırtasiye|büro|medya|müzik|film|sanat|ofis|\bhobi\b|eğlence/, 'Kitap & Kırtasiye'],
+  [/market|gıda|yiyecek|içecek|tütün/, 'Süpermarket'],
+  [/moda|giyim|kıyafet|ayakkabı|çanta|bavul|bijuteri|aksesuar|takı|gözlük|tekstil|\bsaat\b/, 'Moda'],
+  [/mobilya|bahçe|hırdavat|yapı|dekor|mutfak|beyaz eşya|aydınlatma|\bev\b/, 'Ev & Yaşam'],
+];
+
 /** Ana kategori adını kanonik ada çevirir; eşleşme yoksa temizlenmiş hâlini döndürür. */
 export function normalizeMainCategory(raw?: string): string {
   const name = (raw || '').trim();
@@ -85,7 +99,12 @@ export function normalizeMainCategory(raw?: string): string {
     // Kanonik (büyük/küçük harf düzelt)
     return CANONICAL_CATEGORIES.find((c) => c.toLocaleLowerCase('tr') === key)!;
   }
-  return MAIN_ALIASES[key] || name;
+  if (MAIN_ALIASES[key]) return MAIN_ALIASES[key];
+  // Anahtar kelimeyle en yakın kanonik kovaya eşle
+  for (const [re, dst] of KEYWORD_RULES) {
+    if (re.test(key)) return dst;
+  }
+  return name;
 }
 
 /** Alt kategori adını düzeltir; boş dönerse ara kademe olarak atılmalıdır. */

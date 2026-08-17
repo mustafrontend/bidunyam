@@ -264,12 +264,12 @@ export const ProductService = {
     const cats = await prisma.category.findMany({ include: { subCategories: true } });
     let removed = 0;
     for (const c of cats) {
-      const canon = normalizeMainCategory(c.name);
       const isCanonical = (CANONICAL_CATEGORIES as readonly string[]).includes(c.name);
       if (isCanonical) continue;
-      // Kanonik değilse ve bu ada bağlı ürün yoksa sil (alias/çöp)
+      // Kanonik olmayan ve hiç ürünü olmayan kategori güvenle silinir
+      // (alt kategorileri yalnız taksonomi gürültüsü — ürün bağlı değil).
       const usedByProduct = await prisma.product.count({ where: { categoryName: c.name } });
-      if (usedByProduct === 0 && (canon !== c.name || c.subCategories.length === 0)) {
+      if (usedByProduct === 0) {
         await prisma.subCategory.deleteMany({ where: { categoryId: c.id } }).catch(() => null);
         await prisma.category.delete({ where: { id: c.id } }).catch(() => null);
         removed++;

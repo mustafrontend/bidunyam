@@ -184,19 +184,23 @@ function HomeContent() {
     <ErrorBoundary>
       <div className="relative min-h-screen bg-slate-50 overflow-hidden">
 
-        {/* Ambient Subtle Light White-Orange Wave Background */}
+        {/* Ultra-Soft Silky Ambient Orange & Cream Background Glow (Subtle Premium Mesh Wave) */}
         <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden select-none">
-          {/* Radial Glow 1 - Top Left Orange Wave Aura */}
-          <div className="absolute -top-40 -left-40 w-[700px] h-[700px] rounded-full bg-gradient-to-br from-[#ff5000]/12 via-orange-300/8 to-transparent blur-[140px]" />
           
-          {/* Radial Glow 2 - Top Right Soft Amber Wave Aura */}
-          <div className="absolute top-32 -right-40 w-[750px] h-[750px] rounded-full bg-gradient-to-bl from-amber-400/10 via-[#ff5000]/6 to-transparent blur-[160px]" />
+          {/* Soft Glow 1 - Top Left Orange Aura */}
+          <div className="absolute -top-[300px] -left-[200px] w-[950px] h-[950px] rounded-full bg-gradient-to-br from-[#ff5000]/10 via-orange-300/6 to-transparent blur-[180px]" />
+          
+          {/* Soft Glow 2 - Top Right Amber Cream Aura */}
+          <div className="absolute -top-[200px] -right-[200px] w-[1000px] h-[1000px] rounded-full bg-gradient-to-bl from-amber-300/12 via-[#ff5000]/4 to-transparent blur-[200px]" />
 
-          {/* Radial Glow 3 - Mid Page Glow */}
-          <div className="absolute top-[40%] left-1/2 -translate-x-1/2 w-[900px] h-[550px] rounded-full bg-gradient-to-r from-orange-200/12 via-amber-100/15 to-orange-100/6 blur-[170px]" />
+          {/* Soft Glow 3 - Mid Page Center Warmth */}
+          <div className="absolute top-[35%] left-1/2 -translate-x-1/2 w-[1100px] h-[700px] rounded-full bg-gradient-to-r from-orange-200/8 via-amber-100/10 to-orange-100/4 blur-[220px]" />
 
-          {/* Subtle Ambient Radial Pattern Overlay */}
-          <div className="absolute inset-0 bg-[radial-gradient(#ff5000_0.75px,transparent_0.75px)] [background-size:28px_28px] opacity-[0.035]" />
+          {/* Soft Glow 4 - Bottom Page Warmth */}
+          <div className="absolute -bottom-[350px] left-1/2 -translate-x-1/2 w-[1300px] h-[850px] rounded-full bg-gradient-to-t from-orange-300/8 via-amber-100/5 to-transparent blur-[240px]" />
+
+          {/* Ultra Subtle Radial Texture */}
+          <div className="absolute inset-0 bg-[radial-gradient(#ff5000_0.75px,transparent_0.75px)] [background-size:36px_36px] opacity-[0.02]" />
         </div>
 
         {/* Content Container */}

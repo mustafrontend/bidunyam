@@ -167,35 +167,39 @@ export const GlobalSourcesHero: React.FC<GlobalSourcesHeroProps> = ({ products =
       {/* 3-Sütunlu Global Sources Stili Ana Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
 
-        {/* 1. Sol Sütun: Dikey Kategoriler Menüsü (Global Sources Style Categories) */}
-        <div className="hidden lg:block lg:col-span-3 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col justify-between py-2">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        {/* 1. Sol Sütun: Dikey Kategoriler Menüsü (Unified Clean Global Sources Style) */}
+        <div className="hidden lg:flex lg:flex-col lg:col-span-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs py-2 overflow-hidden">
+          {/* Sidebar Header */}
+          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2 font-black text-sm text-slate-900 tracking-tight">
               <span className="text-lg leading-none text-[#ff5000]">≡</span>
               <span>Kategoriler</span>
             </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tümü</span>
+            <Link href="/arama" className="text-[10px] font-bold text-slate-400 hover:text-[#ff5000] uppercase tracking-widest transition-colors">
+              Tümü
+            </Link>
           </div>
 
-          <div className="flex-1 divide-y divide-slate-50 overflow-y-auto max-h-[460px] no-scrollbar">
+          {/* Category List */}
+          <div className="flex-1 flex flex-col divide-y divide-slate-50 overflow-y-auto overflow-x-hidden no-scrollbar">
             {CATEGORIES_LIST.map((cat, idx) => {
               const Icon = cat.icon;
               return (
-                <div key={idx} className="group/cat relative">
+                <div key={idx} className="group/cat relative flex-1 flex flex-col justify-center min-h-[35px]">
                   <Link
                     href={catHref(cat.slug)}
-                    className="flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 transition-colors duration-150 text-xs font-medium text-slate-700 hover:text-[#ff5000]"
+                    className="flex flex-1 items-center justify-between px-4 py-1.5 hover:bg-slate-50/80 transition-colors duration-150 text-xs font-medium text-slate-700 hover:text-[#ff5000]"
                   >
                     <div className="flex items-center gap-2.5 truncate pr-2">
-                      <Icon size={15} className="text-slate-400 group-hover/cat:text-[#ff5000] shrink-0 transition-colors duration-150" />
-                      <span className="truncate group-hover/cat:font-semibold">{cat.name}</span>
+                      <Icon size={14} className="text-slate-400 group-hover/cat:text-[#ff5000] shrink-0 transition-colors duration-150" />
+                      <span className="truncate group-hover/cat:font-semibold text-xs">{cat.name}</span>
                     </div>
-                    <ChevronRight size={13} className="text-slate-300 group-hover/cat:text-[#ff5000] group-hover/cat:translate-x-0.5 transition-all shrink-0" />
+                    <ChevronRight size={12} className="text-slate-300 group-hover/cat:text-[#ff5000] group-hover/cat:translate-x-0.5 transition-all shrink-0" />
                   </Link>
 
                   {/* Alt kategori açılır paneli (referanstaki gibi, hover ile) */}
                   {cat.subCategories?.length > 0 && (
-                    <div className="invisible absolute left-full top-0 z-30 ml-1 hidden w-56 rounded-xl border border-slate-200 bg-white p-3 opacity-0 shadow-xl transition-all duration-150 group-hover/cat:visible group-hover/cat:opacity-100 lg:block">
+                    <div className="hidden group-hover/cat:block absolute left-full top-0 z-30 ml-1.5 w-56 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
                       <p className="mb-2 flex items-center gap-1.5 border-b border-slate-100 pb-2 text-[11px] font-black uppercase tracking-wide text-slate-800">
                         <Icon size={13} className="text-[#ff5000]" /> {cat.name}
                       </p>
@@ -204,7 +208,7 @@ export const GlobalSourcesHero: React.FC<GlobalSourcesHeroProps> = ({ products =
                           <Link
                             key={sub}
                             href={subCatHref(cat.slug, sub)}
-                            className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-[#ff5000]/5 hover:text-[#ff5000]"
+                            className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-[#ff5000]/5 hover:text-[#ff5000] transition-colors"
                           >
                             {sub}
                           </Link>

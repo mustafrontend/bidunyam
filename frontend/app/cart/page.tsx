@@ -62,10 +62,29 @@ export default function CartPage() {
   const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
   const [previousCart, setPreviousCart] = useState<Product[]>([]);
   const [suggestedProducts, setSuggestedProducts] = useState<Product[]>([]);
+  // Gerçek kargo/hesap kırılımı (fiyatlandırma motorundan)
+  const [quote, setQuote] = useState<{ gross: number; shippingCost: number; freeShippingApplied: boolean; buyerTotal: number } | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Sepet değiştikçe gerçek kargo + toplam hesabını fiyatlandırma motorundan al
+  useEffect(() => {
+    if (!items.length) { setQuote(null); return; }
+    apiClient
+      .post('/products/pricing/quote', {
+        items: items.map((i) => ({
+          price: i.price,
+          quantity: i.quantity,
+          categoryPath: i.categoryPath || i.category,
+          listingType: i.listingType,
+          desi: i.desi,
+        })),
+      })
+      .then((r) => setQuote(r.data?.data || null))
+      .catch(() => setQuote(null));
+  }, [items]);
 
   // Sadece token değişince favorileri çek
   useEffect(() => {
@@ -315,12 +334,20 @@ export default function CartPage() {
                 </div>
                 <div className="flex justify-between text-slate-500 font-bold">
                   <span>Kargo Toplamı</span>
-                  <span className="text-green-600">Bedava</span>
+                  {quote ? (
+                    quote.freeShippingApplied || quote.shippingCost === 0 ? (
+                      <span className="text-green-600">Bedava</span>
+                    ) : (
+                      <span>{quote.shippingCost.toLocaleString('tr-TR')} TL</span>
+                    )
+                  ) : (
+                    <span className="text-slate-400">Hesaplanıyor…</span>
+                  )}
                 </div>
                 <div className="border-t border-dashed pt-4 flex justify-between">
                   <span className="text-lg font-black text-slate-900">Toplam</span>
                   <span className="text-2xl font-black text-[#ff5000] tracking-tighter">
-                    {getTotalPrice().toLocaleString('tr-TR')} TL
+                    {(quote?.buyerTotal ?? getTotalPrice()).toLocaleString('tr-TR')} TL
                   </span>
                 </div>
               </div>

@@ -35,7 +35,20 @@ export const ProductRepository = {
     }
 
     if (filters.category) {
-      where.categoryName = filters.category;
+      const cat = filters.category.trim();
+      const catOr: Prisma.ProductWhereInput[] = [
+        { categoryName: { equals: cat, mode: Prisma.QueryMode.insensitive } },
+        { categoryPath: { contains: cat, mode: Prisma.QueryMode.insensitive } },
+        { name: { contains: cat, mode: Prisma.QueryMode.insensitive } },
+      ];
+
+      if (Array.isArray(where.AND)) {
+        where.AND.push({ OR: catOr });
+      } else if (where.AND) {
+        where.AND = [where.AND as any, { OR: catOr }];
+      } else {
+        where.AND = [{ OR: catOr }];
+      }
     }
 
     if (filters.brand && filters.brand.length > 0) {

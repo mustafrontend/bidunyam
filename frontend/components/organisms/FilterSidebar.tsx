@@ -22,7 +22,7 @@ interface FilterSidebarProps {
   onFilterChange: (key: string, value: any) => void;
 }
 
-export const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, options, dynamicFacets = [], onFilterChange }) => {
+export const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, options = { brands: [], categories: [] }, dynamicFacets = [], onFilterChange }) => {
   const [brandSearch, setBrandSearch] = useState("");
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     category: true,
@@ -40,10 +40,10 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, options, 
     onFilterChange("marka", updated);
   };
 
-  const activeCategoryData = options.categories.find((c) => c.name === filters.kategori);
-  const subCatsToShow = activeCategoryData ? activeCategoryData.subCategories : [];
+  const activeCategoryData = (options?.categories || []).find((c) => c?.name === filters.kategori);
+  const subCatsToShow = activeCategoryData?.subCategories || [];
 
-  const filteredBrands = options.brands.filter((b) => b.toLowerCase().includes(brandSearch.toLowerCase())).slice(0, 50);
+  const filteredBrands = (options?.brands || []).filter((b) => typeof b === "string" && b.toLowerCase().includes(brandSearch.toLowerCase())).slice(0, 50);
 
   return (
     <aside className="w-full lg:w-64 shrink-0 flex flex-col gap-6">
@@ -139,7 +139,8 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, options, 
       </div>
 
       {/* Dinamik Filtreler (Facets) */}
-      {dynamicFacets.map((facet) => {
+      {(dynamicFacets || []).map((facet) => {
+        if (!facet || !facet.name) return null;
         const isOpen = openSections[`facet_${facet.name}`] ?? true;
         const attrKey = `attr_${facet.name}`;
         const selectedValues = (filters[attrKey] as string[]) || [];
@@ -152,7 +153,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, options, 
             </div>
             {isOpen && (
               <div className="flex flex-col gap-2 max-h-56 overflow-y-auto custom-scrollbar pr-2">
-                {facet.options.map((option) => (
+                {(facet.options || []).map((option) => (
                   <label key={option} className="flex items-center gap-2 cursor-pointer group">
                     <input
                       type="checkbox"

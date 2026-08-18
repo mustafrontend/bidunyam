@@ -18,6 +18,8 @@ export interface CartItem {
   desi?: number;
   selectedVariant?: Record<string, string>;
   selectedServices?: Array<{ name: string; price: number; description?: string }>;
+  // Hediye paketi + not (siparişe kadar taşınır)
+  giftOptions?: { isGift: boolean; giftNote: string; giftPrice: number };
 }
 
 // Input type for addItem — all CartItem fields except quantity which is managed internally
@@ -82,6 +84,7 @@ export const useCartStore = create<CartState>()(
             desi: product.desi,
             selectedVariant: product.selectedVariant,
             selectedServices: product.selectedServices,
+            giftOptions: product.giftOptions,
           };
           newItems = [...items, newItem];
         }

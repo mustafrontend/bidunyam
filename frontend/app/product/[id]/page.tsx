@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronRight, ChevronLeft, ShieldAlert, Star, ShoppingCart, Truck, ShieldCheck, Plus, Minus, Heart, Gift, MessageSquareText } from "lucide-react";
+import { ChevronRight, ChevronLeft, Star, ShoppingCart, Truck, ShieldCheck, Plus, Minus, Heart, Gift, MessageSquareText } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useCartStore } from "@/stores/cartStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -47,6 +47,7 @@ interface Product {
   imageUrls?: string[];
   brand: string;
   category: string;
+  categoryPath?: string;
   rating: number;
   reviewCount: number;
   bulletPoints?: string[];
@@ -57,159 +58,6 @@ interface Product {
   condition?: string;
   preparationDays?: number;
 }
-
-interface DecorativeItem {
-  badge: string | null;
-  badgeColor: string | null;
-  bottomBar: string | null;
-  bottomBarColor: string | null;
-  rating: number;
-  reviewCount: number;
-  priceTrend: string | null;
-  priceTrendColor: string | null;
-  coupon: string | null;
-  perUnit: string | null;
-}
-
-const getDecoForSimilar = (idx: number): DecorativeItem => {
-  switch (idx % 5) {
-    case 0:
-      return {
-        badge: "AVANTAJLI ÜRÜN",
-        badgeColor: "bg-orange-500",
-        bottomBar: "En çok ziyaret edilen 4. ürün",
-        bottomBarColor: "bg-amber-500",
-        rating: 4.5,
-        reviewCount: 410,
-        priceTrend: null,
-        priceTrendColor: null,
-        coupon: null,
-        perUnit: null
-      };
-    case 1:
-      return {
-        badge: "FLAŞ ÜRÜN",
-        badgeColor: "bg-purple-600 animate-pulse",
-        bottomBar: "Hızlı Teslimat",
-        bottomBarColor: "bg-emerald-500",
-        rating: 4.4,
-        reviewCount: 4596,
-        priceTrend: "Son 10 Günün En Düşük Fiyatı!",
-        priceTrendColor: "text-red-500",
-        coupon: "15 TL Kupon",
-        perUnit: "[3,89 TL / Tablet]"
-      };
-    case 2:
-      return {
-        badge: "AVANTAJLI ÜRÜN",
-        badgeColor: "bg-orange-500",
-        bottomBar: "En çok satılan 2. ürün",
-        bottomBarColor: "bg-amber-500",
-        rating: 4.3,
-        reviewCount: 5342,
-        priceTrend: null,
-        priceTrendColor: null,
-        coupon: null,
-        perUnit: "(5,83 TL / Tablet)"
-      };
-    case 3:
-      return {
-        badge: "EN ÇOK SATILAN",
-        badgeColor: "bg-orange-500",
-        bottomBar: "En çok satılan 3. ürün",
-        bottomBarColor: "bg-amber-500",
-        rating: 4.5,
-        reviewCount: 171,
-        priceTrend: "Sepette %20 İndirim",
-        priceTrendColor: "text-emerald-600",
-        coupon: null,
-        perUnit: null
-      };
-    default:
-      return {
-        badge: "AVANTAJLI ÜRÜN",
-        badgeColor: "bg-orange-500",
-        bottomBar: "En çok favorilenen ürün",
-        bottomBarColor: "bg-amber-500",
-        rating: 4.5,
-        reviewCount: 7382,
-        priceTrend: "Sepette 250 TL İndirim",
-        priceTrendColor: "text-emerald-600",
-        coupon: "Kupon Fırsatı",
-        perUnit: null
-      };
-  }
-};
-
-const getDecoForBought = (idx: number): DecorativeItem => {
-  switch (idx % 5) {
-    case 0:
-      return {
-        badge: "AVANTAJLI ÜRÜN",
-        badgeColor: "bg-orange-500",
-        bottomBar: "En çok ziyaret edilen 2. ürün",
-        bottomBarColor: "bg-amber-500",
-        rating: 4.1,
-        reviewCount: 1485,
-        priceTrend: "Sepette %35 İndirim",
-        priceTrendColor: "text-emerald-600",
-        coupon: null,
-        perUnit: null
-      };
-    case 1:
-      return {
-        badge: "FLAŞ ÜRÜN",
-        badgeColor: "bg-purple-600 animate-pulse",
-        bottomBar: "En çok satılan 8. ürün",
-        bottomBarColor: "bg-amber-500",
-        rating: 4.5,
-        reviewCount: 1290,
-        priceTrend: null,
-        priceTrendColor: null,
-        coupon: "Kupon Fırsatı",
-        perUnit: null
-      };
-    case 2:
-      return {
-        badge: "EN ÇOK SATILAN",
-        badgeColor: "bg-orange-500",
-        bottomBar: "En çok ziyaret edilen 9. ürün",
-        bottomBarColor: "bg-amber-500",
-        rating: 4.2,
-        reviewCount: 775,
-        priceTrend: null,
-        priceTrendColor: null,
-        coupon: null,
-        perUnit: "(4,27 TL / G)"
-      };
-    case 3:
-      return {
-        badge: "AVANTAJLI ÜRÜN",
-        badgeColor: "bg-orange-500",
-        bottomBar: "Hızlı Teslimat",
-        bottomBarColor: "bg-emerald-500",
-        rating: 4.4,
-        reviewCount: 164,
-        priceTrend: "Son 14 Günün En Düşük Fiyatı!",
-        priceTrendColor: "text-red-500",
-        coupon: null,
-        perUnit: null
-      };
-    default:
-      return {
-        badge: "EN ÇOK SATILAN",
-        badgeColor: "bg-orange-500",
-        bottomBar: "En çok favorilenen ürün",
-        bottomBarColor: "bg-amber-500",
-        rating: 4.5,
-        reviewCount: 1492,
-        priceTrend: "Trendyol Plus'a Özel",
-        priceTrendColor: "text-orange-500",
-        coupon: "Kupon Fırsatı",
-        perUnit: null
-      };
-  }
-};
 
 export default function ProductDetail() {
   const params = useParams();
@@ -285,11 +133,12 @@ export default function ProductDetail() {
               price: Number(data.price) || 0,
               originalPrice: Number(data.originalPrice) || Number(data.price) || 0,
               discountPercent: Number(data.discountPercent) || 0,
-              stock: Number(data.stock) || 99,
+              stock: Number(data.stock) || 0,
               imageUrl: data.imageUrl || "",
               imageUrls: data.imageUrl ? [data.imageUrl] : [],
               brand: data.brand || "XML Market",
               category: data.category || "XML Katalog",
+              categoryPath: data.categoryPath || data.category || "",
               rating: Number(data.rating) || 0,
               reviewCount: Number(data.reviewCount) || 0,
               bulletPoints: [],
@@ -340,9 +189,9 @@ export default function ProductDetail() {
         imageUrl: item.imageUrl || "",
         brand: item.brand || (isXmlProduct ? "XML Market" : "biDunyam"),
         category: item.category || "",
-        rating: Number(item.rating) || 4.5,
-        reviewCount: Number(item.reviewCount) || 12,
-        stock: Number(item.stock) ?? 99,
+        rating: Number(item.rating) || 0,
+        reviewCount: Number(item.reviewCount) || 0,
+        stock: Number(item.stock) || 0,
       })) : [];
       
       const items = normalized
@@ -486,14 +335,32 @@ export default function ProductDetail() {
   return (
     <div className="min-h-screen bg-slate-50 py-6">
       <main className="mx-auto max-w-7xl px-4 md:px-8 space-y-8">
-        {/* Breadcrumbs */}
-        <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-400 select-none">
-          <button onClick={() => router.push("/")} className="hover:text-[#ff5000]">Ana Sayfa</button>
-          <ChevronRight size={10} strokeWidth={3} />
-          <span className="hover:text-[#ff5000]">{product.category}</span>
-          <ChevronRight size={10} strokeWidth={3} />
-          <span className="text-slate-800">{product.brand}</span>
-        </nav>
+        {/* Breadcrumbs — ürünün gerçek kategori yolundan; boş segment gösterilmez */}
+        {(() => {
+          const parts = String((product as { categoryPath?: string }).categoryPath || product.category || "")
+            .split(">").map((p) => p.trim()).filter(Boolean);
+          const main = parts[0];
+          const sub = parts[1];
+          return (
+            <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-400 select-none">
+              <button onClick={() => router.push("/")} className="hover:text-[#ff5000]">Ana Sayfa</button>
+              {main && (
+                <>
+                  <ChevronRight size={10} strokeWidth={3} />
+                  <button onClick={() => router.push(`/arama?kategori=${encodeURIComponent(main)}`)} className="hover:text-[#ff5000]">{main}</button>
+                </>
+              )}
+              {sub && (
+                <>
+                  <ChevronRight size={10} strokeWidth={3} />
+                  <button onClick={() => router.push(`/arama?kategori=${encodeURIComponent(main)}&altkategori=${encodeURIComponent(sub)}`)} className="hover:text-[#ff5000]">{sub}</button>
+                </>
+              )}
+              <ChevronRight size={10} strokeWidth={3} />
+              <span className="text-slate-800 normal-case truncate max-w-[200px]">{product.name}</span>
+            </nav>
+          );
+        })()}
 
         {/* 2-Column Product Detail Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -513,10 +380,16 @@ export default function ProductDetail() {
           {/* Right: Info */}
           <div className="lg:col-span-5 flex flex-col gap-6">
             <div className="space-y-3 select-none">
-              <div className="flex gap-2">
-                <span className="bg-[#ff5000]/10 text-[#ff5000] text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest">Çok Satan</span>
-                <span className="bg-slate-200/60 text-slate-500 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest">{product.category} alanında en iyiler</span>
-              </div>
+              {(product.discountPercent > 0 || product.condition) && (
+                <div className="flex gap-2">
+                  {product.discountPercent > 0 && (
+                    <span className="bg-[#ff5000]/10 text-[#ff5000] text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest">%{product.discountPercent} İndirim</span>
+                  )}
+                  {product.condition && (
+                    <span className="bg-slate-200/60 text-slate-500 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest">{product.condition === "USED" || product.condition === "SECOND_HAND" ? "İkinci El" : "Sıfır Ürün"}</span>
+                  )}
+                </div>
+              )}
               <h1 className="text-xl md:text-2xl font-black text-slate-900 leading-tight tracking-tight">{product.name}</h1>
               {product.sellerName && (
                 <div className="text-xs font-bold text-slate-500 mt-1">
@@ -723,17 +596,6 @@ export default function ProductDetail() {
               </button>
             </div>
 
-            {/* Protection Widget */}
-            <div className="flex items-start gap-4 p-4 border border-slate-200 bg-white rounded-lg select-none">
-              <ShieldAlert size={20} className="text-[#ff5000] mt-0.5 shrink-0" strokeWidth={2.5} />
-              <div className="flex-1 min-w-0">
-                <span className="text-xs font-black text-slate-800 block">Premium Koruma Planı</span>
-                <p className="text-[10px] text-slate-400 font-bold mt-1 leading-normal">
-                  Kaza sonucu hasarlara karşı 1 yıl ek koruma ekle: 89,00 TL
-                </p>
-              </div>
-              <button className="text-[10px] font-black text-[#ff5000] hover:underline uppercase tracking-wider cursor-pointer">Ekle</button>
-            </div>
           </div>
         </div>
 
@@ -753,7 +615,7 @@ export default function ProductDetail() {
             <ProductQuestions />
           </div>
           <div className="lg:col-span-4">
-            <DeliverySidebar />
+            <DeliverySidebar preparationDays={product.preparationDays} />
           </div>
         </div>
 
@@ -786,15 +648,13 @@ export default function ProductDetail() {
               className="flex gap-4 overflow-x-auto no-scrollbar scroll-smooth py-2 px-0.5"
             >
               {similarProducts.length > 0 ? (
-                similarProducts.map((item, idx) => {
-                  const deco = getDecoForSimilar(idx);
-                  return (
+                similarProducts.map((item) => (
                     <div
                       key={item._id}
                       onClick={() => router.push(productPath(item))}
                       className="bg-white border border-slate-200 rounded-2xl p-3 hover:shadow-lg transition-all group relative cursor-pointer flex flex-col justify-between min-w-[190px] max-w-[210px] select-none shrink-0"
                     >
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           if (token) toggleFavorite(item._id, token);
@@ -807,9 +667,9 @@ export default function ProductDetail() {
 
                       <div>
                         <div className="relative aspect-square mb-2.5 overflow-hidden rounded-xl bg-slate-50 flex items-center justify-center p-3">
-                          {deco.badge && (
-                            <span className={`absolute top-2 left-2 z-10 text-[8px] font-black text-white px-2 py-0.5 rounded shadow-sm uppercase tracking-widest ${deco.badgeColor}`}>
-                              {deco.badge}
+                          {item.discountPercent > 0 && (
+                            <span className="absolute top-2 left-2 z-10 text-[8px] font-black text-white px-2 py-0.5 rounded shadow-sm uppercase tracking-widest bg-[#ff5000]">
+                              %{item.discountPercent} İndirim
                             </span>
                           )}
                           <img
@@ -817,50 +677,28 @@ export default function ProductDetail() {
                             alt={item.name}
                             className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300"
                           />
-                          {deco.bottomBar && (
-                            <div className={`absolute bottom-0 left-0 right-0 py-1.5 text-center text-white text-[8px] font-black uppercase tracking-wider flex items-center justify-center gap-0.5 ${deco.bottomBarColor}`}>
-                              {deco.bottomBar === "Hızlı Teslimat" && <Truck size={10} className="shrink-0" />}
-                              {deco.bottomBar}
-                            </div>
-                          )}
                         </div>
 
-                        {deco.coupon && (
-                          <span className="text-[9px] font-bold text-slate-400 block mb-0.5">Sponsorlu</span>
-                        )}
                         <span className="text-slate-800 font-black text-[10px] uppercase tracking-wider block mt-1">{item.brand}</span>
                         <h4 className="text-xs font-black text-slate-500 line-clamp-1 mt-0.5">{item.name}</h4>
 
-                        <div className="flex items-center gap-0.5 mt-1 text-amber-500">
-                          <Star size={11} fill="currentColor" className="stroke-none" />
-                          <span className="text-[10px] font-black text-slate-700">{deco.rating}</span>
-                          <span className="text-slate-400 text-[10px] font-bold ml-0.5">({deco.reviewCount})</span>
-                        </div>
-
-                        {deco.coupon && (
-                          <span className="inline-block bg-pink-500 text-white text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider mt-1.5 shadow-sm">
-                            {deco.coupon}
-                          </span>
-                        )}
-
-                        {deco.priceTrend && (
-                          <span className={`text-[9px] font-black mt-1 uppercase block tracking-wider ${deco.priceTrendColor}`}>
-                            {deco.priceTrend}
-                          </span>
+                        {item.reviewCount > 0 && (
+                          <div className="flex items-center gap-0.5 mt-1 text-amber-500">
+                            <Star size={11} fill="currentColor" className="stroke-none" />
+                            <span className="text-[10px] font-black text-slate-700">{item.rating.toFixed(1)}</span>
+                            <span className="text-slate-400 text-[10px] font-bold ml-0.5">({item.reviewCount})</span>
+                          </div>
                         )}
                       </div>
 
                       <div className="mt-3">
-                        <span className="text-sm font-black text-slate-800">{item.price.toLocaleString("tr-TR")} TL</span>
-                        {deco.perUnit && (
-                          <span className="text-[9px] font-bold text-slate-400 block mt-0.5">
-                            {deco.perUnit}
-                          </span>
+                        {item.discountPercent > 0 && item.originalPrice > item.price && (
+                          <span className="text-[10px] font-bold text-slate-400 line-through block">{item.originalPrice.toLocaleString("tr-TR")} TL</span>
                         )}
+                        <span className="text-sm font-black text-slate-800">{item.price.toLocaleString("tr-TR")} TL</span>
                       </div>
                     </div>
-                  );
-                })
+                  ))
               ) : (
                 <div className="w-full text-center text-xs font-bold text-slate-400 py-12">Benzer ürün bulunamadı.</div>
               )}
@@ -897,15 +735,13 @@ export default function ProductDetail() {
               className="flex gap-4 overflow-x-auto no-scrollbar scroll-smooth py-2 px-0.5"
             >
               {similarProducts.length > 0 ? (
-                [...similarProducts.slice(2), ...similarProducts.slice(0, 2)].map((item, idx) => {
-                  const deco = getDecoForBought(idx);
-                  return (
+                [...similarProducts.slice(2), ...similarProducts.slice(0, 2)].map((item) => (
                     <div
                       key={`bought-${item._id}`}
                       onClick={() => router.push(productPath(item))}
                       className="bg-white border border-slate-200 rounded-2xl p-3 hover:shadow-lg transition-all group relative cursor-pointer flex flex-col justify-between min-w-[190px] max-w-[210px] select-none shrink-0"
                     >
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           if (token) toggleFavorite(item._id, token);
@@ -918,9 +754,9 @@ export default function ProductDetail() {
 
                       <div>
                         <div className="relative aspect-square mb-2.5 overflow-hidden rounded-xl bg-slate-50 flex items-center justify-center p-3">
-                          {deco.badge && (
-                            <span className={`absolute top-2 left-2 z-10 text-[8px] font-black text-white px-2 py-0.5 rounded shadow-sm uppercase tracking-widest ${deco.badgeColor}`}>
-                              {deco.badge}
+                          {item.discountPercent > 0 && (
+                            <span className="absolute top-2 left-2 z-10 text-[8px] font-black text-white px-2 py-0.5 rounded shadow-sm uppercase tracking-widest bg-[#ff5000]">
+                              %{item.discountPercent} İndirim
                             </span>
                           )}
                           <img
@@ -928,50 +764,28 @@ export default function ProductDetail() {
                             alt={item.name}
                             className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300"
                           />
-                          {deco.bottomBar && (
-                            <div className={`absolute bottom-0 left-0 right-0 py-1.5 text-center text-white text-[8px] font-black uppercase tracking-wider flex items-center justify-center gap-0.5 ${deco.bottomBarColor}`}>
-                              {deco.bottomBar === "Hızlı Teslimat" && <Truck size={10} className="shrink-0" />}
-                              {deco.bottomBar}
-                            </div>
-                          )}
                         </div>
 
-                        {deco.coupon && (
-                          <span className="text-[9px] font-bold text-slate-400 block mb-0.5">Sponsorlu</span>
-                        )}
                         <span className="text-slate-800 font-black text-[10px] uppercase tracking-wider block mt-1">{item.brand}</span>
                         <h4 className="text-xs font-black text-slate-500 line-clamp-1 mt-0.5">{item.name}</h4>
 
-                        <div className="flex items-center gap-0.5 mt-1 text-amber-500">
-                          <Star size={11} fill="currentColor" className="stroke-none" />
-                          <span className="text-[10px] font-black text-slate-700">{deco.rating}</span>
-                          <span className="text-slate-400 text-[10px] font-bold ml-0.5">({deco.reviewCount})</span>
-                        </div>
-
-                        {deco.coupon && (
-                          <span className="inline-block bg-pink-500 text-white text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider mt-1.5 shadow-sm">
-                            {deco.coupon}
-                          </span>
-                        )}
-
-                        {deco.priceTrend && (
-                          <span className={`text-[9px] font-black mt-1 uppercase block tracking-wider ${deco.priceTrendColor}`}>
-                            {deco.priceTrend}
-                          </span>
+                        {item.reviewCount > 0 && (
+                          <div className="flex items-center gap-0.5 mt-1 text-amber-500">
+                            <Star size={11} fill="currentColor" className="stroke-none" />
+                            <span className="text-[10px] font-black text-slate-700">{item.rating.toFixed(1)}</span>
+                            <span className="text-slate-400 text-[10px] font-bold ml-0.5">({item.reviewCount})</span>
+                          </div>
                         )}
                       </div>
 
                       <div className="mt-3">
-                        <span className="text-sm font-black text-slate-800">{item.price.toLocaleString("tr-TR")} TL</span>
-                        {deco.perUnit && (
-                          <span className="text-[9px] font-bold text-slate-400 block mt-0.5">
-                            {deco.perUnit}
-                          </span>
+                        {item.discountPercent > 0 && item.originalPrice > item.price && (
+                          <span className="text-[10px] font-bold text-slate-400 line-through block">{item.originalPrice.toLocaleString("tr-TR")} TL</span>
                         )}
+                        <span className="text-sm font-black text-slate-800">{item.price.toLocaleString("tr-TR")} TL</span>
                       </div>
                     </div>
-                  );
-                })
+                  ))
               ) : (
                 <div className="w-full text-center text-xs font-bold text-slate-400 py-12">Ürün bulunamadı.</div>
               )}

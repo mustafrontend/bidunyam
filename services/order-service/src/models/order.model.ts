@@ -7,6 +7,8 @@ export interface IOrderItem {
   quantity: number;
   imageUrl: string;
   barcode?: string;  // XML'den gelen barkod
+  selectedVariant?: Record<string, string>;
+  giftOptions?: { isGift: boolean; giftNote: string; giftPrice: number };
 }
 
 export interface ITrackingEvent {
@@ -81,6 +83,12 @@ const OrderSchema: Schema = new Schema({
     quantity: { type: Number, required: true },
     imageUrl: { type: String },
     barcode: { type: String },  // XML'den gelen barkod
+    selectedVariant: { type: Schema.Types.Mixed },
+    giftOptions: {
+      isGift: { type: Boolean, default: false },
+      giftNote: { type: String, default: '' },
+      giftPrice: { type: Number, default: 0 },
+    },
   }],
   totalAmount: { type: Number, required: true },
   status: { type: String, enum: ['PENDING', 'PAID', 'PREPARING', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'], default: 'PAID' },

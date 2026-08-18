@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CreditCard, MapPin, CheckCircle2, Loader2, ArrowRight, Plus, ShieldCheck, Lock } from 'lucide-react';
 import { useCartStore } from '@/stores/cartStore';
@@ -78,7 +78,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
   const [otp, setOtp] = useState('');
   const [paidInfo, setPaidInfo] = useState<any>(null);
 
-  const total = getTotalPrice();
+  // Gerçek ödenecek tutar (ürün + kargo) fiyatlandırma motorundan; kargo dahil
+  const [buyerTotal, setBuyerTotal] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isOpen || items.length === 0) return;
+    apiClient
+      .post('/products/pricing/quote', {
+        items: items.map((i) => ({
+          price: i.price, quantity: i.quantity,
+          categoryPath: i.categoryPath || i.category, listingType: i.listingType, desi: i.desi,
+        })),
+      })
+      .then((r) => setBuyerTotal(r.data?.data?.buyerTotal ?? null))
+      .catch(() => setBuyerTotal(null));
+  }, [isOpen, items]);
+
+  const total = buyerTotal ?? getTotalPrice();
   const scheme = detectScheme(cardNumber);
   const cleanCard = cardNumber.replace(/\s/g, '');
 
@@ -180,6 +195,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
           listingType: i.listingType,
           desi: i.desi,
           selectedVariant: i.selectedVariant, selectedServices: i.selectedServices,
+          giftOptions: i.giftOptions,
         })),
         totalAmount: total,
         address: addrStr,

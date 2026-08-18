@@ -18,23 +18,15 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
 }) => {
   const [selectedIdx, setSelectedIdx] = useState(0);
 
-  // If the product in DB only has 1 image, generate the 4 dynamic thumbnails matching your HTML
+  // Yalnızca ürünün GERÇEK görsellerini göster — tek görseli filtrelerle
+  // çoğaltıp sahte küçük resim üretme (eski davranış yanıltıcıydı).
   const displayImages = useMemo(() => {
-    if (gallery.length === 0) return [];
-    if (gallery.length === 1) {
-      const single = gallery[0];
-      return [
-        { url: single, style: "" },
-        { url: single, style: "grayscale opacity-50" },
-        { url: single, style: "rotate-90" },
-        { url: single, style: "blur-[1px]", showOverlay: true, count: "+2" },
-      ];
-    }
-    return gallery.slice(0, 4).map((img, idx) => ({
+    const unique = Array.from(new Set(gallery.filter(Boolean)));
+    return unique.map((img, idx) => ({
       url: img,
       style: "",
-      showOverlay: idx === 3 && gallery.length > 4,
-      count: `+${gallery.length - 3}`,
+      showOverlay: idx === 3 && unique.length > 4,
+      count: `+${unique.length - 3}`,
     }));
   }, [gallery]);
 
@@ -69,9 +61,12 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
         </button>
       </div>
 
-      {/* Thumbnails grid */}
+      {/* Küçük resimler — yalnızca birden fazla gerçek görsel varsa */}
       {displayImages.length > 1 && (
-        <div className="grid grid-cols-4 gap-4">
+        <div
+          className="grid gap-4"
+          style={{ gridTemplateColumns: `repeat(${Math.min(displayImages.length, 4)}, minmax(0, 1fr))` }}
+        >
           {displayImages.map((item, idx) => {
             const isSelected = selectedIdx === idx;
             return (

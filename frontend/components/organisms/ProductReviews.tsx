@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { Star, ChevronRight, ChevronLeft, ThumbsUp, MessageSquare, Camera } from "lucide-react";
+import { Star, ChevronRight, ChevronLeft, ThumbsUp, MessageSquare } from "lucide-react";
+import { extractProductId } from "@/lib/productUrl";
 
 interface ProductReviewsProps {
   rating: number;
@@ -21,15 +22,16 @@ interface Review {
 }
 
 export const ProductReviews: React.FC<ProductReviewsProps> = ({
-  rating = 4.3,
-  reviewCount = 47266,
+  rating = 0,
   productImageUrl = "",
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { id } = (typeof window !== 'undefined' ? require('next/navigation') : { useParams: () => ({}) }).useParams?.() || {};
+  const { id: rawId } = (typeof window !== 'undefined' ? require('next/navigation') : { useParams: () => ({}) }).useParams?.() || {};
+  // URL "<slug>-p-<id>" biçiminde; gerçek ürün kimliğini ayrıştır
+  const id = extractProductId(String(rawId ?? ""));
 
   useEffect(() => {
     if (!id) return;
@@ -37,11 +39,18 @@ export const ProductReviews: React.FC<ProductReviewsProps> = ({
     import("@/lib/api").then(({ apiClient }) => {
       apiClient
         .get(`/products/${id}/reviews`)
-        .then((res) => setReviews(res.data.data))
+        .then((res) => setReviews(Array.isArray(res.data?.data) ? res.data.data : []))
         .catch(() => setError("Yorumlar yüklenemedi"))
         .finally(() => setLoading(false));
     });
   }, [id]);
+
+  // Gerçek veriden hesapla — sahte sayı yok
+  const reviewCount = reviews.length;
+  const avgRating = reviewCount > 0
+    ? Math.round((reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviewCount) * 10) / 10
+    : rating;
+  const withPhoto = 0; // fotoğraflı yorum sayacı gerçek veri gelene kadar gizli
 
   const handleLike = (id: string) => {
     setReviews((prev) =>
@@ -72,29 +81,32 @@ export const ProductReviews: React.FC<ProductReviewsProps> = ({
     <div className="space-y-6 select-none bg-white border-[0.5px] border-slate-200 p-6 md:p-8 rounded-3xl shadow-sm">
       <h3 className="text-base font-black text-slate-800 tracking-tight uppercase">Ürün Değerlendirmeleri</h3>
 
-      {/* Ratings summary bar styled exactly like the screenshot */}
-      <div className="bg-[#fff9e6] border-[0.5px] border-[#fbe9b7]/40 rounded-xl p-3.5 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2.5 text-xs font-black text-slate-800">
-          <div className="flex text-amber-500 gap-0.5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} size={15} fill="currentColor" className="stroke-none text-amber-500" />
-            ))}
+      {/* Özet — yalnızca gerçek yorum varsa göster */}
+      {reviewCount > 0 ? (
+        <div className="bg-[#fff9e6] border-[0.5px] border-[#fbe9b7]/40 rounded-xl p-3.5 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2.5 text-xs font-black text-slate-800">
+            <div className="flex text-amber-500 gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star key={i} size={15} fill={i < Math.round(avgRating) ? "currentColor" : "none"} className="stroke-none text-amber-500" />
+              ))}
+            </div>
+            <span className="text-sm font-black text-slate-900">{avgRating.toFixed(1)}</span>
+            <span className="text-slate-300 font-normal">•</span>
+            <span className="text-slate-600 font-bold">{reviewCount.toLocaleString("tr-TR")} Değerlendirme</span>
           </div>
-          <span className="text-sm font-black text-slate-900 flex items-center gap-0.5">
-            {rating.toFixed(1)}
-            <ChevronRight size={14} className="rotate-90 text-slate-600 shrink-0" strokeWidth={2.5} />
-          </span>
-          <span className="text-slate-300 font-normal">•</span>
-          <span className="text-slate-600 font-bold">{reviewCount.toLocaleString("tr-TR")} Değerlendirme</span>
-          <span className="text-slate-300 font-normal">•</span>
-          <span className="text-slate-600 font-bold flex items-center gap-1">
-            23708 Yorum
-            <Camera size={13} className="text-slate-600" />
-          </span>
         </div>
-      </div>
+      ) : (
+        !loading && (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 py-8 text-center">
+            <MessageSquare size={26} className="mx-auto mb-2 text-slate-300" />
+            <p className="text-sm font-black text-slate-600">Henüz değerlendirme yok</p>
+            <p className="mt-1 text-xs font-semibold text-slate-400">Bu ürünü ilk değerlendiren siz olun.</p>
+          </div>
+        )
+      )}
 
-      {/* Review Cards Carousel container */}
+      {/* Yorum kartları — yalnızca gerçek yorum varsa */}
+      {reviewCount > 0 && (
       <div className="relative group">
         {/* Left Arrow Button */}
         <button
@@ -169,13 +181,16 @@ export const ProductReviews: React.FC<ProductReviewsProps> = ({
           ))}
         </div>
       </div>
+      )}
 
-      {/* Show all reviews button in center */}
-      <div className="pt-2">
-        <button className="w-full max-w-[280px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black py-3 rounded-full flex items-center justify-center gap-1 mx-auto cursor-pointer transition-all active:scale-95 shadow-sm border border-slate-200/60 uppercase tracking-widest">
-          TÜM YORUMLARI GÖSTER &gt;
-        </button>
-      </div>
+      {/* Tüm yorumları göster — yalnızca 3'ten fazla yorum varsa anlamlı */}
+      {reviewCount > 3 && (
+        <div className="pt-2">
+          <button className="w-full max-w-[280px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black py-3 rounded-full flex items-center justify-center gap-1 mx-auto cursor-pointer transition-all active:scale-95 shadow-sm border border-slate-200/60 uppercase tracking-widest">
+            TÜM YORUMLARI GÖSTER &gt;
+          </button>
+        </div>
+      )}
     </div>
   );
 };

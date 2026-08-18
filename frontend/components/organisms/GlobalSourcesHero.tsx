@@ -2,31 +2,33 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  ChevronRight, 
-  ChevronLeft, 
-  ArrowRight, 
-  Sparkles, 
-  Smartphone, 
-  Shirt, 
-  Home, 
-  Cpu, 
-  Wrench, 
-  Car, 
-  ShoppingBag, 
-  HeartHandshake, 
-  Package, 
-  Sparkle, 
-  Baby, 
-  Utensils, 
-  Factory, 
+import {
+  ChevronRight,
+  ChevronLeft,
+  ArrowRight,
+  Sparkles,
+  Smartphone,
+  Shirt,
+  Home,
+  Baby,
+  Package,
   Play,
-  TrendingUp
+  TrendingUp,
+  Dumbbell,
+  BookOpen,
+  ShoppingBasket,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api";
 import { Product } from "@/components/molecules/ProductCard";
+import { CATEGORY_TREE, catHref, subCatHref } from "@/lib/categories";
+
+// CATEGORY_TREE ikon adı → lucide bileşeni
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  Smartphone, Shirt, Home, Sparkles, Baby, Dumbbell, BookOpen, ShoppingBasket,
+};
 
 interface Campaign {
   id: string;
@@ -64,25 +66,19 @@ const FALLBACK_CAMPAIGNS: Campaign[] = [
   },
 ];
 
-const CATEGORIES_LIST = [
-  { name: "Oto & Araç Aksesuarları", icon: Car, slug: "Otomobil" },
-  { name: "Güzellik & Kişisel Bakım", icon: Sparkle, slug: "Kozmetik" },
-  { name: "Tüketici Elektroniği", icon: Smartphone, slug: "Elektronik" },
-  { name: "Elektronik Bileşenler", icon: Cpu, slug: "Elektronik" },
-  { name: "Moda & Aksesuar", icon: ShoppingBag, slug: "Moda" },
-  { name: "Giyim & Tekstil", icon: Shirt, slug: "Moda" },
-  { name: "Gıda & İçecek", icon: Utensils, slug: "Gida" },
-  { name: "Ev & Dekorasyon", icon: Home, slug: "Ev & Yaşam" },
-  { name: "Hobi & Hediyelik", icon: HeartHandshake, slug: "Hobi" },
-  { name: "Yapı Market & Hırdavat", icon: Wrench, slug: "Yapi Market" },
-  { name: "Anne, Bebek & Oyuncak", icon: Baby, slug: "Anne & Bebek" },
-  { name: "Sanayi & Endüstriyel", icon: Factory, slug: "Sanayi" },
-];
+// Sol kategori paneli — kanonik ağaçtan (alt kategoriler hover panelinde)
+const CATEGORIES_LIST = CATEGORY_TREE.map((c) => ({
+  name: c.name,
+  icon: CATEGORY_ICONS[c.icon] || Package,
+  slug: c.name,
+  subCategories: c.subCategories,
+}));
 
+// Orta sütun hızlı kartları — gerçek kanonik kategoriler + flaş fırsat
 const FEATURED_CARDS = [
   { title: "Elektronik", img: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80", category: "Elektronik" },
-  { title: "Moda x Yaşam", img: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=400&q=80", category: "Moda" },
-  { title: "Yapı x Donanım", img: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=400&q=80", category: "Yapi Market" },
+  { title: "Moda", img: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=400&q=80", category: "Moda" },
+  { title: "Ev & Yaşam", img: "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=400&q=80", category: "Ev & Yaşam" },
   { title: "Flaş Fırsatlar", img: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=400&q=80", category: "flas" },
 ];
 
@@ -185,17 +181,38 @@ export const GlobalSourcesHero: React.FC<GlobalSourcesHeroProps> = ({ products =
             {CATEGORIES_LIST.map((cat, idx) => {
               const Icon = cat.icon;
               return (
-                <Link
-                  key={idx}
-                  href={`/arama?kategori=${encodeURIComponent(cat.slug)}`}
-                  className="group flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 transition-colors duration-150 text-xs font-medium text-slate-700 hover:text-[#ff5000]"
-                >
-                  <div className="flex items-center gap-2.5 truncate pr-2">
-                    <Icon size={15} className="text-slate-400 group-hover:text-[#ff5000] shrink-0 transition-colors duration-150" />
-                    <span className="truncate group-hover:font-semibold">{cat.name}</span>
-                  </div>
-                  <ChevronRight size={13} className="text-slate-300 group-hover:text-[#ff5000] group-hover:translate-x-0.5 transition-all shrink-0" />
-                </Link>
+                <div key={idx} className="group/cat relative">
+                  <Link
+                    href={catHref(cat.slug)}
+                    className="flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 transition-colors duration-150 text-xs font-medium text-slate-700 hover:text-[#ff5000]"
+                  >
+                    <div className="flex items-center gap-2.5 truncate pr-2">
+                      <Icon size={15} className="text-slate-400 group-hover/cat:text-[#ff5000] shrink-0 transition-colors duration-150" />
+                      <span className="truncate group-hover/cat:font-semibold">{cat.name}</span>
+                    </div>
+                    <ChevronRight size={13} className="text-slate-300 group-hover/cat:text-[#ff5000] group-hover/cat:translate-x-0.5 transition-all shrink-0" />
+                  </Link>
+
+                  {/* Alt kategori açılır paneli (referanstaki gibi, hover ile) */}
+                  {cat.subCategories?.length > 0 && (
+                    <div className="invisible absolute left-full top-0 z-30 ml-1 hidden w-56 rounded-xl border border-slate-200 bg-white p-3 opacity-0 shadow-xl transition-all duration-150 group-hover/cat:visible group-hover/cat:opacity-100 lg:block">
+                      <p className="mb-2 flex items-center gap-1.5 border-b border-slate-100 pb-2 text-[11px] font-black uppercase tracking-wide text-slate-800">
+                        <Icon size={13} className="text-[#ff5000]" /> {cat.name}
+                      </p>
+                      <div className="grid grid-cols-1 gap-0.5">
+                        {cat.subCategories.map((sub) => (
+                          <Link
+                            key={sub}
+                            href={subCatHref(cat.slug, sub)}
+                            className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-[#ff5000]/5 hover:text-[#ff5000]"
+                          >
+                            {sub}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

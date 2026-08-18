@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api";
 import { ChevronRight, ChevronLeft, CheckCircle2, MessageSquare } from "lucide-react";
+import { extractProductId } from "@/lib/productUrl";
 
 interface Question {
   id: string;
@@ -21,19 +22,10 @@ interface Question {
 
 export const ProductQuestions: React.FC = () => {
   const router = useRouter();
-  const { id } = useParams();
+  const { id: rawId } = useParams();
+  const id = extractProductId(String(rawId ?? ""));
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<string>("tümü");
-
-  // High fidelity chips from screenshot 2
-  const filterChips = [
-    { id: "tümü", label: "tümü (20198)" },
-    { id: "talimat", label: "Kullanım Talimatları (5640)" },
-    { id: "emzirme", label: "Emziren Anneler İçin Uygun Mu? (2019)" },
-    { id: "tarih", label: "Son Kullanma Tarihi (1384)" },
-    { id: "alanlar", label: "Kullanım Alanları (1306)" },
-    { id: "yas", label: "Yaş Uygunluğu (1181)" },
-  ];
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
@@ -44,10 +36,23 @@ export const ProductQuestions: React.FC = () => {
     setLoading(true);
     apiClient
       .get(`/products/${id}/questions`)
-      .then((res) => setQuestions(res.data.data))
+      .then((res) => setQuestions(Array.isArray(res.data?.data) ? res.data.data : []))
       .catch(() => setError("Sorular yüklenemedi"))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Filtre chip'leri gerçek sorulardan üretilir (sahte sayı yok)
+  const catCounts = new Map<string, number>();
+  for (const q of questions) {
+    const c = (q.category || "tümü").trim();
+    if (c && c !== "tümü") catCounts.set(c, (catCounts.get(c) || 0) + 1);
+  }
+  const filterChips = [
+    { id: "tümü", label: `Tümü (${questions.length})` },
+    ...[...catCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([cat, n]) => ({ id: cat, label: `${cat} (${n})` })),
+  ];
 
   const scroll = (direction: "left" | "right") => {
     if (containerRef.current) {
@@ -67,7 +72,17 @@ export const ProductQuestions: React.FC = () => {
     <div className="space-y-6 select-none bg-white border-[0.5px] border-slate-200 p-6 md:p-8 rounded-3xl shadow-sm">
       <h3 className="text-base font-black text-slate-800 tracking-tight uppercase">Ürün Soru ve Cevapları</h3>
 
-      {/* Filter chips from the second screenshot */}
+      {/* Soru yoksa boş durum */}
+      {!loading && questions.length === 0 && (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 py-8 text-center">
+          <MessageSquare size={26} className="mx-auto mb-2 text-slate-300" />
+          <p className="text-sm font-black text-slate-600">Henüz soru sorulmamış</p>
+          <p className="mt-1 text-xs font-semibold text-slate-400">Merak ettiğinizi satıcıya ilk soran siz olun.</p>
+        </div>
+      )}
+
+      {/* Kategori filtreleri — yalnızca birden fazla kategori varsa */}
+      {filterChips.length > 1 && (
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
         {filterChips.map((chip) => (
           <button
@@ -83,8 +98,10 @@ export const ProductQuestions: React.FC = () => {
           </button>
         ))}
       </div>
+      )}
 
-      {/* Carousel Container */}
+      {/* Carousel Container — yalnızca soru varsa */}
+      {questions.length > 0 && (
       <div className="relative group">
         {/* Left Arrow Button */}
         <button
@@ -156,16 +173,19 @@ export const ProductQuestions: React.FC = () => {
           ))}
         </div>
       </div>
+      )}
 
-      {/* Show all questions button in center */}
-      <div className="pt-2">
-        <button 
-          onClick={() => router.push(`/product/${id}/questions`)}
-          className="w-full max-w-[280px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black py-3 rounded-full flex items-center justify-center gap-1 mx-auto cursor-pointer transition-all active:scale-95 shadow-sm border border-slate-200/60 uppercase tracking-widest"
-        >
-          TÜM SORULARI GÖSTER &gt;
-        </button>
-      </div>
+      {/* Tüm soruları göster — yalnızca 3'ten fazla soru varsa */}
+      {questions.length > 3 && (
+        <div className="pt-2">
+          <button
+            onClick={() => router.push(`/product/${id}/questions`)}
+            className="w-full max-w-[280px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black py-3 rounded-full flex items-center justify-center gap-1 mx-auto cursor-pointer transition-all active:scale-95 shadow-sm border border-slate-200/60 uppercase tracking-widest"
+          >
+            TÜM SORULARI GÖSTER &gt;
+          </button>
+        </div>
+      )}
     </div>
   );
 };

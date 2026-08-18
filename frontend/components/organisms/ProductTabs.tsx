@@ -4,8 +4,14 @@ import React, { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 interface ProductTabsProps {
+  productName?: string;
   description: string;
   bulletPoints?: string[];
+  /** Kategoriye özel özellikler (Renk, Beden, Materyal ...) — ürüne özgü */
+  categoryAttributes?: Record<string, string>;
+  brand?: string;
+  condition?: string;
+  preparationDays?: number;
 }
 
 const TABS = [
@@ -14,22 +20,34 @@ const TABS = [
   { id: "shipping", label: "Kargo ve İade" },
 ];
 
-export const ProductTabs: React.FC<ProductTabsProps> = ({ description, bulletPoints = [] }) => {
+const CONDITION_TR: Record<string, string> = {
+  SIFIR: "Sıfır",
+  AZ_KULLANILMIS: "Az Kullanılmış",
+  IKINCI_EL: "İkinci El",
+};
+
+export const ProductTabs: React.FC<ProductTabsProps> = ({
+  productName,
+  description,
+  bulletPoints = [],
+  categoryAttributes = {},
+  brand,
+  condition,
+  preparationDays,
+}) => {
   const [activeTab, setActiveTab] = useState("details");
 
-  // Fallback specs matching the Visco Seat Cushion HTML
-  const fallbackBullets = [
-    "Malzeme: Vücut şeklinize mükemmel uyum sağlayan yüksek yoğunluklu medikal sınıf Visko hafızalı sünger.",
-    "Boyutlar: 45cm x 35cm x 7cm — Çoğu ofis sandalyesi ve araba koltuğuna mükemmel uyum sağlar.",
-    "Kaymaz Taban: Dayanıklı kauçuk taban, deri veya kumaş yüzeylerde kaymayı tamamen engeller.",
-    "Nefes Alabilir Kılıf: Maksimum hava sirkülasyonu sağlayan çıkarılabilir ve makinede yıkanabilir 3D mesh kılıf."
-  ];
-
-  const specsList = bulletPoints.length > 0 ? bulletPoints : fallbackBullets;
+  // Teknik özellikler tablosu: yalnızca gerçek, ürüne özgü değerler
+  const specRows: Array<[string, string]> = [];
+  if (brand) specRows.push(["Marka", brand]);
+  if (condition && CONDITION_TR[condition]) specRows.push(["Ürün Durumu", CONDITION_TR[condition]]);
+  for (const [key, value] of Object.entries(categoryAttributes)) {
+    if (key && value && String(value).trim()) specRows.push([key, String(value)]);
+  }
 
   return (
     <div className="space-y-6 select-none">
-      {/* Tabs Header Row */}
+      {/* Sekme başlıkları */}
       <div className="border-b border-slate-200 flex gap-8">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -49,42 +67,74 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ description, bulletPoi
         })}
       </div>
 
-      {/* Tabs Contents */}
-      <div className="text-xs md:text-sm text-slate-500 leading-relaxed font-medium">
+      {/* Sekme içerikleri — hepsi ürüne özgü gerçek veri */}
+      <div className="text-xs md:text-sm text-slate-600 leading-relaxed font-medium">
+        {/* ── Ürün Detayları ── */}
         {activeTab === "details" && (
           <div className="space-y-4">
-            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Mükemmel Ergonomik Destek</h4>
-            <p>{description || "Premium Visko Ortopedik Minderimizle destek ve konforun mükemmel dengesini yaşayın. Kuyruk sokumu basıncını azaltmak ve uzun oturma seanslarında sağlıklı duruşu desteklemek için özel olarak tasarlanmıştır."}</p>
-            <ul className="space-y-3 mt-4">
-              {specsList.map((point, idx) => (
-                <li key={idx} className="flex gap-3 items-start">
-                  <CheckCircle2 size={16} className="text-[#ff5000] mt-0.5 shrink-0" strokeWidth={2.5} />
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
+            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+              {productName || "Ürün Açıklaması"}
+            </h4>
+            {description ? (
+              <p className="whitespace-pre-line">{description}</p>
+            ) : (
+              <p className="text-slate-400">Bu ürün için henüz açıklama girilmemiş.</p>
+            )}
+            {bulletPoints.length > 0 && (
+              <ul className="space-y-3 mt-4">
+                {bulletPoints.map((point, idx) => (
+                  <li key={idx} className="flex gap-3 items-start">
+                    <CheckCircle2 size={16} className="text-[#ff5000] mt-0.5 shrink-0" strokeWidth={2.5} />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
+        {/* ── Teknik Özellikler ── */}
         {activeTab === "specs" && (
           <div className="space-y-4">
             <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Teknik Özellikler</h4>
-            <ul className="space-y-3">
-              {specsList.map((point, idx) => (
-                <li key={idx} className="flex gap-3 items-start">
-                  <CheckCircle2 size={16} className="text-[#ff5000] mt-0.5 shrink-0" strokeWidth={2.5} />
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
+            {specRows.length > 0 ? (
+              <div className="overflow-hidden rounded-xl border border-slate-100">
+                <table className="w-full text-left">
+                  <tbody className="divide-y divide-slate-100">
+                    {specRows.map(([key, value]) => (
+                      <tr key={key} className="even:bg-slate-50/60">
+                        <td className="w-1/3 px-4 py-2.5 text-xs font-bold text-slate-500">{key}</td>
+                        <td className="px-4 py-2.5 text-xs font-semibold text-slate-800">{value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-slate-400">Bu ürün için teknik özellik girilmemiş.</p>
+            )}
           </div>
         )}
 
+        {/* ── Kargo ve İade ── (platform politikası; tüm ürünler için geçerli) */}
         {activeTab === "shipping" && (
-          <div className="space-y-4">
-            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Teslimat & İade Politikaları</h4>
-            <p>Siparişleriniz en geç 24 saat içerisinde özenle hazırlanarak kargoya teslim edilmektedir.</p>
-            <p>30 gün boyunca kullanılmamış ve hasar görmemiş tüm ürünlerimizi koşulsuz şartsız ücretsiz iade edebilirsiniz.</p>
+          <div className="space-y-3">
+            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Teslimat & İade</h4>
+            <ul className="space-y-2.5">
+              {[
+                typeof preparationDays === "number" && preparationDays > 0
+                  ? `Siparişiniz ${preparationDays} iş günü içinde hazırlanıp anlaşmalı kargoya teslim edilir.`
+                  : "Siparişiniz en geç 24 saat içinde hazırlanıp anlaşmalı kargoya teslim edilir.",
+                "Kargo takip numarası, gönderi oluşturulduğunda hesabınıza iletilir.",
+                "Teslim tarihinden itibaren 14 gün içinde gerekçe göstermeksizin ücretsiz iade hakkınız vardır.",
+                "İade edilen ürün kullanılmamış ve orijinal ambalajında olmalıdır.",
+              ].map((line, idx) => (
+                <li key={idx} className="flex gap-3 items-start">
+                  <CheckCircle2 size={16} className="text-[#ff5000] mt-0.5 shrink-0" strokeWidth={2.5} />
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

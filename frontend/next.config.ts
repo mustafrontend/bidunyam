@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const gatewayUrl =
   process.env.GATEWAY_URL ||
@@ -8,6 +9,11 @@ const gatewayUrl =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Kök dizini bu klasöre sabitle — aksi halde Next, C:\pnpm-lock.yaml'ı
+  // görüp workspace kökünü yanlış seçiyor ve başka projeden modül çekiyor.
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

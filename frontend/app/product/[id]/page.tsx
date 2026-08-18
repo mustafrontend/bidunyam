@@ -53,6 +53,9 @@ interface Product {
   variants?: Variant[];
   extraServices?: ExtraService[];
   sellerName?: string;
+  categoryAttributes?: Record<string, string>;
+  condition?: string;
+  preparationDays?: number;
 }
 
 interface DecorativeItem {
@@ -287,10 +290,11 @@ export default function ProductDetail() {
               imageUrls: data.imageUrl ? [data.imageUrl] : [],
               brand: data.brand || "XML Market",
               category: data.category || "XML Katalog",
-              rating: Number(data.rating) || 4.8,
-              reviewCount: Number(data.reviewCount) || 141,
+              rating: Number(data.rating) || 0,
+              reviewCount: Number(data.reviewCount) || 0,
               bulletPoints: [],
               variants: [],
+              categoryAttributes: data.categoryAttributes || {},
             });
           }
         } catch {
@@ -411,8 +415,8 @@ export default function ProductDetail() {
     return currentStock;
   }, [product, selectedVariants]);
 
-  const displayRating = useMemo(() => (product?.rating && product.rating > 0 ? product.rating : 4.8), [product]);
-  const displayReviewCount = useMemo(() => (product?.reviewCount && product.reviewCount > 0 ? product.reviewCount : 141), [product]);
+  const displayRating = useMemo(() => (product?.rating && product.rating > 0 ? product.rating : 0), [product]);
+  const displayReviewCount = useMemo(() => (product?.reviewCount && product.reviewCount > 0 ? product.reviewCount : 0), [product]);
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -521,14 +525,19 @@ export default function ProductDetail() {
               )}
               
               <div className="flex items-center gap-4 text-xs">
-                <div className="flex items-center gap-1 text-[#ff5000]">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} size={14} fill={i < Math.round(displayRating) ? "currentColor" : "none"} strokeWidth={i < Math.round(displayRating) ? 0 : 2} className="stroke-[#ff5000]" />
-                  ))}
-                  <span className="font-black text-slate-800 ml-1">{displayRating}</span>
-                </div>
-                <span className="text-slate-400 font-bold border-l pl-4">({displayReviewCount} değerlendirme)</span>
-                <span className="text-slate-400 font-bold border-l pl-4">5B+ Son günlerde satıldı</span>
+                {displayReviewCount > 0 ? (
+                  <>
+                    <div className="flex items-center gap-1 text-[#ff5000]">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star key={i} size={14} fill={i < Math.round(displayRating) ? "currentColor" : "none"} strokeWidth={i < Math.round(displayRating) ? 0 : 2} className="stroke-[#ff5000]" />
+                      ))}
+                      <span className="font-black text-slate-800 ml-1">{displayRating}</span>
+                    </div>
+                    <span className="text-slate-400 font-bold border-l pl-4">({displayReviewCount} değerlendirme)</span>
+                  </>
+                ) : (
+                  <span className="text-slate-400 font-bold">Henüz değerlendirilmemiş</span>
+                )}
               </div>
             </div>
 
@@ -731,7 +740,15 @@ export default function ProductDetail() {
         {/* Dynamic Detail Switcher & Sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 pt-8 border-t border-slate-200">
           <div className="lg:col-span-8 space-y-12">
-            <ProductTabs description={product.description} bulletPoints={product.bulletPoints || []} />
+            <ProductTabs
+              productName={product.name}
+              description={product.description}
+              bulletPoints={product.bulletPoints || []}
+              categoryAttributes={product.categoryAttributes || {}}
+              brand={product.brand}
+              condition={product.condition}
+              preparationDays={product.preparationDays}
+            />
             <ProductReviews rating={displayRating} reviewCount={displayReviewCount} productImageUrl={gallery[0] || product.imageUrl} />
             <ProductQuestions />
           </div>

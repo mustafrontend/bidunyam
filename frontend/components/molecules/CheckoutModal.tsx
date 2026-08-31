@@ -74,8 +74,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
   const [binLoading, setBinLoading] = useState(false);
 
   // 3DS
-  const [threeDSSessionId, setThreeDSSessionId] = useState('');
-  const [otp, setOtp] = useState('');
+  const [threeDSWaiting, setThreeDSWaiting] = useState(false);
+  const popupRef = React.useRef<Window | null>(null);
   const [paidInfo, setPaidInfo] = useState<any>(null);
 
   // Gerçek ödenecek tutar (ürün + kargo) fiyatlandırma motorundan; kargo dahil
@@ -105,7 +105,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
 
   const reset = () => {
     setStep('address'); setError(null); setCardNumber(''); setCardName(''); setExpiry('');
-    setCvc(''); setInstallments([]); setSelectedInstallment(1); setOtp(''); setThreeDSSessionId('');
+    setCvc(''); setInstallments([]); setSelectedInstallment(1); setThreeDSWaiting(false);
     setShowAddrForm(false); setAddrDraft(EMPTY_ADDR); setPaidInfo(null);
   };
   const close = () => { onClose(); setTimeout(reset, 300); };
@@ -146,7 +146,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     setAddrDraft(EMPTY_ADDR);
   };
 
-  // Ödemeyi başlat → 3DS
+  // Kartı iyzico 3D Secure ile doğrula → banka ekranı popup'ta → onay sonrası sipariş
   const startPayment = async () => {
     setError(null);
     const [em, ey] = expiry.split('/');
@@ -155,30 +155,97 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     if (!em || !ey) return setError('Son kullanma tarihini girin.');
     if (cvc.length < 3) return setError('CVC kodunu girin.');
 
+    // Popup'ı tıklama anında aç (tarayıcı engellemesin)
+    const popup = window.open('', 'iyzico3ds', 'width=460,height=680');
+    if (!popup) return setError('Açılır pencere engellendi. Lütfen bu site için pop-up izni verin.');
+    popup.document.write('<p style="font-family:sans-serif;text-align:center;margin-top:40px">Banka 3D Secure ekranı yükleniyor…</p>');
+    popupRef.current = popup;
+
+    const addr = getSelected();
     setLoading(true);
     try {
       const res = await apiClient.post('/orders/payment/init', {
         cardNumber: cleanCard, cardHolderName: cardName, expireMonth: em, expireYear: ey,
         cvc, installment: selectedInstallment, price: total,
-        buyer: { name: user?.name }, basketItems: items.map((i) => ({ id: i._id, name: i.name, price: i.price })),
+        buyer: {
+          name: user?.name, email: user?.email,
+          gsmNumber: addr?.phone, city: addr?.city,
+          address: addr ? `${addr.fullAddress}, ${addr.district}/${addr.city}` : undefined,
+        },
       }, authHeaders);
       const d = res.data?.data;
-      setThreeDSSessionId(d.threeDSSessionId);
-      setStep('otp');
+      if (d?.status === 'success' && d.threeDSHtmlContent) {
+        // Banka 3DS HTML'ini popup'a yaz (form otomatik submit olup bankaya gider)
+        const html = atob(d.threeDSHtmlContent);
+        popup.document.open();
+        popup.document.write(html);
+        popup.document.close();
+        setThreeDSWaiting(true);
+        setStep('otp'); // "banka onayı bekleniyor" ekranı
+        waitForThreeDS(d.conversationId, popup);
+      } else {
+        popup.close();
+        setError('3D Secure başlatılamadı. Lütfen tekrar deneyin.');
+      }
     } catch (err: any) {
+      popup.close();
       setError(err?.response?.data?.errorMessage || 'Ödeme başlatılamadı. Kart bilgilerini kontrol edin.');
     } finally {
       setLoading(false);
     }
   };
 
-  // 3DS OTP doğrula → ödeme onayı → sipariş oluştur
-  const complete3DS = async () => {
-    setError(null);
-    setLoading(true);
+  // Sonucu SUNUCUDAN periyodik sorarak yakala (postMessage'a güvenme; cross-origin
+  // dönüşte opener kopabiliyor). Callback ödemeyi tamamlayınca /3ds/result 200 döner.
+  const waitForThreeDS = (conversationId: string, popup: Window) => {
+    let done = false;
+    let closedAtTick = 0;
+    let ticks = 0;
+    const cleanup = () => { window.removeEventListener('message', onMsg); clearInterval(poll); };
+    const succeed = async (pay: any) => {
+      if (done) return; done = true; cleanup();
+      try { if (!popup.closed) popup.close(); } catch { /* yoksay */ }
+      setThreeDSWaiting(false);
+      await finalizeOrder(pay);
+    };
+    const fail = (msg: string) => {
+      if (done) return; done = true; cleanup();
+      try { if (!popup.closed) popup.close(); } catch { /* yoksay */ }
+      setThreeDSWaiting(false);
+      setStep('payment'); setError(msg);
+    };
+    // Sunucudan sonucu kontrol et: 200=başarılı, 400=kesin hata, 404=henüz yok
+    const check = async (): Promise<boolean> => {
+      try {
+        const r = await apiClient.get(`/orders/payment/3ds/result?conversationId=${encodeURIComponent(conversationId)}`, authHeaders);
+        if (r.data?.data?.status === 'success') { await succeed(r.data.data); return true; }
+      } catch (e: any) {
+        if (e?.response?.status === 400) { fail(e?.response?.data?.errorMessage || 'Ödeme tamamlanamadı.'); return true; }
+        // 404 → henüz sonuç yok, beklemeye devam et
+      }
+      return false;
+    };
+    const onMsg = (ev: MessageEvent) => {
+      const m = ev.data;
+      if (m && m.type === 'iyzico-3ds' && m.conversationId === conversationId) check();
+    };
+    window.addEventListener('message', onMsg);
+    const poll = setInterval(async () => {
+      ticks++;
+      if (done) return;
+      if (await check()) return;
+      // Popup kapandıysa sonucun yazılması için birkaç saniye daha bekle, sonra iptal say
+      if (popup.closed) {
+        if (!closedAtTick) closedAtTick = ticks;
+        else if (ticks - closedAtTick >= 3) fail('3D Secure penceresi kapatıldı veya doğrulama tamamlanmadı.');
+      }
+      if (ticks > 150) fail('Zaman aşımı. Lütfen tekrar deneyin.'); // ~5 dk
+    }, 2000);
+  };
+
+  // Ödeme onaylandıktan sonra siparişi oluştur
+  const finalizeOrder = async (pay: any) => {
     try {
-      const res = await apiClient.post('/orders/payment/3ds/complete', { threeDSSessionId, otp }, authHeaders);
-      const pay = res.data?.data;
       setPaidInfo(pay);
 
       const addr = getSelected();
@@ -211,9 +278,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
       clearCart();
       apiClient.delete('/cart', authHeaders).catch(() => {});
     } catch (err: any) {
-      setError(err?.response?.data?.errorMessage || 'Doğrulama başarısız. Kodu kontrol edin.');
-    } finally {
-      setLoading(false);
+      // Ödeme geçti ancak sipariş kaydı oluşturulamadı — kullanıcıyı bilgilendir
+      setError(err?.response?.data?.message || 'Ödeme alındı ancak sipariş oluşturulurken bir sorun oluştu. Lütfen destek ile iletişime geçin.');
     }
   };
 
@@ -391,22 +457,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                 </div>
               )}
 
-              {/* 3DS OTP */}
+              {/* 3DS — banka onayı bekleniyor */}
               {step === 'otp' && (
-                <div className="space-y-5 text-center">
+                <div className="space-y-5 py-6 text-center">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                    <ShieldCheck size={30} />
+                    <Loader2 size={30} className="animate-spin" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-slate-900">Bankanızdan gelen kodu girin</h3>
+                    <h3 className="text-lg font-black text-slate-900">Banka onayı bekleniyor…</h3>
                     <p className="mt-1 text-sm font-medium text-slate-500">
-                      {bankName || 'Bankanız'} tarafından telefonunuza gönderilen tek kullanımlık şifre.
+                      Açılan pencerede {bankName || 'bankanızın'} 3D Secure ekranında işleminizi tamamlayın.
+                      Onaydan sonra bu ekran otomatik ilerler.
                     </p>
-                    <p className="mt-1 text-xs font-bold text-slate-400">(Demo doğrulama kodu: 123456)</p>
                   </div>
-                  <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="______" maxLength={6}
-                    className="mx-auto w-48 rounded-xl border-2 border-slate-200 bg-slate-50 py-3 text-center text-2xl font-black tracking-[0.5em] outline-none focus:border-[#ff6000]" />
+                  <button
+                    onClick={() => { try { popupRef.current?.focus(); } catch { /* yoksay */ } }}
+                    className="mx-auto rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-black text-slate-600 hover:bg-slate-50"
+                  >
+                    Doğrulama penceresini göster
+                  </button>
                 </div>
               )}
 
@@ -435,22 +504,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
             </div>
 
             {/* Footer */}
-            {step !== 'success' && (
+            {step !== 'success' && step !== 'otp' && (
               <div className="flex gap-3 border-t border-slate-100 px-7 py-4">
                 {step === 'payment' && (
                   <button onClick={() => { setStep('address'); setError(null); }}
                     className="flex-1 rounded-2xl border border-slate-200 py-3.5 font-black text-slate-600 hover:bg-slate-50">Geri</button>
                 )}
-                {step === 'otp' && (
-                  <button onClick={() => { setStep('payment'); setError(null); setOtp(''); }}
-                    className="flex-1 rounded-2xl border border-slate-200 py-3.5 font-black text-slate-600 hover:bg-slate-50">Geri</button>
-                )}
                 <button
-                  disabled={loading || (step === 'address' && !selectedId) || (step === 'otp' && otp.length < 6)}
+                  disabled={loading || (step === 'address' && !selectedId)}
                   onClick={() => {
                     if (step === 'address') setStep('payment');
                     else if (step === 'payment') startPayment();
-                    else if (step === 'otp') complete3DS();
                   }}
                   className="flex flex-[2] items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 font-black text-white transition-all hover:bg-[#ff6000] disabled:opacity-50"
                 >
@@ -458,7 +522,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                     <>
                       {step === 'address' && 'Ödemeye Geç'}
                       {step === 'payment' && `${TL(payableTotal)} Öde`}
-                      {step === 'otp' && 'Doğrula ve Öde'}
                       <ArrowRight size={18} />
                     </>
                   )}

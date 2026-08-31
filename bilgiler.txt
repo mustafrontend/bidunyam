@@ -1,0 +1,4 @@
+iban: TR020086401100002873594723
+tckn: 12737228596
+email: info@bidunyam.com
+gsm: +905461548709

@@ -170,6 +170,12 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       # Komisyon/kargo tarifesi product-service'te tutulur; sipariş anında oradan okunur
       - PRODUCT_SERVICE_URL=http://product-service:3002
+      # İyzico ödeme (kök .env'den okunur)
+      - IYZICO_API_KEY=${IYZICO_API_KEY}
+      - IYZICO_SECRET_KEY=${IYZICO_SECRET_KEY}
+      - IYZICO_BASE_URL=${IYZICO_BASE_URL}
+      - IYZICO_CALLBACK_BASE_URL=${IYZICO_CALLBACK_BASE_URL}
+      - IYZICO_SUBMERCHANT_KEY=${IYZICO_SUBMERCHANT_KEY}
     depends_on:
       mongo:
         condition: service_healthy

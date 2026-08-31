@@ -16,6 +16,8 @@ const PORT = process.env.PORT || 3005;
 
 app.use(cors());
 app.use(express.json());
+// Banka 3DS callback'i application/x-www-form-urlencoded POST eder
+app.use(express.urlencoded({ extended: true }));
 
 // Auth Middleware
 const authenticate = (req: any, res: any, next: any) => {
@@ -52,10 +54,13 @@ app.get('/my-orders', authenticate, OrderController.list);
 app.get('/', authenticate, requireSellerOrAdmin, OrderController.getAdminOrders);
 app.get('/admin/all', authenticate, requireAdmin, OrderController.getAdminOrders);
 
-// İyzico ödeme simülasyonu (mockup)
+// İyzico ödeme (gerçek — 3D Secure)
 app.post('/payment/installments', authenticate, PaymentController.installments);
 app.post('/payment/init', authenticate, PaymentController.init);
-app.post('/payment/3ds/complete', authenticate, PaymentController.complete3DS);
+// Banka 3DS ekranının döndüğü public callback (JWT yok — banka tarayıcıdan POST eder)
+app.post('/payment/3ds/callback', PaymentController.callback3DS);
+// Opener'ın yetkili sonucu çektiği uç
+app.get('/payment/3ds/result', authenticate, PaymentController.result3DS);
 
 // İade süreci
 app.post('/returns', authenticate, ReturnController.create);

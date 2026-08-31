@@ -1,0 +1,18 @@
+{
+  "_README": "BIREYSEL (PERSONAL) alt üye işyeri. SEN sadece şu 4 alanı doldur: iban, identityNumber (TCKN), email, gsmNumber. İşlem bitince bu dosyayı SİL (IBAN/TCKN içerir).",
+
+  "subMerchantType": "PERSONAL",
+  "subMerchantExternalId": "BIDUNYAM-SELLER-001",
+
+  "name": "Ali Kaleli",
+  "contactName": "Ali",
+  "contactSurname": "Kaleli",
+  "address": "Yeşilköy Mah. Atatürk Cad. Egs Business Park B2 Blok, Bakırköy, İstanbul / Türkiye",
+  "currency": "TRY",
+
+  "_SEN_DOLDUR": "Aşağıdaki 4 alanı kendin gir:",
+  "iban": "",
+  "identityNumber": "",
+  "email": "",
+  "gsmNumber": ""
+}
